@@ -279,10 +279,32 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
     if not db_asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
     
-    # Sobrescribir los valores con los nuevos datos del formulario
+    # 1. Guardamos una copia de los datos clave antes de que se sobrescriban (para la nota de auditoría)
+    tag_anterior = db_asset.asset_tag_id
+    desc_anterior = db_asset.asset_description
+    
+    # 2. Sobrescribir los valores con los nuevos datos del formulario
     for key, value in asset_update.model_dump().items():
         setattr(db_asset, key, value)
         
+    # 3. Buscar dinámicamente al administrador operativo para no romper llaves foráneas
+    primer_admin = db.query(models.Admin).first()
+    admin_id_registro = primer_admin.id if primer_admin else None
+
+    # 4. Creamos de forma automática la fila de auditoría para este cambio
+    nota_auditoria = f"Propiedades del activo editadas. (Tag anterior: {tag_anterior} | Desc anterior: {desc_anterior})"
+    
+    registro_historial = models.History(
+        asset_id=db_asset.id,
+        asignado_a_id=db_asset.person_id, # Sigue bajo la custodia de la misma persona
+        realizado_por_id=admin_id_registro,
+        tipo_accion="Modified",
+        estado_anterior=db_asset.status,
+        estado_nuevo=db_asset.status,
+        notas_detalle=nota_auditoria
+    )
+    
+    db.add(registro_historial)
     db.commit()
     db.refresh(db_asset)
     return db_asset

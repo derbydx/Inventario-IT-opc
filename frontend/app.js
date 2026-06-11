@@ -293,11 +293,17 @@ function openEditAssetModal(assetId) {
 }
 function closeEditAssetModal() { document.getElementById("editAssetModal").classList.add("hidden"); }
 
+// Busca esta función dentro de tu app.js y déjala configurada así:
 function setupEditAssetFormListener() {
-    document.getElementById("editAssetForm").addEventListener("submit", async (e) => {
+    const form = document.getElementById("editAssetForm");
+    if (!form) return;
+
+    form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const assetId = document.getElementById("edit_asset_id").value;
         const currentAssetData = currentAssets.find(a => a.id === parseInt(assetId));
+
+        // Recolectamos todos los campos requeridos por el backend
         const updatedData = {
             asset_tag_id: document.getElementById("edit_asset_tag_id").value,
             asset_description: document.getElementById("edit_asset_description").value,
@@ -309,10 +315,29 @@ function setupEditAssetFormListener() {
             location_id: parseInt(document.getElementById("edit_asset_location_id").value),
             status: currentAssetData ? currentAssetData.status : "Check in"
         };
+
         try {
-            const response = await fetch(`${API_URL}/assets/${assetId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updatedData) });
-            if (response.ok) { alert("¡Modificado con éxito! ✏️🎉"); closeEditAssetModal(); closeDetailsModal(); loadAssets(); }
-        } catch (e) { alert("Error."); }
+            const response = await fetch(`${API_URL}/assets/${assetId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedData)
+            });
+
+            if (response.ok) {
+                alert("¡Modificado con éxito! ✏️🎉");
+                closeEditAssetModal();
+                closeDetailsModal();
+                loadAssets();   // Refresca la tabla principal
+                loadHistory();  // Refresca la bitácora de auditoría abajo
+            } else {
+                const errData = await response.json();
+                // Si el backend rechaza la petición, nos dirá exactamente por qué
+                alert(`⚠️ Error del servidor: ${errData.detail || "No se pudo actualizar"}`);
+            }
+        } catch (error) {
+            console.error("Error en la petición PUT:", error);
+            alert("Error de conexión al intentar guardar los cambios.");
+        }
     });
 }
 

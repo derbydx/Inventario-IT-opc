@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCatalogFormsListeners();
     setupPersonFormListener();
     setupEditAssetFormListener();
+    setupImportFormListener();
 });
 
 async function loadDropdownData() {
@@ -612,3 +613,62 @@ function closeLocationModal() { document.getElementById("locationModal").classLi
 
 function openDepartmentModal() { document.getElementById("departmentModal").classList.remove("hidden"); }
 function closeDepartmentModal() { document.getElementById("departmentModal").classList.add("hidden"); document.getElementById("form_add_department").reset(); }
+
+function showDashboard() {
+    document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function openImportModal() { document.getElementById("importModal").classList.remove("hidden"); document.getElementById("importResult").classList.add("hidden"); document.getElementById("importForm").reset(); }
+function closeImportModal() { document.getElementById("importModal").classList.add("hidden"); document.getElementById("importResult").classList.add("hidden"); }
+
+async function exportEntity(entity) {
+    if (!getToken()) { alert("Debe iniciar sesion"); return; }
+    const url = `/export/${entity}/`;
+    try {
+        const res = await api(url);
+        if (!res.ok) { const e = await res.json().catch(()=>({})); alert("Error al exportar: " + (e.detail||"Error")); return; }
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        const names = { assets:"activos", persons:"empleados", categories:"categorias", sites:"sitios", locations:"ubicaciones" };
+        a.download = names[entity]||entity+".xlsx";
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch(e) { alert("Error de conexion al exportar"); }
+}
+
+function setupImportFormListener() {
+    document.getElementById("importForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const entity = document.getElementById("importEntity").value;
+        const fileInput = document.getElementById("importFile");
+        const resultDiv = document.getElementById("importResult");
+        if (!entity) { alert("Seleccione el tipo de datos a importar"); return; }
+        if (!fileInput.files.length) { alert("Seleccione un archivo Excel"); return; }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        try {
+            const res = await api(`/import/${entity}/`, { method: "POST", body: formData });
+            if (res.ok) {
+                const data = await res.json();
+                resultDiv.className = "mt-3 p-3 rounded text-xs font-bold bg-green-100 text-green-800";
+                resultDiv.textContent = data.importados + " registros importados correctamente.";
+                resultDiv.classList.remove("hidden");
+                fileInput.value = "";
+                loadDropdownData();
+                loadAssets();
+            } else {
+                const err = await res.json().catch(()=>({detail:"Error desconocido"}));
+                resultDiv.className = "mt-3 p-3 rounded text-xs font-bold bg-red-100 text-red-800";
+                resultDiv.textContent = "Error: " + (err.detail || "No se pudo importar");
+                resultDiv.classList.remove("hidden");
+            }
+        } catch(e) {
+            resultDiv.className = "mt-3 p-3 rounded text-xs font-bold bg-red-100 text-red-800";
+            resultDiv.textContent = "Error de conexion: " + e.message;
+            resultDiv.classList.remove("hidden");
+        }
+    });
+}

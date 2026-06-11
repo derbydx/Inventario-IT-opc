@@ -49,9 +49,6 @@
                 <button onclick="openPersonModal()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
                     👤 Crear Empleado
                 </button>
-                <button onclick="openCategoryModal()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
-                    📁 Crear Categoría
-                </button>
                 <button onclick="openSiteModal()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
                     📍 Crear Sitio
                 </button>
@@ -147,11 +144,8 @@
                 </div>
                 <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
                     <div>
-                        <div class="flex justify-between items-center">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Categoría *</label>
-                            <button type="button" onclick="openCategoryModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nueva</button>
-                        </div>
-                        <select id="asset_category_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Categoría *</label>
+                        <select id="asset_category" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
                         <div class="flex justify-between items-center">
@@ -296,7 +290,7 @@
                 </div>
                 <div>
                     <span class="block text-[10px] font-bold text-gray-400 uppercase">Categoría</span>
-                    <p id="det_category_name" class="text-gray-700 font-medium">-</p>
+                    <p id="det_category" class="text-gray-700 font-medium">-</p>
                 </div>
                 <div>
                     <span class="block text-[10px] font-bold text-gray-400 uppercase">Ubicación Física</span>
@@ -377,7 +371,7 @@
                 <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
                     <div>
                         <label class="block text-[10px] font-bold text-gray-500 uppercase">Categoría *</label>
-                        <select id="edit_asset_category_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                        <select id="edit_asset_category" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-gray-500 uppercase">Sitio / Edificio *</label>
@@ -471,7 +465,6 @@
         </div>
     </div>
 
-    <div id="categoryModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">📁 Nueva Categoría</h4><form id="form_add_category" class="space-y-3"><input type="text" id="cat_name_input" required placeholder="Ej: Laptops" class="w-full p-2 border rounded text-sm bg-white"><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeCategoryModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>
     <div id="siteModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">📍 Nuevo Sitio</h4><form id="form_add_site" class="space-y-3"><input type="text" id="site_name_input" required placeholder="Nombre Sitio" class="w-full p-2 border rounded text-sm bg-white"><div class="grid grid-cols-2 gap-2"><input type="text" id="site_city_input" placeholder="Ciudad" class="p-2 border rounded text-xs bg-white"><input type="text" id="site_country_input" placeholder="País" class="p-2 border rounded text-xs bg-white"></div><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeSiteModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>
     <div id="locationModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">🔒 Nueva Ubicación</h4><form id="form_add_location" class="space-y-3"><select id="loc_site_select" required class="w-full p-2 border rounded bg-white text-xs"></select><input type="text" id="loc_name_input" required placeholder="Nombre Ubicación" class="w-full p-2 border rounded text-sm bg-white"><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeLocationModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>
     <div id="departmentModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">🏢 Nuevo Departamento</h4><form id="form_add_department" class="space-y-3"><input type="text" id="dept_name_input" required placeholder="Ej: Soporte" class="w-full p-2 border rounded text-sm bg-white"><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeDepartmentModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>

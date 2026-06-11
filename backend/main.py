@@ -124,6 +124,15 @@ def create_site(site: schemas.SiteBase, db: Session = Depends(get_db), admin: mo
 def list_sites(db: Session = Depends(get_db)):
     return db.query(models.Site).all()
 
+@app.put("/sites/{site_id}", response_model=schemas.SiteResponse, tags=["Sitios y Ubicaciones"])
+def update_site(site_id: int, site: schemas.SiteBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+    db_site = db.query(models.Site).filter(models.Site.id == site_id).first()
+    if not db_site: raise HTTPException(404, "Sitio no encontrado")
+    for k, v in site.model_dump().items():
+        setattr(db_site, k, v)
+    db.commit(); db.refresh(db_site)
+    return db_site
+
 # ==========================================
 # 2. ENDPOINTS: UBICACIONES (LOCATIONS)
 # ==========================================
@@ -141,6 +150,15 @@ def create_location(location: schemas.LocationBase, db: Session = Depends(get_db
 @app.get("/locations/", response_model=List[schemas.LocationResponse], tags=["Sitios y Ubicaciones"])
 def list_locations(db: Session = Depends(get_db)):
     return db.query(models.Location).all()
+
+@app.put("/locations/{loc_id}", response_model=schemas.LocationResponse, tags=["Sitios y Ubicaciones"])
+def update_location(loc_id: int, loc: schemas.LocationBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+    db_loc = db.query(models.Location).filter(models.Location.id == loc_id).first()
+    if not db_loc: raise HTTPException(404, "Ubicacion no encontrada")
+    for k, v in loc.model_dump().items():
+        setattr(db_loc, k, v)
+    db.commit(); db.refresh(db_loc)
+    return db_loc
 
 # ==========================================
 # 3. ENDPOINTS: DEPARTAMENTOS
@@ -160,23 +178,22 @@ def create_department(dept: schemas.DepartmentBase, db: Session = Depends(get_db
 def list_departments(db: Session = Depends(get_db)):
     return db.query(models.Department).all()
 
-# ==========================================
-# 4. ENDPOINTS: CATEGORÍAS
-# ==========================================
-@app.post("/categories/", response_model=schemas.CategoryResponse, status_code=status.HTTP_201_CREATED, tags=["Catálogos"])
-def create_category(category: schemas.CategoryBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
-    db_category = db.query(models.Category).filter(models.Category.category_name == category.category_name).first()
-    if db_category:
-        raise HTTPException(status_code=400, detail="La categoría ya existe")
-    nueva_categoria = models.Category(category_name=category.category_name)
-    db.add(nueva_categoria)
-    db.commit()
-    db.refresh(nueva_categoria)
-    return nueva_categoria
+@app.put("/departments/{dept_id}", response_model=schemas.DepartmentResponse, tags=["Catálogos"])
+def update_department(dept_id: int, dept: schemas.DepartmentBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+    db_dept = db.query(models.Department).filter(models.Department.id == dept_id).first()
+    if not db_dept: raise HTTPException(404, "Departamento no encontrado")
+    for k, v in dept.model_dump().items():
+        setattr(db_dept, k, v)
+    db.commit(); db.refresh(db_dept)
+    return db_dept
 
-@app.get("/categories/", response_model=List[schemas.CategoryResponse], tags=["Catálogos"])
-def list_categories(db: Session = Depends(get_db)):
-    return db.query(models.Category).all()
+# ==========================================
+# 4. ENDPOINTS: CATEGORÍAS (desde distinct de assets)
+# ==========================================
+@app.get("/categories/distinct/", tags=["Catálogos"])
+def list_categories_distinct(db: Session = Depends(get_db)):
+    results = db.query(models.Asset.category).distinct(models.Asset.category).order_by(models.Asset.category).all()
+    return [r[0] for r in results if r[0]]
 
 # ==========================================
 # 5. ENDPOINTS: ADMINISTRADORES (ADMINS)
@@ -221,6 +238,21 @@ def create_person(person: schemas.PersonCreate, db: Session = Depends(get_db), a
 def list_persons(db: Session = Depends(get_db)):
     return db.query(models.Person).all()
 
+@app.put("/persons/{person_id}", response_model=schemas.PersonResponse, tags=["Directorio de Personal"])
+def update_person(person_id: int, person: schemas.PersonUpdate, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+    db_person = db.query(models.Person).filter(models.Person.id == person_id).first()
+    if not db_person: raise HTTPException(404, "Empleado no encontrado")
+    if person.email:
+        existing = db.query(models.Person).filter(models.Person.email == person.email, models.Person.id != person_id).first()
+        if existing: raise HTTPException(400, "El email ya esta en uso por otro empleado")
+    if person.employee_id:
+        existing = db.query(models.Person).filter(models.Person.employee_id == person.employee_id, models.Person.id != person_id).first()
+        if existing: raise HTTPException(400, "El Employee ID ya esta en uso por otro empleado")
+    for k, v in person.model_dump(exclude_unset=True).items():
+        setattr(db_person, k, v)
+    db.commit(); db.refresh(db_person)
+    return db_person
+
 # ==========================================
 # 7. ENDPOINTS: ACTIVOS (ASSETS)
 # ==========================================
@@ -240,7 +272,7 @@ def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), admi
 def list_assets(
     search: str = None,
     status: str = None,
-    category_id: int = None,
+    category: str = None,
     site_id: int = None,
     skip: int = 0,
     limit: int = 100,
@@ -254,12 +286,13 @@ def list_assets(
             models.Asset.asset_description.like(like) |
             models.Asset.brand.like(like) |
             models.Asset.model.like(like) |
-            models.Asset.serial_no.like(like)
+            models.Asset.serial_no.like(like) |
+            models.Asset.category.like(like)
         )
     if status:
         query = query.filter(models.Asset.status == status)
-    if category_id:
-        query = query.filter(models.Asset.category_id == category_id)
+    if category:
+        query = query.filter(models.Asset.category == category)
     if site_id:
         query = query.filter(models.Asset.site_id == site_id)
     return query.offset(skip).limit(limit).all()
@@ -349,7 +382,7 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
         "brand": "Marca",
         "model": "Modelo",
         "serial_no": "Número de Serie",
-        "category_id": "ID de Categoría",
+        "category": "Categoria",
         "site_id": "ID de Sitio",
         "location_id": "ID de Ubicación",
         "notas_adicionales": "Notas",
@@ -437,8 +470,11 @@ def _make_excel(headers, rows):
 @app.get("/export/assets/", tags=["Import/Export"])
 def export_assets(db: Session = Depends(get_db)):
     q = db.query(models.Asset).all()
-    rows = [(a.asset_tag_id, a.asset_description, a.brand, a.model, a.serial_no, a.status) for a in q]
-    buf = _make_excel(["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Status"], rows)
+    rows = []
+    for a in q:
+        p = db.query(models.Person).filter(models.Person.id == a.person_id).first() if a.person_id else None
+        rows.append((a.asset_tag_id, a.asset_description, a.brand, a.model, a.serial_no, a.category or "", p.email if p else "", a.status))
+    buf = _make_excel(["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "AsignadoA", "Status"], rows)
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=activos.xlsx"})
 
 @app.get("/export/persons/", tags=["Import/Export"])
@@ -452,13 +488,6 @@ def export_persons(db: Session = Depends(get_db)):
         rows.append((p.full_name, p.email, p.employee_id, p.title or "", p.phone or "", dept.department_name if dept else "", site.site_name if site else "", loc.location_name if loc else ""))
     buf = _make_excel(["Nombre", "Email", "EmployeeID", "Titulo", "Telefono", "Departamento", "Sitio", "Ubicacion"], rows)
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=empleados.xlsx"})
-
-@app.get("/export/categories/", tags=["Import/Export"])
-def export_categories(db: Session = Depends(get_db)):
-    q = db.query(models.Category).all()
-    rows = [(c.category_name,) for c in q]
-    buf = _make_excel(["Nombre"], rows)
-    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=categorias.xlsx"})
 
 @app.get("/export/sites/", tags=["Import/Export"])
 def export_sites(db: Session = Depends(get_db)):
@@ -479,13 +508,10 @@ def export_locations(db: Session = Depends(get_db)):
 
 # ---------- PLANTILLAS ----------
 @app.get("/export/assets/template/", tags=["Import/Export"])
-def template_assets(): return StreamingResponse(_make_excel(["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio", "Ubicacion"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_activos.xlsx"})
+def template_assets(): return StreamingResponse(_make_excel(["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio", "Ubicacion", "AsignadoA"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_activos.xlsx"})
 
 @app.get("/export/persons/template/", tags=["Import/Export"])
 def template_persons(): return StreamingResponse(_make_excel(["Nombre", "Email", "EmployeeID", "Titulo", "Telefono", "Departamento", "Sitio", "Ubicacion"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_empleados.xlsx"})
-
-@app.get("/export/categories/template/", tags=["Import/Export"])
-def template_categories(): return StreamingResponse(_make_excel(["Nombre"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_categorias.xlsx"})
 
 @app.get("/export/sites/template/", tags=["Import/Export"])
 def template_sites(): return StreamingResponse(_make_excel(["Sitio", "Ciudad", "Pais"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_sitios.xlsx"})
@@ -494,30 +520,6 @@ def template_sites(): return StreamingResponse(_make_excel(["Sitio", "Ciudad", "
 def template_locations(): return StreamingResponse(_make_excel(["Ubicacion", "Sitio"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_ubicaciones.xlsx"})
 
 # ---------- IMPORTAR ----------
-@app.post("/import/categories/", tags=["Import/Export"])
-def import_categories(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
-    wb = openpyxl.load_workbook(file.file)
-    ws = wb.active
-    headers = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
-    if "Nombre" not in headers:
-        raise HTTPException(400, "La plantilla debe tener columna 'Nombre'")
-    idx = headers.index("Nombre")
-    ok, errors = 0, []
-    for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-        name = (row[idx] or "").strip()
-        if not name:
-            errors.append(f"Fila {i}: Nombre vacio")
-            break
-        if db.query(models.Category).filter(models.Category.category_name == name).first():
-            errors.append(f"Fila {i}: La categoria '{name}' ya existe")
-            break
-        db.add(models.Category(category_name=name))
-        ok += 1
-    db.commit()
-    if errors:
-        raise HTTPException(400, errors[0])
-    return {"importados": ok}
-
 @app.post("/import/sites/", tags=["Import/Export"])
 def import_sites(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
     wb = openpyxl.load_workbook(file.file)
@@ -582,16 +584,25 @@ def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), 
         if db.query(models.Person).filter(models.Person.employee_id == eid).first(): raise HTTPException(400, f"Fila {ok+2}: EmployeeID '{eid}' ya existe")
         dept_id, site_id, loc_id = None, None, None
         if i_dept is not None and (row[i_dept] or "").strip():
-            d = db.query(models.Department).filter(models.Department.department_name == (row[i_dept] or "").strip()).first()
-            if not d: raise HTTPException(400, f"Fila {ok+2}: Departamento '{row[i_dept]}' no existe")
+            dept_name = (row[i_dept] or "").strip()
+            d = db.query(models.Department).filter(models.Department.department_name == dept_name).first()
+            if not d:
+                d = models.Department(department_name=dept_name)
+                db.add(d); db.flush()
             dept_id = d.id
         if i_sit is not None and (row[i_sit] or "").strip():
-            s = db.query(models.Site).filter(models.Site.site_name == (row[i_sit] or "").strip()).first()
-            if not s: raise HTTPException(400, f"Fila {ok+2}: Sitio '{row[i_sit]}' no existe")
+            sit_name = (row[i_sit] or "").strip()
+            s = db.query(models.Site).filter(models.Site.site_name == sit_name).first()
+            if not s:
+                s = models.Site(site_name=sit_name)
+                db.add(s); db.flush()
             site_id = s.id
         if i_loc is not None and (row[i_loc] or "").strip():
-            l = db.query(models.Location).filter(models.Location.location_name == (row[i_loc] or "").strip()).first()
-            if not l: raise HTTPException(400, f"Fila {ok+2}: Ubicacion '{row[i_loc]}' no existe")
+            loc_name = (row[i_loc] or "").strip()
+            l = db.query(models.Location).filter(models.Location.location_name == loc_name).first()
+            if not l:
+                l = models.Location(location_name=loc_name)
+                db.add(l); db.flush()
             loc_id = l.id
         if dept_id is None: raise HTTPException(400, f"Fila {ok+2}: Departamento requerido")
         if site_id is None: raise HTTPException(400, f"Fila {ok+2}: Sitio requerido")
@@ -609,6 +620,7 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
     for col in ["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio", "Ubicacion"]:
         if col not in h: raise HTTPException(400, f"Falta columna '{col}'")
     i_tag, i_desc, i_brand, i_model, i_ser, i_cat, i_sit, i_loc = (h.index(c) for c in ["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio", "Ubicacion"])
+    i_asignado = h.index("AsignadoA") if "AsignadoA" in h else None
     ok = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
         if all(c is None for c in row): continue
@@ -629,13 +641,34 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
         if not sit_name: raise HTTPException(400, f"Fila {ok+2}: Sitio vacio")
         if not loc_name: raise HTTPException(400, f"Fila {ok+2}: Ubicacion vacia")
         if db.query(models.Asset).filter(models.Asset.asset_tag_id == tag).first(): raise HTTPException(400, f"Fila {ok+2}: AssetTag '{tag}' ya existe")
-        cat = db.query(models.Category).filter(models.Category.category_name == cat_name).first()
-        if not cat: raise HTTPException(400, f"Fila {ok+2}: Categoria '{cat_name}' no existe")
         site = db.query(models.Site).filter(models.Site.site_name == sit_name).first()
         if not site: raise HTTPException(400, f"Fila {ok+2}: Sitio '{sit_name}' no existe")
         loc = db.query(models.Location).filter(models.Location.location_name == loc_name).first()
         if not loc: raise HTTPException(400, f"Fila {ok+2}: Ubicacion '{loc_name}' no existe")
-        db.add(models.Asset(asset_tag_id=tag, asset_description=desc, brand=brand, model=model, serial_no=ser, category_id=cat.id, site_id=site.id, location_id=loc.id, status="Check in"))
+
+        person_id = None
+        status = "Check in"
+        notas_historial = None
+        if i_asignado is not None:
+            asignado = (row[i_asignado] or "").strip()
+            if asignado:
+                person = db.query(models.Person).filter(models.Person.email == asignado).first()
+                if not person:
+                    raise HTTPException(400, f"Fila {ok+2}: Empleado con email '{asignado}' no encontrado")
+                person_id = person.id
+                status = "Checkout"
+                notas_historial = f"Importado con asignacion a {person.full_name}"
+
+        asset = models.Asset(asset_tag_id=tag, asset_description=desc, brand=brand, model=model, serial_no=ser, category=cat_name, site_id=site.id, location_id=loc.id, person_id=person_id, status=status)
+        db.add(asset)
+        db.flush()
+
+        if notas_historial:
+            db.add(models.History(
+                asset_id=asset.id, asignado_a_id=person_id, realizado_por_id=admin.id,
+                tipo_accion="Checkout", estado_anterior="Check in", estado_nuevo="Checkout",
+                notas_detalle=notas_historial
+            ))
         ok += 1
     db.commit()
     return {"importados": ok}

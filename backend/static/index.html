@@ -35,152 +35,265 @@
     <!-- SIDEBAR LAYOUT -->
     <div id="appLayout" class="flex h-screen overflow-hidden">
 
-        <!-- SIDEBAR -->
-        <aside id="sidebar" class="w-56 bg-blue-900 text-white flex flex-col shrink-0">
-            <div class="p-4 border-b border-blue-800">
-                <h1 class="text-base font-bold tracking-wide">IT Asset Manager</h1>
-            </div>
-            <nav class="flex-1 overflow-y-auto text-sm py-2 space-y-1">
-
-                <!-- Dashboard -->
-                <button onclick="showDashboard()" class="w-full text-left px-4 py-2 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                    <span>Dashboard</span>
-                </button>
-
-                <div class="border-t border-blue-800 mx-3 my-1"></div>
-
-                <!-- Activos -->
-                <div class="px-4 py-1 text-xs text-blue-300 font-bold uppercase">Activos</div>
-                <button onclick="openAssetModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                    <span>+ Nuevo Activo</span>
-                </button>
-
-                <div class="border-t border-blue-800 mx-3 my-1"></div>
-
-                <!-- Empleados -->
-                <div class="px-4 py-1 text-xs text-blue-300 font-bold uppercase">Empleados</div>
-                <button onclick="openPersonModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                    <span>+ Nuevo Empleado</span>
-                </button>
-
-                <div class="border-t border-blue-800 mx-3 my-1"></div>
-
-                <!-- Catalogos -->
-                <div class="px-4 py-1 text-xs text-blue-300 font-bold uppercase">Catalogos</div>
-                <button onclick="openCategoryModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">+ Categoria</button>
-                <button onclick="openSiteModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">+ Sitio</button>
-                <button onclick="openLocationModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">+ Ubicacion</button>
-                <button onclick="openDepartmentModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">+ Departamento</button>
-
-                <div class="border-t border-blue-800 mx-3 my-1"></div>
-
-                <!-- Ajustes: Importar / Exportar -->
-                <div class="px-4 py-1 text-xs text-blue-300 font-bold uppercase">Ajustes</div>
-
-                <button onclick="openImportModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                    <span>Importar Excel</span>
-                </button>
-
-                <div class="ml-4 text-xs">
-                    <div class="px-2 py-1 text-blue-400">Exportar:</div>
-                    <button onclick="exportEntity('assets')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Activos</button>
-                    <button onclick="exportEntity('persons')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Empleados</button>
-                    <button onclick="exportEntity('categories')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Categorias</button>
-                    <button onclick="exportEntity('sites')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Sitios</button>
-                    <button onclick="exportEntity('locations')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Ubicaciones</button>
+            <!-- SIDEBAR -->
+            <aside id="sidebar" class="w-56 bg-blue-900 text-white flex flex-col shrink-0">
+                <div class="p-4 border-b border-blue-800">
+                    <h1 class="text-base font-bold tracking-wide">IT Asset Manager</h1>
                 </div>
+                <nav class="flex-1 overflow-y-auto text-sm py-2 space-y-1">
 
-                <div class="border-t border-blue-800 mx-3 my-1"></div>
+                    <!-- Dashboard -->
+                    <button onclick="showSection('dashboard')" class="w-full text-left px-4 py-2 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
+                        <span>Dashboard</span>
+                    </button>
 
-                <!-- Auditoria y Papelera -->
-                <button onclick="document.getElementById('historySection').scrollIntoView({behavior:'smooth'})" class="w-full text-left px-4 py-2 hover:bg-blue-800 cursor-pointer">
-                    Historial Auditoria
-                </button>
-                <button onclick="openDeletedAssetsModal()" class="w-full text-left px-4 py-2 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                    <span>Papelera</span>
-                </button>
+                    <div class="border-t border-blue-800 mx-3 my-1"></div>
 
-            </nav>
-            <div class="p-4 border-t border-blue-800">
-                <button onclick="logout()" class="w-full text-xs bg-blue-800 hover:bg-blue-700 border border-blue-600 px-3 py-1.5 rounded font-bold transition-colors cursor-pointer">
-                    Cerrar Sesion
-                </button>
-            </div>
-        </aside>
+                    <!-- Activos -->
+                    <div class="px-4 py-1 text-xs text-blue-300 font-bold uppercase">Activos</div>
+                    <button onclick="showSection('assets')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
+                        <span>Listado Activos</span>
+                    </button>
+                    <button onclick="openAssetModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
+                        <span>+ Nuevo Activo</span>
+                    </button>
 
-        <!-- MAIN CONTENT -->
-        <main id="mainContent" class="flex-1 overflow-y-auto p-6 space-y-6">
+                    <div class="border-t border-blue-800 mx-3 my-1"></div>
 
-            <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold text-gray-800">Inventario Global de Activos</h2>
-                    <span id="assetCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Equipos</span>
+                    <!-- Empleados -->
+                    <div class="px-4 py-1 text-xs text-blue-300 font-bold uppercase">Empleados</div>
+                    <button onclick="showSection('employees')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
+                        <span>Listado Empleados</span>
+                    </button>
+                    <button onclick="openPersonModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
+                        <span>+ Nuevo Empleado</span>
+                    </button>
+
+                    <div class="border-t border-blue-800 mx-3 my-1"></div>
+
+                    <!-- Catalogos -->
+                    <button onclick="toggleCollapse('catalogSubmenu')" class="w-full text-left px-4 py-1 text-xs text-blue-300 font-bold uppercase hover:text-blue-200 cursor-pointer">
+                        <span id="catalogArrow">&#9660;</span> Catalogos
+                    </button>
+                    <div id="catalogSubmenu">
+                        <button onclick="showSection('catalogs')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">Listado Catalogos</button>
+                        <button onclick="openSiteModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">+ Sitio</button>
+                        <button onclick="openLocationModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">+ Ubicacion</button>
+                        <button onclick="openDepartmentModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">+ Departamento</button>
+                    </div>
+
+                    <div class="border-t border-blue-800 mx-3 my-1"></div>
+
+                    <!-- Ajustes: Importar / Exportar -->
+                    <div class="px-4 py-1 text-xs text-blue-300 font-bold uppercase">Ajustes</div>
+                    <button onclick="openImportModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
+                        <span>Importar Excel</span>
+                    </button>
+                    <div class="ml-4 text-xs">
+                        <div class="px-2 py-1 text-blue-400">Exportar:</div>
+                        <button onclick="exportEntity('assets')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Activos</button>
+                        <button onclick="exportEntity('persons')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Empleados</button>
+                        <button onclick="exportEntity('sites')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Sitios</button>
+                        <button onclick="exportEntity('locations')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Ubicaciones</button>
+                    </div>
+
+                    <div class="border-t border-blue-800 mx-3 my-1"></div>
+
+                    <!-- Auditoria y Papelera -->
+                    <button onclick="showSection('history')" class="w-full text-left px-4 py-2 hover:bg-blue-800 cursor-pointer">
+                        Historial Auditoria
+                    </button>
+                    <button onclick="openDeletedAssetsModal()" class="w-full text-left px-4 py-2 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
+                        <span>Papelera</span>
+                    </button>
+
+                </nav>
+                <div class="p-4 border-t border-blue-800">
+                    <button onclick="logout()" class="w-full text-xs bg-blue-800 hover:bg-blue-700 border border-blue-600 px-3 py-1.5 rounded font-bold transition-colors cursor-pointer">
+                        Cerrar Sesion
+                    </button>
                 </div>
+            </aside>
 
-                <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <input type="text" id="searchInput" placeholder="Buscar por tag, descripcion, marca, modelo o serie..." oninput="loadAssets()" class="flex-1 min-w-[200px] p-2 border border-gray-300 rounded text-xs bg-white">
-                    <select id="filterStatus" onchange="loadAssets()" class="p-2 border border-gray-300 rounded text-xs bg-white">
-                        <option value="">Todos los estados</option>
-                        <option value="Check in">Check in</option>
-                        <option value="Checkout">Checkout</option>
-                        <option value="Broken">Broken</option>
-                        <option value="Under repair">Under repair</option>
-                        <option value="Reserved">Reserved</option>
-                        <option value="Lost/Missing">Lost/Missing</option>
-                    </select>
-                    <select id="filterCategory" onchange="loadAssets()" class="p-2 border border-gray-300 rounded text-xs bg-white">
-                        <option value="">Todas las categorias</option>
-                    </select>
-                </div>
+            <!-- MAIN CONTENT -->
+            <main id="mainContent" class="flex-1 overflow-y-auto p-6 space-y-6">
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Asset Tag</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Descripcion</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Marca/Modelo</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="assetsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
-                            <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando activos...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+                <!-- SECTION: DASHBOARD -->
+                <section id="dashboardSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">Dashboard del Inventario</h2>
+                    <p class="text-sm text-gray-500">Seleccione una seccion en el menu lateral para comenzar.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                            <p class="text-3xl font-black text-blue-700" id="dashAssetCount">0</p>
+                            <p class="text-xs text-blue-600 font-bold uppercase mt-1">Total Activos</p>
+                        </div>
+                        <div class="bg-teal-50 border border-teal-200 rounded-lg p-4 text-center">
+                            <p class="text-3xl font-black text-teal-700" id="dashPersonCount">0</p>
+                            <p class="text-xs text-teal-600 font-bold uppercase mt-1">Total Empleados</p>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                            <p class="text-3xl font-black text-amber-700" id="dashCheckoutCount">0</p>
+                            <p class="text-xs text-amber-600 font-bold uppercase mt-1">Equipos Asignados</p>
+                        </div>
+                    </div>
+                </section>
 
-                <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-200">
-                    <button id="prevPage" onclick="changePage(-1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Anterior</button>
-                    <span id="pageInfo" class="text-xs text-gray-500">Pagina 1</span>
-                    <button id="nextPage" onclick="changePage(1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Siguiente</button>
-                </div>
-            </section>
+                <!-- SECTION: ACTIVOS -->
+                <section id="assetsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800">Inventario Global de Activos</h2>
+                        <span id="assetCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Equipos</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <input type="text" id="searchInput" placeholder="Buscar por tag, descripcion, marca, modelo o serie..." oninput="loadAssets()" class="flex-1 min-w-[200px] p-2 border border-gray-300 rounded text-xs bg-white">
+                        <select id="filterStatus" onchange="loadAssets()" class="p-2 border border-gray-300 rounded text-xs bg-white">
+                            <option value="">Todos los estados</option>
+                            <option value="Check in">Check in</option>
+                            <option value="Checkout">Checkout</option>
+                            <option value="Broken">Broken</option>
+                            <option value="Under repair">Under repair</option>
+                            <option value="Reserved">Reserved</option>
+                            <option value="Lost/Missing">Lost/Missing</option>
+                        </select>
+                        <select id="filterCategory" onchange="loadAssets()" class="p-2 border border-gray-300 rounded text-xs bg-white">
+                            <option value="">Todas las categorias</option>
+                        </select>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Descripcion</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Marca/Modelo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assetsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
+                                <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando activos...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-200">
+                        <button id="prevPage" onclick="changePage(-1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Anterior</button>
+                        <span id="pageInfo" class="text-xs text-gray-500">Pagina 1</span>
+                        <button id="nextPage" onclick="changePage(1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Siguiente</button>
+                    </div>
+                </section>
 
-            <section id="historySection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold text-gray-800 flex items-center gap-2">Historial de Auditoria Reciente</h2>
-                    <button onclick="loadHistory()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded border border-gray-300 transition-colors cursor-pointer">Actualizar</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha / Hora</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Accion</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Equipo (Tag)</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Involucrado</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Operador</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Detalles / Notas</th>
-                            </tr>
-                        </thead>
-                        <tbody id="historyTableBody" class="bg-white divide-y divide-gray-200 text-sm font-mono text-gray-600">
-                            <tr><td colspan="6" class="px-4 py-4 text-center text-gray-400 italic">Cargando bitacora de auditoria...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        </main>
+                <!-- SECTION: EMPLEADOS -->
+                <section id="employeesSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800">Directorio de Empleados</h2>
+                        <button onclick="loadPersons()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded border border-gray-300 transition-colors cursor-pointer">Actualizar</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Employee ID</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Departamento</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Sitio</th>
+                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="personsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
+                                <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 italic">Cargando empleados...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- SECTION: CATALOGOS -->
+                <section id="catalogsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Catalogos del Sistema</h2>
+
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-gray-700 uppercase">Sitios / Edificios</h3>
+                            <button onclick="openSiteModal()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-3 rounded border border-blue-300 transition-colors cursor-pointer">+ Nuevo Sitio</button>
+                        </div>
+                        <div class="overflow-x-auto rounded border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50 text-gray-500">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-bold uppercase">Nombre</th>
+                                        <th class="px-3 py-2 text-left font-bold uppercase">Ciudad</th>
+                                        <th class="px-3 py-2 text-left font-bold uppercase">Pais</th>
+                                        <th class="px-3 py-2 text-center font-bold uppercase">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sitesTableBody" class="bg-white divide-y divide-gray-200 text-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-gray-700 uppercase">Ubicaciones</h3>
+                            <button onclick="openLocationModal()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-3 rounded border border-blue-300 transition-colors cursor-pointer">+ Nueva Ubicacion</button>
+                        </div>
+                        <div class="overflow-x-auto rounded border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50 text-gray-500">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-bold uppercase">Nombre</th>
+                                        <th class="px-3 py-2 text-left font-bold uppercase">Sitio Vinculado</th>
+                                        <th class="px-3 py-2 text-center font-bold uppercase">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="locationsTableBody" class="bg-white divide-y divide-gray-200 text-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-gray-700 uppercase">Departamentos</h3>
+                            <button onclick="openDepartmentModal()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-3 rounded border border-blue-300 transition-colors cursor-pointer">+ Nuevo Departamento</button>
+                        </div>
+                        <div class="overflow-x-auto rounded border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50 text-gray-500">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-bold uppercase">Nombre</th>
+                                        <th class="px-3 py-2 text-center font-bold uppercase">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="departmentsTableBody" class="bg-white divide-y divide-gray-200 text-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: HISTORIAL -->
+                <section id="historySection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800 flex items-center gap-2">Historial de Auditoria Reciente</h2>
+                        <button onclick="loadHistory()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded border border-gray-300 transition-colors cursor-pointer">Actualizar</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha / Hora</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Accion</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Equipo (Tag)</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Involucrado</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Operador</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Detalles / Notas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody" class="bg-white divide-y divide-gray-200 text-sm font-mono text-gray-600">
+                                <tr><td colspan="6" class="px-4 py-4 text-center text-gray-400 italic">Cargando bitacora de auditoria...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
     </div>
 
     <!-- MODALS (sin cambios estructurales) -->
@@ -215,11 +328,8 @@
                 </div>
                 <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
                     <div>
-                        <div class="flex justify-between items-center">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Categoria *</label>
-                            <button type="button" onclick="openCategoryModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nueva</button>
-                        </div>
-                        <select id="asset_category_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Categoria *</label>
+                        <select id="asset_category" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
                         <div class="flex justify-between items-center">
@@ -364,7 +474,7 @@
                 </div>
                 <div>
                     <span class="block text-[10px] font-bold text-gray-400 uppercase">Categoria</span>
-                    <p id="det_category_name" class="text-gray-700 font-medium">-</p>
+                    <p id="det_category" class="text-gray-700 font-medium">-</p>
                 </div>
                 <div>
                     <span class="block text-[10px] font-bold text-gray-400 uppercase">Ubicacion Fisica</span>
@@ -443,7 +553,7 @@
                 <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
                     <div>
                         <label class="block text-[10px] font-bold text-gray-500 uppercase">Categoria *</label>
-                        <select id="edit_asset_category_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                        <select id="edit_asset_category" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-gray-500 uppercase">Sitio / Edificio *</label>
@@ -549,7 +659,6 @@
                     <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Tipo de datos</label>
                     <select id="importEntity" required class="w-full p-2 border border-gray-300 rounded text-sm bg-white">
                         <option value="">-- Seleccione --</option>
-                        <option value="categories">Categorias</option>
                         <option value="sites">Sitios</option>
                         <option value="locations">Ubicaciones</option>
                         <option value="persons">Empleados</option>
@@ -571,10 +680,118 @@
     </div>
 
     <!-- CATALOG MODALS -->
-    <div id="categoryModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">Nueva Categoria</h4><form id="form_add_category" class="space-y-3"><input type="text" id="cat_name_input" required placeholder="Ej: Laptops" class="w-full p-2 border rounded text-sm bg-white"><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeCategoryModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>
     <div id="siteModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">Nuevo Sitio</h4><form id="form_add_site" class="space-y-3"><input type="text" id="site_name_input" required placeholder="Nombre Sitio" class="w-full p-2 border rounded text-sm bg-white"><div class="grid grid-cols-2 gap-2"><input type="text" id="site_city_input" placeholder="Ciudad" class="p-2 border rounded text-xs bg-white"><input type="text" id="site_country_input" placeholder="Pais" class="p-2 border rounded text-xs bg-white"></div><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeSiteModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>
     <div id="locationModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">Nueva Ubicacion</h4><form id="form_add_location" class="space-y-3"><select id="loc_site_select" required class="w-full p-2 border rounded bg-white text-xs"></select><input type="text" id="loc_name_input" required placeholder="Nombre Ubicacion" class="w-full p-2 border rounded text-sm bg-white"><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeLocationModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>
     <div id="departmentModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">Nuevo Departamento</h4><form id="form_add_department" class="space-y-3"><input type="text" id="dept_name_input" required placeholder="Ej: Soporte" class="w-full p-2 border rounded text-sm bg-white"><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeDepartmentModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>
+
+    <!-- EDIT EMPLOYEE MODAL -->
+    <div id="editPersonModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 border-t-4 border-t-teal-500">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
+                <h3 class="text-lg font-bold text-gray-800">Editar Empleado</h3>
+                <button onclick="closeEditPersonModal()" class="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">&times;</button>
+            </div>
+            <form id="editPersonForm" class="space-y-3">
+                <input type="hidden" id="edit_person_id">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Nombre Completo *</label>
+                    <input type="text" id="edit_person_full_name" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">ID de Empleado *</label>
+                        <input type="text" id="edit_person_employee_id" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">Puesto / Titulo</label>
+                        <input type="text" id="edit_person_title" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">Correo *</label>
+                        <input type="email" id="edit_person_email" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">Telefono</label>
+                        <input type="text" id="edit_person_phone" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                    </div>
+                </div>
+                <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Departamento *</label>
+                        <select id="edit_person_department_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Sitio Base *</label>
+                        <select id="edit_person_site_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Ubicacion *</label>
+                        <select id="edit_person_location_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Notas</label>
+                    <textarea id="edit_person_notes" rows="2" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeEditPersonModal()" class="px-4 py-2 bg-gray-200 rounded text-xs font-bold">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded text-xs font-bold cursor-pointer">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT SITE MODAL -->
+    <div id="editSiteModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-xl border border-gray-200 border-t-4 border-t-blue-500">
+            <h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">Editar Sitio</h4>
+            <form id="form_edit_site" class="space-y-3">
+                <input type="hidden" id="edit_site_id">
+                <input type="text" id="edit_site_name_input" required placeholder="Nombre Sitio" class="w-full p-2 border rounded text-sm bg-white">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="edit_site_city_input" placeholder="Ciudad" class="p-2 border rounded text-xs bg-white">
+                    <input type="text" id="edit_site_country_input" placeholder="Pais" class="p-2 border rounded text-xs bg-white">
+                </div>
+                <div class="flex justify-end gap-2 text-xs">
+                    <button type="button" onclick="closeEditSiteModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
+                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT LOCATION MODAL -->
+    <div id="editLocationModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-xl border border-gray-200 border-t-4 border-t-blue-500">
+            <h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">Editar Ubicacion</h4>
+            <form id="form_edit_location" class="space-y-3">
+                <input type="hidden" id="edit_location_id">
+                <select id="edit_loc_site_select" required class="w-full p-2 border rounded bg-white text-xs"></select>
+                <input type="text" id="edit_loc_name_input" required placeholder="Nombre Ubicacion" class="w-full p-2 border rounded text-sm bg-white">
+                <div class="flex justify-end gap-2 text-xs">
+                    <button type="button" onclick="closeEditLocationModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
+                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT DEPARTMENT MODAL -->
+    <div id="editDepartmentModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-xl border border-gray-200 border-t-4 border-t-blue-500">
+            <h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">Editar Departamento</h4>
+            <form id="form_edit_department" class="space-y-3">
+                <input type="hidden" id="edit_dept_id">
+                <input type="text" id="edit_dept_name_input" required placeholder="Nombre Departamento" class="w-full p-2 border rounded text-sm bg-white">
+                <div class="flex justify-end gap-2 text-xs">
+                    <button type="button" onclick="closeEditDepartmentModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
+                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>

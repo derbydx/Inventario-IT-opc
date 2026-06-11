@@ -1,7 +1,6 @@
 const API_URL = "http://127.0.0.1:8000";
 
 let currentAssets = [];
-let globalCategories = [];
 let globalSites = [];
 let globalLocations = [];
 let globalPersons = [];
@@ -54,14 +53,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function loadDropdownData() {
     const personSelect = document.getElementById("modal_person_id");
-    const assetCatSelect = document.getElementById("asset_category_id");
+    const assetCatSelect = document.getElementById("asset_category");
     const assetSiteSelect = document.getElementById("asset_site_id");
     const assetLocSelect = document.getElementById("asset_location_id");
     const locSiteSelect = document.getElementById("loc_site_select");
     const personDeptSelect = document.getElementById("person_department_id");
     const personSiteSelect = document.getElementById("person_site_id");
     const personLocSelect = document.getElementById("person_location_id");
-    const editCatSelect = document.getElementById("edit_asset_category_id");
+    const editCatSelect = document.getElementById("edit_asset_category");
     const editSiteSelect = document.getElementById("edit_asset_site_id");
     const editLocSelect = document.getElementById("edit_asset_location_id");
 
@@ -72,11 +71,31 @@ async function loadDropdownData() {
             personSelect.innerHTML = '<option value="">-- Seleccione un Empleado --</option>';
             globalPersons.forEach(p => { personSelect.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
         }
-        const resCats = await api("/categories/");
+        const resCats = await api("/categories/distinct/");
         if (resCats.ok) {
-            globalCategories = await resCats.json();
-            const fill = (sel) => { sel.innerHTML = '<option value="">-- Seleccione Categoria --</option>'; globalCategories.forEach(c => { sel.innerHTML += `<option value="${c.id}">${c.category_name}</option>`; });};
-            fill(assetCatSelect); fill(editCatSelect);
+            const cats = await resCats.json();
+            const fillCatSelect = (sel, withNew) => {
+                let html = '<option value="">-- Seleccione Categoria --</option>';
+                cats.forEach(c => { html += `<option value="${c}">${c}</option>`; });
+                if (withNew) html += '<option value="__NEW__">+ Nueva categoria...</option>';
+                sel.innerHTML = html;
+                sel.onchange = () => {
+                    if (sel.value === "__NEW__") {
+                        const name = prompt("Nombre de la nueva categoria:");
+                        if (name && name.trim()) {
+                            const opt = document.createElement("option");
+                            opt.value = name.trim();
+                            opt.text = name.trim();
+                            sel.insertBefore(opt, sel.lastElementChild);
+                            sel.value = name.trim();
+                        } else {
+                            sel.value = "";
+                        }
+                    }
+                };
+            };
+            fillCatSelect(assetCatSelect, true);
+            fillCatSelect(editCatSelect, true);
         }
         const resSites = await api("/sites/");
         if (resSites.ok) {
@@ -162,7 +181,6 @@ async function openDetailsModal(assetId) {
     document.getElementById("assetSpecificHistoryWrapper").classList.add("hidden");
     document.getElementById("historyToggleIcon").innerText = "Mostrar";
 
-    const categoryObj = globalCategories.find(c => c.id === asset.category_id);
     const siteObj = globalSites.find(s => s.id === asset.site_id);
     const locationObj = globalLocations.find(l => l.id === asset.location_id);
     const employeeObj = globalPersons.find(p => p.id === asset.person_id);
@@ -172,7 +190,7 @@ async function openDetailsModal(assetId) {
     document.getElementById("det_brand_model").innerText = `${asset.brand} - ${asset.model}`;
     document.getElementById("det_serial").innerText = asset.serial_no;
     
-    document.getElementById("det_category_name").innerText = categoryObj ? categoryObj.category_name : `ID: ${asset.category_id}`;
+    document.getElementById("det_category").innerText = asset.category || "-";
     document.getElementById("det_location_path").innerText = `${siteObj ? siteObj.site_name : 'Site'} ${locationObj ? locationObj.location_name : 'Ubicacion'}`;
 
     const statusElement = document.getElementById("det_status");
@@ -309,7 +327,7 @@ function openEditAssetModal(assetId) {
     document.getElementById("edit_brand").value = asset.brand;
     document.getElementById("edit_model").value = asset.model;
     document.getElementById("edit_serial_no").value = asset.serial_no;
-    document.getElementById("edit_asset_category_id").value = asset.category_id;
+    document.getElementById("edit_asset_category").value = asset.category || "";
     document.getElementById("edit_asset_site_id").value = asset.site_id;
     document.getElementById("edit_asset_location_id").value = asset.location_id;
     
@@ -333,7 +351,7 @@ function setupEditAssetFormListener() {
             brand: document.getElementById("edit_brand").value,
             model: document.getElementById("edit_model").value,
             serial_no: document.getElementById("edit_serial_no").value,
-            category_id: parseInt(document.getElementById("edit_asset_category_id").value),
+            category: document.getElementById("edit_asset_category").value,
             site_id: parseInt(document.getElementById("edit_asset_site_id").value),
             location_id: parseInt(document.getElementById("edit_asset_location_id").value),
             status: document.getElementById("edit_asset_status").value 
@@ -436,7 +454,7 @@ function setupMovementFormListener() {
 function setupFormListener() {
     document.getElementById("assetForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category_id: parseInt(document.getElementById("asset_category_id").value), site_id: parseInt(document.getElementById("asset_site_id").value), location_id: parseInt(document.getElementById("asset_location_id").value), status: "Check in" };
+        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: parseInt(document.getElementById("asset_site_id").value), location_id: parseInt(document.getElementById("asset_location_id").value), status: "Check in" };
         try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { alert("Activo registrado con exito!"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
     });
 }
@@ -450,21 +468,6 @@ function setupPersonFormListener() {
 }
 
 function setupCatalogFormsListeners() {
-    document.getElementById("form_add_category").addEventListener("submit", async (e) => { 
-        e.preventDefault(); 
-        try {
-            const name = document.getElementById("cat_name_input").value; 
-            const res = await api("/categories/", { method: "POST", body: JSON.stringify({ category_name: name }) }); 
-            if (res.ok) { 
-                alert("Categoria creada!"); closeCategoryModal(); document.getElementById("form_add_category").reset(); 
-                loadDropdownData();
-            } else {
-                const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
-                alert("Error: " + (err.detail || "No se pudo crear la categoria"));
-            }
-        } catch (e) { alert("Error de conexion: " + e.message); }
-    });
-    
     document.getElementById("form_add_site").addEventListener("submit", async (e) => { 
         e.preventDefault(); 
         try {
@@ -509,7 +512,6 @@ function setupCatalogFormsListeners() {
                 alert("Error: " + (err.detail || "No se pudo crear el departamento"));
             }
         } catch (e) { alert("Error de conexion: " + e.message); }
-    });
     });
 }
 
@@ -570,8 +572,6 @@ function closeAssetModal() { document.getElementById("assetModal").classList.add
 function openPersonModal() { document.getElementById("personModal").classList.remove("hidden"); }
 function closePersonModal() { document.getElementById("personModal").classList.add("hidden"); document.getElementById("personForm").reset(); }
 
-function openCategoryModal() { document.getElementById("categoryModal").classList.remove("hidden"); }
-function closeCategoryModal() { document.getElementById("categoryModal").classList.add("hidden"); document.getElementById("form_add_category").reset(); }
 
 function openSiteModal() { document.getElementById("siteModal").classList.remove("hidden"); }
 function closeSiteModal() { document.getElementById("siteModal").classList.add("hidden"); document.getElementById("form_add_site").reset(); }

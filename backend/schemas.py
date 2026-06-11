@@ -57,14 +57,6 @@ class DepartmentResponse(DepartmentBase):
     class Config:
         from_attributes = True
 
-class CategoryBase(BaseModel):
-    category_name: str
-
-class CategoryResponse(CategoryBase):
-    id: int
-    class Config:
-        from_attributes = True
-
 # ==========================================
 # SCHEMAS DE PERSONAS Y ADMINS
 # ==========================================
@@ -81,6 +73,17 @@ class PersonBase(BaseModel):
 
 class PersonCreate(PersonBase):
     pass
+
+class PersonUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    employee_id: Optional[str] = None
+    title: Optional[str] = None
+    phone: Optional[str] = None
+    notes: Optional[str] = None
+    site_id: Optional[int] = None
+    location_id: Optional[int] = None
+    department_id: Optional[int] = None
 
 class PersonResponse(PersonBase):
     id: int
@@ -125,7 +128,7 @@ class AssetBase(BaseModel):
     notas_adicionales: Optional[str] = None
     numero_telefono: Optional[str] = None
     status: str = "Check in"  # Alineación impecable
-    category_id: int
+    category: str = None
     site_id: int
     location_id: int
 

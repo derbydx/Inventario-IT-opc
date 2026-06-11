@@ -1,5 +1,12 @@
 const API_URL = "http://127.0.0.1:8000";
+
+// Variables globales para almacenar las bases de datos en memoria local (Caché Frontend)
 let currentAssets = [];
+let globalCategories = [];
+let globalSites = [];
+let globalLocations = [];
+let globalPersons = [];
+let globalAdmins = [];
 
 document.addEventListener("DOMContentLoaded", () => {
     loadAssets();
@@ -7,78 +14,71 @@ document.addEventListener("DOMContentLoaded", () => {
     loadHistory();
     setupFormListener();
     setupMovementFormListener();
-    setupCatalogFormsListeners(); // <-- NUEVA: Activa la escucha de los 4 catálogos
+    setupCatalogFormsListeners();
 });
 
 // ==========================================
-// 1. CARGAR MÁGICAMENTE TODOS LOS DESPLEGABLES
+// 1. CARGAR DESPLEGABLES Y ALMACENAR EN CACHÉ
 // ==========================================
 async function loadDropdownData() {
-    // Selects del Modal de Movimientos
     const personSelect = document.getElementById("modal_person_id");
     const adminSelect = document.getElementById("modal_admin_id");
-    
-    // Selects del Formulario de Registro de Activos
     const assetCatSelect = document.getElementById("asset_category_id");
     const assetSiteSelect = document.getElementById("asset_site_id");
     const assetLocSelect = document.getElementById("asset_location_id");
-    
-    // Select del sub-formulario de ubicaciones
     const locSiteSelect = document.getElementById("loc_site_select");
 
     try {
-        // A. Cargar Personas (Empleados)
+        // A. Traer Empleados
         const resPersons = await fetch(`${API_URL}/persons/`);
         if (resPersons.ok) {
-            const persons = await resPersons.json();
+            globalPersons = await resPersons.json();
             personSelect.innerHTML = '<option value="">-- Seleccione un Empleado --</option>';
-            persons.forEach(p => { personSelect.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
+            globalPersons.forEach(p => { personSelect.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
         }
 
-        // B. Cargar Administradores
+        // B. Traer Administradores
         const resAdmins = await fetch(`${API_URL}/admins/`);
         if (resAdmins.ok) {
-            const admins = await resAdmins.json();
+            globalAdmins = await resAdmins.json();
             adminSelect.innerHTML = '<option value="">-- Seleccione su Usuario --</option>';
-            admins.forEach(a => { adminSelect.innerHTML += `<option value="${a.id}">${a.username} [${a.role}]</option>`; });
+            globalAdmins.forEach(a => { adminSelect.innerHTML += `<option value="${a.id}">${a.username} [${a.role}]</option>`; });
         }
 
-        // C. Cargar Categorías
+        // C. Traer Categorías
         const resCats = await fetch(`${API_URL}/categories/`);
         if (resCats.ok) {
-            const cats = await resCats.json();
+            globalCategories = await resCats.json();
             assetCatSelect.innerHTML = '<option value="">-- Seleccione Categoría --</option>';
-            cats.forEach(c => { assetCatSelect.innerHTML += `<option value="${c.id}">${c.category_name}</option>`; });
+            globalCategories.forEach(c => { assetCatSelect.innerHTML += `<option value="${c.id}">${c.category_name}</option>`; });
         }
 
-        // D. Cargar Sitios (Sincroniza dos selects a la vez)
+        // D. Traer Sitios
         const resSites = await fetch(`${API_URL}/sites/`);
         if (resSites.ok) {
-            const sites = await resSites.json();
+            globalSites = await resSites.json();
             assetSiteSelect.innerHTML = '<option value="">-- Seleccione Sitio --</option>';
             locSiteSelect.innerHTML = '<option value="">-- Vincular a qué Sitio? --</option>';
-            sites.forEach(s => {
-                const opt = `<option value="${s.id}">${s.site_name} (${s.city || ''})</option>`;
+            globalSites.forEach(s => {
+                const opt = `<option value="${s.id}">${s.site_name}</option>`;
                 assetSiteSelect.innerHTML += opt;
                 locSiteSelect.innerHTML += opt;
             });
         }
 
-        // E. Cargar Ubicaciones
+        // E. Traer Ubicaciones
         const resLocs = await fetch(`${API_URL}/locations/`);
         if (resLocs.ok) {
-            const locs = await resLocs.json();
+            globalLocations = await resLocs.json();
             assetLocSelect.innerHTML = '<option value="">-- Seleccione Ubicación --</option>';
-            locs.forEach(l => { assetLocSelect.innerHTML += `<option value="${l.id}">${l.location_name}</option>`; });
+            globalLocations.forEach(l => { assetLocSelect.innerHTML += `<option value="${l.id}">${l.location_name}</option>`; });
         }
 
-    } catch (error) {
-        console.error("Error al sincronizar listas de nombres:", error);
-    }
+    } catch (error) { console.error("Error al sincronizar catálogos:", error); }
 }
 
 // ==========================================
-// 2. CARGAR ACTIVOS GLOBAL (CON FILA CLIQUEABLE)
+// 2. CARGAR INVENTARIO GLOBAL
 // ==========================================
 async function loadAssets() {
     const tableBody = document.getElementById("assetsTableBody");
@@ -129,25 +129,32 @@ async function loadAssets() {
             `;
             tableBody.appendChild(row);
         });
-    } catch (error) {
-        tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-red-500 font-medium">⚠️ Error de conexión con el Backend</td></tr>`;
-    }
+    } catch (error) { tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-red-500 font-medium">⚠️ Error de conexión</td></tr>`; }
 }
 
 // ==========================================
-// 3. DETALLES Y HISTORIAL POR EQUIPO (DRILL-DOWN)
+// 3. NUEVA: DETALLES CRUZANDO NOMBRES (LOOKUP EN CACHÉ)
 // ==========================================
 async function openDetailsModal(assetId) {
     const asset = currentAssets.find(a => a.id === parseInt(assetId));
     if (!asset) return;
 
-    document.getElementById("detailsTitle").innerText = `🔍 Hoja de Vida del Activo`;
+    // Realizar cruce de IDs contra arreglos globales de caché para extraer los nombres
+    const categoryObj = globalCategories.find(c => c.id === asset.category_id);
+    const siteObj = globalSites.find(s => s.id === asset.site_id);
+    const locationObj = globalLocations.find(l => l.id === asset.location_id);
+    const employeeObj = globalPersons.find(p => p.id === asset.person_id);
+
+    // Pintar los nombres reales directamente en la interfaz del modal
     document.getElementById("detailsTag").innerText = `Asset Tag ID: ${asset.asset_tag_id}`;
     document.getElementById("det_description").innerText = asset.asset_description;
     document.getElementById("det_brand_model").innerText = `${asset.brand} - ${asset.model}`;
     document.getElementById("det_serial").innerText = asset.serial_no;
-    document.getElementById("det_ids").innerText = `Cat ID: ${asset.category_id} | Site ID: ${asset.site_id} | Loc ID: ${asset.location_id}`;
-    document.getElementById("det_assigned").innerText = asset.person_id ? `Empleado ID (DB): ${asset.person_id}` : "Disponible en Almacén";
+    
+    // Inyectar nombres cruzados
+    document.getElementById("det_category_name").innerText = categoryObj ? categoryObj.category_name : `ID Desconocido (${asset.category_id})`;
+    document.getElementById("det_location_path").innerText = `${siteObj ? siteObj.site_name : 'Site ' + asset.site_id} ➔ ${locationObj ? locationObj.location_name : 'Loc ' + asset.location_id}`;
+    document.getElementById("det_assigned").innerText = employeeObj ? `👤 ${employeeObj.full_name} [${employeeObj.title || 'Personal'}] - ID: ${employeeObj.employee_id}` : "🟢 Disponible en Almacén (Check in)";
 
     const statusContainer = document.getElementById("det_status");
     let badgeColor = "bg-green-100 text-green-800";
@@ -165,17 +172,21 @@ async function openDetailsModal(assetId) {
             const specificHistory = allHistory.filter(h => h.asset_id === asset.id);
             historyBody.innerHTML = "";
             if (specificHistory.length === 0) {
-                historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-3 text-center text-gray-400 italic">Este equipo no registra movimientos previos.</td></tr>`;
+                historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-3 text-center text-gray-400 italic">Este equipo no registra movimientos.</td></tr>`;
             } else {
                 specificHistory.reverse();
                 specificHistory.forEach(item => {
                     const row = document.createElement("tr");
                     const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
                     let actionClass = item.tipo_accion === "Checkout" ? "text-blue-600 font-bold" : "text-amber-600 font-bold";
+                    
+                    // Cruzar el admin que operó para poner su nombre de usuario en el historial del modal
+                    const adminObj = globalAdmins.find(a => a.id === item.realizado_por_id);
+
                     row.innerHTML = `
                         <td class="px-3 py-1.5 text-gray-400 text-[11px]">${fecha}</td>
                         <td class="px-3 py-1.5 uppercase ${actionClass}">${item.tipo_accion}</td>
-                        <td class="px-3 py-1.5 text-gray-500">Admin ID: ${item.realizado_por_id}</td>
+                        <td class="px-3 py-1.5 text-gray-500">${adminObj ? adminObj.username : 'Admin ID: ' + item.realizado_por_id}</td>
                         <td class="px-3 py-1.5 text-gray-700 italic">${item.notas_detalle || '-'}</td>
                     `;
                     historyBody.appendChild(row);
@@ -189,7 +200,7 @@ async function openDetailsModal(assetId) {
 function closeDetailsModal() { document.getElementById("detailsModal").classList.add("hidden"); }
 
 // ==========================================
-// 4. LEER HISTORIAL GLOBAL (INFERIOR)
+// 4. LEER HISTORIAL DE AUDITORÍA GLOBAL
 // ==========================================
 async function loadHistory() {
     const historyBody = document.getElementById("historyTableBody");
@@ -209,58 +220,66 @@ async function loadHistory() {
             let actionBadge = "text-blue-600 font-bold";
             if (item.tipo_accion === "Check in") actionBadge = "text-amber-600 font-bold";
             const fechaFormateada = new Date(item.fecha_accion).toLocaleString('es-ES');
+            
+            // Cruzar nombres para la tabla de abajo
+            const assetObj = currentAssets.find(a => a.id === item.asset_id);
+            const employeeObj = globalPersons.find(p => p.id === item.asignado_a_id);
+            const adminObj = globalAdmins.find(a => a.id === item.realizado_por_id);
+
             row.innerHTML = `
                 <td class="px-4 py-2 text-gray-500 whitespace-nowrap">${fechaFormateada}</td>
                 <td class="px-4 py-2 uppercase ${actionBadge}">${item.tipo_accion}</td>
-                <td class="px-4 py-2 font-bold text-gray-700">ID: ${item.asset_id}</td>
-                <td class="px-4 py-2 text-gray-600">${item.asignado_a_id ? `Persona ID: ${item.asignado_a_id}` : 'N/A (Almacén)'}</td>
-                <td class="px-4 py-2 text-gray-600">Admin ID: ${item.realizado_por_id}</td>
+                <td class="px-4 py-2 font-bold text-gray-700">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td>
+                <td class="px-4 py-2 text-gray-600">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacén')}</td>
+                <td class="px-4 py-2 text-gray-600">${adminObj ? adminObj.username : 'ID: ' + item.realizado_por_id}</td>
                 <td class="px-4 py-2 text-gray-500 italic max-w-xs truncate" title="${item.notas_detalle || ''}">${item.notas_detalle || '-'}</td>
             `;
             historyBody.appendChild(row);
         });
-    } catch (error) { historyBody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-red-500">Error.</td></tr>`; }
+    } catch (error) { console.error(error); }
 }
 
 // ==========================================
-// 5. FORMULARIO: GUARDAR NUEVO ACTIVO
+// 5. CONTROLADORES APERTURA/CIERRE DE MODALES
 // ==========================================
-function setupFormListener() {
-    const form = document.getElementById("assetForm");
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const assetData = {
-            asset_tag_id: document.getElementById("asset_tag_id").value,
-            asset_description: document.getElementById("asset_description").value,
-            brand: document.getElementById("brand").value,
-            model: document.getElementById("model").value,
-            serial_no: document.getElementById("serial_no").value,
-            category_id: parseInt(document.getElementById("asset_category_id").value),
-            site_id: parseInt(document.getElementById("asset_site_id").value),
-            location_id: parseInt(document.getElementById("asset_location_id").value),
-            status: "Check in"
-        };
-        try {
-            const response = await fetch(`${API_URL}/assets/`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(assetData)
-            });
-            if (response.status === 201) {
-                alert("¡Activo registrado con éxito! 🎉");
-                form.reset();
-                loadAssets();
-            } else {
-                const errorData = await response.json();
-                alert(`Error: ${errorData.detail}`);
-            }
-        } catch (error) { alert("Error al conectar con el servidor."); }
-    });
-}
+function openAssetModal() { document.getElementById("assetModal").classList.remove("hidden"); }
+function closeAssetModal() { document.getElementById("assetModal").classList.add("hidden"); document.getElementById("assetForm").reset(); }
 
-// ==========================================
-// CONTROLADORES MODAL DE MOVIMIENTOS
-// ==========================================
+function openCategoryModal() { document.getElementById("categoryModal").classList.remove("hidden"); }
+function closeCategoryModal() { document.getElementById("categoryModal").classList.add("hidden"); }
+
+document.getElementById("assetForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const assetData = {
+        asset_tag_id: document.getElementById("asset_tag_id").value,
+        asset_description: document.getElementById("asset_description").value,
+        brand: document.getElementById("brand").value,
+        model: document.getElementById("model").value,
+        serial_no: document.getElementById("serial_no").value,
+        category_id: parseInt(document.getElementById("asset_category_id").value),
+        site_id: parseInt(document.getElementById("asset_site_id").value),
+        location_id: parseInt(document.getElementById("asset_location_id").value),
+        status: "Check in"
+    };
+    try {
+        const response = await fetch(`${API_URL}/assets/`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(assetData)
+        });
+        if (response.status === 201) {
+            alert("¡Activo registrado con éxito! 🎉");
+            closeAssetModal();
+            loadAssets();
+        } else { const err = await response.json(); alert(`Error: ${err.detail}`); }
+    } catch (error) { alert("Error de conexión."); }
+});
+
+function openSiteModal() { document.getElementById("siteModal").classList.remove("hidden"); }
+function closeSiteModal() { document.getElementById("siteModal").classList.add("hidden"); }
+
+function openLocationModal() { document.getElementById("locationModal").classList.remove("hidden"); }
+function closeLocationModal() { document.getElementById("locationModal").classList.add("hidden"); }
+
 function openModal(assetId, assetTag, actionType) {
     document.getElementById("modal_asset_id").value = assetId;
     document.getElementById("modal_action_type").value = actionType;
@@ -274,20 +293,17 @@ function openModal(assetId, assetTag, actionType) {
         submitBtn.innerText = "Asignar Equipo";
         submitBtn.className = "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-sm transition-colors cursor-pointer";
         divAsignadoA.classList.remove("hidden");
-        document.getElementById("modal_person_id").required = true;
     } else {
         modalTitle.innerText = "📥 Registrar Devolución (Check-in)";
         submitBtn.innerText = "Recibir en Almacén";
         submitBtn.className = "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-sm transition-colors cursor-pointer";
         divAsignadoA.classList.add("hidden");
-        document.getElementById("modal_person_id").required = false;
     }
     document.getElementById("movementModal").classList.remove("hidden");
 }
-function closeModal() {
-    document.getElementById("movementModal").classList.add("hidden");
-    document.getElementById("movementForm").reset();
-}
+function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); }
+
+function setupFormListener() {} // Integrado arriba
 
 function setupMovementFormListener() {
     const form = document.getElementById("movementForm");
@@ -314,24 +330,16 @@ function setupMovementFormListener() {
                 closeModal();
                 loadAssets();
                 loadHistory();
-            } else {
-                const err = await response.json();
-                alert(`Error: ${err.detail || "No se pudo procesar"}`);
-            }
-        } catch (error) { alert("Error de conexión."); }
+            } else { const err = await response.json(); alert(`Error: ${err.detail}`); }
+        } catch (error) { alert("Error."); }
     });
 }
 
 // ==========================================
-// CONTROLADORES NUEVOS: MODAL DE CATÁLOGOS BASE
+// 6. ESCUCHA DE FORMULARIOS DE CATÁLOGOS INDEPENDIENTES
 // ==========================================
-function openCatalogsModal() { document.getElementById("catalogsModal").classList.remove("hidden"); }
-// Al cerrar refresca los desplegables por seguridad
-function closeCatalogsModal() { document.getElementById("catalogsModal").classList.add("hidden"); loadDropdownData(); }
-
-// ESCUCHA Y PROCESAMIENTO DE LOS 4 NUEVOS FORMULARIOS DE CATÁLOGO
 function setupCatalogFormsListeners() {
-    // A. Formulario Categorías
+    // Categorías
     document.getElementById("form_add_category").addEventListener("submit", async (e) => {
         e.preventDefault();
         const name = document.getElementById("cat_name_input").value;
@@ -339,23 +347,10 @@ function setupCatalogFormsListeners() {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ category_name: name })
         });
-        if (res.ok) { alert("Categoría agregada con éxito!"); document.getElementById("form_add_category").reset(); loadDropdownData(); }
-        else { alert("Error al agregar la categoría."); }
+        if (res.ok) { alert("Categoría agregada con éxito!"); closeCategoryModal(); document.getElementById("form_add_category").reset(); loadDropdownData(); }
     });
 
-    // B. Formulario Departamentos
-    document.getElementById("form_add_department").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const name = document.getElementById("dept_name_input").value;
-        const res = await fetch(`${API_URL}/departments/`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ department_name: name })
-        });
-        if (res.ok) { alert("Departamento agregado con éxito!"); document.getElementById("form_add_department").reset(); loadDropdownData(); }
-        else { alert("Error al agregar el departamento."); }
-    });
-
-    // C. Formulario Sitios
+    // Sitios
     document.getElementById("form_add_site").addEventListener("submit", async (e) => {
         e.preventDefault();
         const data = {
@@ -367,11 +362,10 @@ function setupCatalogFormsListeners() {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data)
         });
-        if (res.ok) { alert("Sitio agregado con éxito!"); document.getElementById("form_add_site").reset(); loadDropdownData(); }
-        else { alert("Error al agregar el sitio."); }
+        if (res.ok) { alert("Sitio agregado con éxito!"); closeSiteModal(); document.getElementById("form_add_site").reset(); loadDropdownData(); }
     });
 
-    // D. Formulario Ubicaciones
+    // Ubicaciones
     document.getElementById("form_add_location").addEventListener("submit", async (e) => {
         e.preventDefault();
         const data = {
@@ -382,7 +376,6 @@ function setupCatalogFormsListeners() {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data)
         });
-        if (res.ok) { alert("Ubicación agregada con éxito!"); document.getElementById("form_add_location").reset(); loadDropdownData(); }
-        else { alert("Error al agregar la ubicación."); }
+        if (res.ok) { alert("Ubicación agregada con éxito!"); closeLocationModal(); document.getElementById("form_add_location").reset(); loadDropdownData(); }
     });
 }

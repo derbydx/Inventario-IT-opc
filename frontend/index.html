@@ -21,6 +21,9 @@
             <button onclick="openAssetModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
                 📦 Registrar Activo
             </button>
+            <button onclick="openPersonModal()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
+                👤 Crear Empleado
+            </button>
             <button onclick="openCategoryModal()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
                 📁 Crear Categoría
             </button>
@@ -87,7 +90,7 @@
     </main>
 
     <div id="assetModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 border-t-4 border-t-blue-600">
             <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
                 <h3 class="text-lg font-bold text-gray-800">📦 Registrar Nuevo Activo</h3>
                 <button onclick="closeAssetModal()" class="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">&times;</button>
@@ -132,6 +135,63 @@
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeAssetModal()" class="px-4 py-2 bg-gray-200 rounded text-xs font-bold">Cancelar</button>
                     <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold cursor-pointer">Guardar Activo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="personModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 border-t-4 border-t-teal-600 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
+                <h3 class="text-lg font-bold text-gray-800">👤 Dar de Alta Nuevo Empleado</h3>
+                <button onclick="closePersonModal()" class="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">&times;</button>
+            </div>
+            <form id="personForm" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Nombre Completo *</label>
+                    <input type="text" id="person_full_name" required placeholder="Ej: Derby Martinez" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">ID de Empleado *</label>
+                        <input type="text" id="person_employee_id" required placeholder="Ej: EMP-045" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">Puesto / Título</label>
+                        <input type="text" id="person_title" placeholder="Ej: Administrador SysOps" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">Correo Institucional *</label>
+                        <input type="email" id="person_email" required placeholder="derby@empresa.com" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">Teléfono</label>
+                        <input type="text" id="person_phone" placeholder="Ej: 809-555-1234" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                    </div>
+                </div>
+                <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Asignar a Departamento *</label>
+                        <select id="person_department_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Asignar a Sitio Base *</label>
+                        <select id="person_site_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Ubicación / Oficina Base *</label>
+                        <select id="person_location_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Notas Adicionales</label>
+                    <textarea id="person_notes" rows="2" placeholder="Ej: Requiere laptop con privilegios AD locales" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closePersonModal()" class="px-4 py-2 bg-gray-200 rounded text-xs font-bold">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded text-xs font-bold cursor-pointer">Guardar Empleado</button>
                 </div>
             </form>
         </div>

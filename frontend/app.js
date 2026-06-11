@@ -1,12 +1,13 @@
 const API_URL = "http://127.0.0.1:8000";
 
-// Variables globales para almacenar las bases de datos en memoria local (Caché Frontend)
+// Variables globales para almacenamiento local
 let currentAssets = [];
 let globalCategories = [];
 let globalSites = [];
 let globalLocations = [];
 let globalPersons = [];
 let globalAdmins = [];
+let globalDepartments = []; // <-- NUEVA: Para almacenar departamentos corporativos
 
 document.addEventListener("DOMContentLoaded", () => {
     loadAssets();
@@ -15,18 +16,29 @@ document.addEventListener("DOMContentLoaded", () => {
     setupFormListener();
     setupMovementFormListener();
     setupCatalogFormsListeners();
+    setupPersonFormListener(); // <-- NUEVA: Escucha para el alta del empleado
 });
 
 // ==========================================
 // 1. CARGAR DESPLEGABLES Y ALMACENAR EN CACHÉ
 // ==========================================
 async function loadDropdownData() {
+    // Modal Movimientos
     const personSelect = document.getElementById("modal_person_id");
     const adminSelect = document.getElementById("modal_admin_id");
+    
+    // Modal Registro Activos
     const assetCatSelect = document.getElementById("asset_category_id");
     const assetSiteSelect = document.getElementById("asset_site_id");
     const assetLocSelect = document.getElementById("asset_location_id");
+    
+    // Modal Ubicación Base
     const locSiteSelect = document.getElementById("loc_site_select");
+
+    // NUEVOS: Desplegables del Modal de Empleados
+    const personDeptSelect = document.getElementById("person_department_id");
+    const personSiteSelect = document.getElementById("person_site_id");
+    const personLocSelect = document.getElementById("person_location_id");
 
     try {
         // A. Traer Empleados
@@ -53,25 +65,40 @@ async function loadDropdownData() {
             globalCategories.forEach(c => { assetCatSelect.innerHTML += `<option value="${c.id}">${c.category_name}</option>`; });
         }
 
-        // D. Traer Sitios
+        // D. Traer Sitios (Alimenta 3 selects a la vez)
         const resSites = await fetch(`${API_URL}/sites/`);
         if (resSites.ok) {
             globalSites = await resSites.json();
             assetSiteSelect.innerHTML = '<option value="">-- Seleccione Sitio --</option>';
             locSiteSelect.innerHTML = '<option value="">-- Vincular a qué Sitio? --</option>';
+            personSiteSelect.innerHTML = '<option value="">-- Seleccione Sitio Base --</option>';
             globalSites.forEach(s => {
                 const opt = `<option value="${s.id}">${s.site_name}</option>`;
                 assetSiteSelect.innerHTML += opt;
                 locSiteSelect.innerHTML += opt;
+                personSiteSelect.innerHTML += opt;
             });
         }
 
-        // E. Traer Ubicaciones
+        // E. Traer Ubicaciones (Alimenta 2 selects a la vez)
         const resLocs = await fetch(`${API_URL}/locations/`);
         if (resLocs.ok) {
             globalLocations = await resLocs.json();
             assetLocSelect.innerHTML = '<option value="">-- Seleccione Ubicación --</option>';
-            globalLocations.forEach(l => { assetLocSelect.innerHTML += `<option value="${l.id}">${l.location_name}</option>`; });
+            personLocSelect.innerHTML = '<option value="">-- Seleccione Ubicación Base --</option>';
+            globalLocations.forEach(l => { 
+                const opt = `<option value="${l.id}">${l.location_name}</option>`;
+                assetLocSelect.innerHTML += opt;
+                personLocSelect.innerHTML += opt;
+            });
+        }
+
+        // F. NUEVA: Traer Departamentos Corporativos para el Empleado
+        const resDepts = await fetch(`${API_URL}/departments/`);
+        if (resDepts.ok) {
+            globalDepartments = await resDepts.json();
+            personDeptSelect.innerHTML = '<option value="">-- Seleccione Departamento --</option>';
+            globalDepartments.forEach(d => { personDeptSelect.innerHTML += `<option value="${d.id}">${d.department_name}</option>`; });
         }
 
     } catch (error) { console.error("Error al sincronizar catálogos:", error); }
@@ -133,27 +160,24 @@ async function loadAssets() {
 }
 
 // ==========================================
-// 3. NUEVA: DETALLES CRUZANDO NOMBRES (LOOKUP EN CACHÉ)
+// 3. DETALLES DE ACTIVO (NOMBRES EXTRACTED DESDE CACHÉ)
 // ==========================================
 async function openDetailsModal(assetId) {
     const asset = currentAssets.find(a => a.id === parseInt(assetId));
     if (!asset) return;
 
-    // Realizar cruce de IDs contra arreglos globales de caché para extraer los nombres
     const categoryObj = globalCategories.find(c => c.id === asset.category_id);
     const siteObj = globalSites.find(s => s.id === asset.site_id);
     const locationObj = globalLocations.find(l => l.id === asset.location_id);
     const employeeObj = globalPersons.find(p => p.id === asset.person_id);
 
-    // Pintar los nombres reales directamente en la interfaz del modal
     document.getElementById("detailsTag").innerText = `Asset Tag ID: ${asset.asset_tag_id}`;
     document.getElementById("det_description").innerText = asset.asset_description;
     document.getElementById("det_brand_model").innerText = `${asset.brand} - ${asset.model}`;
     document.getElementById("det_serial").innerText = asset.serial_no;
     
-    // Inyectar nombres cruzados
-    document.getElementById("det_category_name").innerText = categoryObj ? categoryObj.category_name : `ID Desconocido (${asset.category_id})`;
-    document.getElementById("det_location_path").innerText = `${siteObj ? siteObj.site_name : 'Site ' + asset.site_id} ➔ ${locationObj ? locationObj.location_name : 'Loc ' + asset.location_id}`;
+    document.getElementById("det_category_name").innerText = categoryObj ? categoryObj.category_name : `ID: ${asset.category_id}`;
+    document.getElementById("det_location_path").innerText = `${siteObj ? siteObj.site_name : 'Site'} ➔ ${locationObj ? locationObj.location_name : 'Ubicación'}`;
     document.getElementById("det_assigned").innerText = employeeObj ? `👤 ${employeeObj.full_name} [${employeeObj.title || 'Personal'}] - ID: ${employeeObj.employee_id}` : "🟢 Disponible en Almacén (Check in)";
 
     const statusContainer = document.getElementById("det_status");
@@ -179,8 +203,6 @@ async function openDetailsModal(assetId) {
                     const row = document.createElement("tr");
                     const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
                     let actionClass = item.tipo_accion === "Checkout" ? "text-blue-600 font-bold" : "text-amber-600 font-bold";
-                    
-                    // Cruzar el admin que operó para poner su nombre de usuario en el historial del modal
                     const adminObj = globalAdmins.find(a => a.id === item.realizado_por_id);
 
                     row.innerHTML = `
@@ -221,7 +243,6 @@ async function loadHistory() {
             if (item.tipo_accion === "Check in") actionBadge = "text-amber-600 font-bold";
             const fechaFormateada = new Date(item.fecha_accion).toLocaleString('es-ES');
             
-            // Cruzar nombres para la tabla de abajo
             const assetObj = currentAssets.find(a => a.id === item.asset_id);
             const employeeObj = globalPersons.find(p => p.id === item.asignado_a_id);
             const adminObj = globalAdmins.find(a => a.id === item.realizado_por_id);
@@ -245,34 +266,12 @@ async function loadHistory() {
 function openAssetModal() { document.getElementById("assetModal").classList.remove("hidden"); }
 function closeAssetModal() { document.getElementById("assetModal").classList.add("hidden"); document.getElementById("assetForm").reset(); }
 
+// NUEVOS: Controladores para el Modal de Empleados
+function openPersonModal() { document.getElementById("personModal").classList.remove("hidden"); }
+function closePersonModal() { document.getElementById("personModal").classList.add("hidden"); document.getElementById("personForm").reset(); }
+
 function openCategoryModal() { document.getElementById("categoryModal").classList.remove("hidden"); }
 function closeCategoryModal() { document.getElementById("categoryModal").classList.add("hidden"); }
-
-document.getElementById("assetForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const assetData = {
-        asset_tag_id: document.getElementById("asset_tag_id").value,
-        asset_description: document.getElementById("asset_description").value,
-        brand: document.getElementById("brand").value,
-        model: document.getElementById("model").value,
-        serial_no: document.getElementById("serial_no").value,
-        category_id: parseInt(document.getElementById("asset_category_id").value),
-        site_id: parseInt(document.getElementById("asset_site_id").value),
-        location_id: parseInt(document.getElementById("asset_location_id").value),
-        status: "Check in"
-    };
-    try {
-        const response = await fetch(`${API_URL}/assets/`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(assetData)
-        });
-        if (response.status === 201) {
-            alert("¡Activo registrado con éxito! 🎉");
-            closeAssetModal();
-            loadAssets();
-        } else { const err = await response.json(); alert(`Error: ${err.detail}`); }
-    } catch (error) { alert("Error de conexión."); }
-});
 
 function openSiteModal() { document.getElementById("siteModal").classList.remove("hidden"); }
 function closeSiteModal() { document.getElementById("siteModal").classList.add("hidden"); }
@@ -303,7 +302,36 @@ function openModal(assetId, assetTag, actionType) {
 }
 function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); }
 
-function setupFormListener() {} // Integrado arriba
+// ==========================================
+// 6. EVENTOS DE ENVÍO DE FORMULARIOS (POST)
+// ==========================================
+function setupFormListener() {
+    document.getElementById("assetForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const assetData = {
+            asset_tag_id: document.getElementById("asset_tag_id").value,
+            asset_description: document.getElementById("asset_description").value,
+            brand: document.getElementById("brand").value,
+            model: document.getElementById("model").value,
+            serial_no: document.getElementById("serial_no").value,
+            category_id: parseInt(document.getElementById("asset_category_id").value),
+            site_id: parseInt(document.getElementById("asset_site_id").value),
+            location_id: parseInt(document.getElementById("asset_location_id").value),
+            status: "Check in"
+        };
+        try {
+            const response = await fetch(`${API_URL}/assets/`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(assetData)
+            });
+            if (response.status === 201) {
+                alert("¡Activo registrado con éxito! 🎉");
+                closeAssetModal();
+                loadAssets();
+            } else { const err = await response.json(); alert(`Error: ${err.detail}`); }
+        } catch (error) { alert("Error de conexión."); }
+    });
+}
 
 function setupMovementFormListener() {
     const form = document.getElementById("movementForm");
@@ -335,9 +363,43 @@ function setupMovementFormListener() {
     });
 }
 
-// ==========================================
-// 6. ESCUCHA DE FORMULARIOS DE CATÁLOGOS INDEPENDIENTES
-// ==========================================
+// NUEVA FUNCIÓN: INTERCEPTOR PARA EL FORMULARIO DE ALTA DE EMPLEADOS
+function setupPersonFormListener() {
+    document.getElementById("personForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const personData = {
+            full_name: document.getElementById("person_full_name").value,
+            email: document.getElementById("person_email").value,
+            employee_id: document.getElementById("person_employee_id").value,
+            title: document.getElementById("person_title").value || null,
+            phone: document.getElementById("person_phone").value || null,
+            notes: document.getElementById("person_notes").value || null,
+            site_id: parseInt(document.getElementById("person_site_id").value),
+            location_id: parseInt(document.getElementById("person_location_id").value),
+            department_id: parseInt(document.getElementById("person_department_id").value)
+        };
+
+        try {
+            const response = await fetch(`${API_URL}/persons/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(personData)
+            });
+
+            if (response.status === 201) {
+                alert("¡Empleado dado de alta exitosamente! 👤🎉");
+                closePersonModal();
+                loadDropdownData(); // Refresca las listas para incluir al nuevo empleado de inmediato
+            } else {
+                const err = await response.json();
+                alert(`Error: ${err.detail || "Campos duplicados o inconsistentes."}`);
+            }
+        } catch (error) { alert("Error de conexión con el servidor."); }
+    });
+}
+
+// ESCUCHA DE FORMULARIOS DE CATÁLOGOS BASE
 function setupCatalogFormsListeners() {
     // Categorías
     document.getElementById("form_add_category").addEventListener("submit", async (e) => {

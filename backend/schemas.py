@@ -101,6 +101,15 @@ class AdminResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    admin: AdminResponse
+
 # ==========================================
 # SCHEMA DE ACTIVOS (ASSETS)
 # ==========================================

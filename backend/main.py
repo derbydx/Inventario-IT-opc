@@ -1,13 +1,14 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import List
-import traceback
+import traceback, os
 
 import models
 import schemas
 from database import engine, get_db
+from auth import hash_password, verify_password, create_access_token, get_current_admin
 
 # Inicializar la base de datos SQLite
 models.Base.metadata.create_all(bind=engine)
@@ -25,24 +26,23 @@ def crear_admin_por_defecto():
         admin = db.query(models.Admin).filter(models.Admin.username == "derby_admin").first()
         
         if not admin:
-            print("🚀 Sembrando cuenta de administrador inicial...")
+            print("Sembrando cuenta de administrador inicial...")
             nuevo_admin = models.Admin(
                 username="derby_admin",
                 email="derby@empresa.com",
-                password_hash="admin123",
+                password_hash=hash_password("admin123"),
                 role="Administrator"
             )
             db.add(nuevo_admin)
             db.commit()
-            print("✅ Usuario 'derby_admin' creado con éxito. Contraseña: admin123")
+            print("Usuario 'derby_admin' creado con exito. Contrasena: admin123")
         else:
-            # Si el usuario ya existía de pruebas viejas, le forzamos la contraseña correcta
-            admin.password_hash = "admin123"
+            admin.password_hash = hash_password("admin123")
             db.commit()
-            print("🔄 Usuario 'derby_admin' detectado. Contraseña restablecida/fijada en: admin123")
+            print("Usuario 'derby_admin' detectado. Contrasena restablecida en: admin123")
             
     except Exception as e:
-        print(f"⚠️ No se pudo verificar/crear el admin inicial: {e}")
+        print(f"No se pudo verificar/crear el admin inicial: {e}")
     finally:
         db.close()
 
@@ -71,23 +71,46 @@ app.add_middleware(
 # ==========================================
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    print("❌ ERROR CRÍTICO DETECTADO EN EL BACKEND:")
+    print("ERROR CRITICO DETECTADO EN EL BACKEND:")
     traceback.print_exc()
     return JSONResponse(
         status_code=500,
         content={"detail": f"Error interno en Python/SQLite: {str(exc)}"},
-        headers={"Access-Control-Allow-Origin": "*"}
     )
 
-@app.get("/", tags=["Diagnóstico"])
-def read_root():
-    return {"status": "API de Gestión de Inventario Operando Correctamente"}
+# ==========================================
+# HEALTH CHECK
+# ==========================================
+@app.get("/api/health", tags=["Diagnóstico"])
+def health_check():
+    return {"status": "ok"}
+
+# ==========================================
+# STATIC FILES - catch-all for frontend SPA
+# ==========================================
+from starlette.middleware.base import BaseHTTPMiddleware
+
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+class SPAStaticFiles(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if response.status_code == 404 and request.method in ("GET", "HEAD"):
+            file_path = os.path.join(FRONTEND_DIR, request.url.path.lstrip("/"))
+            if os.path.isfile(file_path):
+                return FileResponse(file_path)
+            index_path = os.path.join(FRONTEND_DIR, "index.html")
+            if os.path.isfile(index_path):
+                return FileResponse(index_path)
+        return response
+
+app.add_middleware(SPAStaticFiles)
 
 # ==========================================
 # 1. ENDPOINTS: SITIOS (SITES)
 # ==========================================
 @app.post("/sites/", response_model=schemas.SiteResponse, status_code=status.HTTP_201_CREATED, tags=["Sitios y Ubicaciones"])
-def create_site(site: schemas.SiteBase, db: Session = Depends(get_db)):
+def create_site(site: schemas.SiteBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
     db_site = db.query(models.Site).filter(models.Site.site_name == site.site_name).first()
     if db_site:
         raise HTTPException(status_code=400, detail="El sitio ya existe")
@@ -105,7 +128,7 @@ def list_sites(db: Session = Depends(get_db)):
 # 2. ENDPOINTS: UBICACIONES (LOCATIONS)
 # ==========================================
 @app.post("/locations/", response_model=schemas.LocationResponse, status_code=status.HTTP_201_CREATED, tags=["Sitios y Ubicaciones"])
-def create_location(location: schemas.LocationBase, db: Session = Depends(get_db)):
+def create_location(location: schemas.LocationBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
     db_site = db.query(models.Site).filter(models.Site.id == location.site_id).first()
     if not db_site:
         raise HTTPException(status_code=404, detail="El Sitio especificado (site_id) no existe")
@@ -123,7 +146,7 @@ def list_locations(db: Session = Depends(get_db)):
 # 3. ENDPOINTS: DEPARTAMENTOS
 # ==========================================
 @app.post("/departments/", response_model=schemas.DepartmentResponse, status_code=status.HTTP_201_CREATED, tags=["Catálogos"])
-def create_department(dept: schemas.DepartmentBase, db: Session = Depends(get_db)):
+def create_department(dept: schemas.DepartmentBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
     db_dept = db.query(models.Department).filter(models.Department.department_name == dept.department_name).first()
     if db_dept:
         raise HTTPException(status_code=400, detail="El departamento ya existe")
@@ -141,7 +164,7 @@ def list_departments(db: Session = Depends(get_db)):
 # 4. ENDPOINTS: CATEGORÍAS
 # ==========================================
 @app.post("/categories/", response_model=schemas.CategoryResponse, status_code=status.HTTP_201_CREATED, tags=["Catálogos"])
-def create_category(category: schemas.CategoryBase, db: Session = Depends(get_db)):
+def create_category(category: schemas.CategoryBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
     db_category = db.query(models.Category).filter(models.Category.category_name == category.category_name).first()
     if db_category:
         raise HTTPException(status_code=400, detail="La categoría ya existe")
@@ -159,16 +182,15 @@ def list_categories(db: Session = Depends(get_db)):
 # 5. ENDPOINTS: ADMINISTRADORES (ADMINS)
 # ==========================================
 @app.post("/admins/", response_model=schemas.AdminResponse, status_code=status.HTTP_201_CREATED, tags=["Seguridad y Administradores"])
-def create_admin(admin: schemas.AdminCreate, db: Session = Depends(get_db)):
+def create_admin(admin: schemas.AdminCreate, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     db_admin = db.query(models.Admin).filter((models.Admin.username == admin.username) | (models.Admin.email == admin.email)).first()
     if db_admin:
         raise HTTPException(status_code=400, detail="El nombre de usuario o email ya están registrados")
     
-    # ➔ CORREGIDO: password_hash mapeado correctamente con models.py
     nuevo_admin = models.Admin(
         username=admin.username,
         email=admin.email,
-        password_hash=admin.password,
+        password_hash=hash_password(admin.password),
         role=admin.role
     )
     db.add(nuevo_admin)
@@ -184,7 +206,7 @@ def list_admins(db: Session = Depends(get_db)):
 # 6. ENDPOINTS: EMPLEADOS / PERSONAS (PERSONS)
 # ==========================================
 @app.post("/persons/", response_model=schemas.PersonResponse, status_code=status.HTTP_201_CREATED, tags=["Directorio de Personal"])
-def create_person(person: schemas.PersonCreate, db: Session = Depends(get_db)):
+def create_person(person: schemas.PersonCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
     db_person = db.query(models.Person).filter((models.Person.email == person.email) | (models.Person.employee_id == person.employee_id)).first()
     if db_person:
         raise HTTPException(status_code=400, detail="El Employee ID o Correo ya existen en el directorio")
@@ -203,7 +225,7 @@ def list_persons(db: Session = Depends(get_db)):
 # 7. ENDPOINTS: ACTIVOS (ASSETS)
 # ==========================================
 @app.post("/assets/", response_model=schemas.AssetResponse, status_code=status.HTTP_201_CREATED, tags=["Gestión de Activos"])
-def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db)):
+def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
     db_asset = db.query(models.Asset).filter(models.Asset.asset_tag_id == asset.asset_tag_id).first()
     if db_asset:
         raise HTTPException(status_code=400, detail="El Asset Tag ID ya está registrado")
@@ -215,14 +237,38 @@ def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db)):
     return nuevo_activo
 
 @app.get("/assets/", response_model=List[schemas.AssetResponse], tags=["Gestión de Activos"])
-def list_assets(db: Session = Depends(get_db)):
-    return db.query(models.Asset).all()
+def list_assets(
+    search: str = None,
+    status: str = None,
+    category_id: int = None,
+    site_id: int = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Asset)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            models.Asset.asset_tag_id.like(like) |
+            models.Asset.asset_description.like(like) |
+            models.Asset.brand.like(like) |
+            models.Asset.model.like(like) |
+            models.Asset.serial_no.like(like)
+        )
+    if status:
+        query = query.filter(models.Asset.status == status)
+    if category_id:
+        query = query.filter(models.Asset.category_id == category_id)
+    if site_id:
+        query = query.filter(models.Asset.site_id == site_id)
+    return query.offset(skip).limit(limit).all()
 
 # ==========================================
 # 8. ACCIONES DE INVENTARIO: CHECKOUT Y CHECKIN
 # ==========================================
 @app.post("/assets/{asset_id}/checkout", tags=["Acciones de Inventario"])
-def asset_checkout(asset_id: int, person_id: int, admin_id: int, notas: str = None, db: Session = Depends(get_db)):
+def asset_checkout(asset_id: int, person_id: int, notas: str = None, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
@@ -231,9 +277,8 @@ def asset_checkout(asset_id: int, person_id: int, admin_id: int, notas: str = No
         raise HTTPException(status_code=400, detail="El activo ya se encuentra asignado (Checkout)")
         
     person = db.query(models.Person).filter(models.Person.id == person_id).first()
-    admin = db.query(models.Admin).filter(models.Admin.id == admin_id).first()
-    if not person or not admin:
-        raise HTTPException(status_code=404, detail="Empleado o Administrador no encontrado")
+    if not person:
+        raise HTTPException(status_code=404, detail="Empleado no encontrado")
 
     estado_anterior = asset.status
     asset.status = "Checkout"
@@ -242,7 +287,7 @@ def asset_checkout(asset_id: int, person_id: int, admin_id: int, notas: str = No
     registro_historial = models.History(
         asset_id=asset.id,
         asignado_a_id=person_id,
-        realizado_por_id=admin_id,
+        realizado_por_id=current_admin.id,
         tipo_accion="Checkout",
         estado_anterior=estado_anterior,
         estado_nuevo="Checkout",
@@ -255,14 +300,10 @@ def asset_checkout(asset_id: int, person_id: int, admin_id: int, notas: str = No
     return {"message": f"Asset {asset.asset_tag_id} asignado exitosamente", "asset_status": asset.status}
 
 @app.post("/assets/{asset_id}/checkin", tags=["Acciones de Inventario"])
-def asset_checkin(asset_id: int, admin_id: int, nuevo_estado: str = "Check in", notas: str = None, db: Session = Depends(get_db)):
+def asset_checkin(asset_id: int, nuevo_estado: str = "Check in", notas: str = None, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
-    
-    admin = db.query(models.Admin).filter(models.Admin.id == admin_id).first()
-    if not admin:
-        raise HTTPException(status_code=404, detail="Administrador no encontrado")
 
     estado_anterior = asset.status
     persona_que_devuelve = asset.person_id
@@ -273,7 +314,7 @@ def asset_checkin(asset_id: int, admin_id: int, nuevo_estado: str = "Check in", 
     registro_historial = models.History(
         asset_id=asset.id,
         asignado_a_id=persona_que_devuelve,
-        realizado_por_id=admin_id,
+        realizado_por_id=current_admin.id,
         tipo_accion="Check in",
         estado_anterior=estado_anterior,
         estado_nuevo=nuevo_estado,
@@ -286,14 +327,18 @@ def asset_checkin(asset_id: int, admin_id: int, nuevo_estado: str = "Check in", 
     return {"message": f"Asset {asset.asset_tag_id} recibido exitosamente", "asset_status": asset.status}
 
 @app.get("/history/", response_model=List[schemas.HistoryResponse], tags=["Acciones de Inventario"])
-def view_history(db: Session = Depends(get_db)):
-    return db.query(models.History).all()
+def view_history(
+    skip: int = 0,
+    limit: int = 200,
+    db: Session = Depends(get_db)
+):
+    return db.query(models.History).order_by(models.History.id.desc()).offset(skip).limit(limit).all()
 
 # ==========================================
 # 9. EDICIÓN Y ELIMINACIÓN (SOFT DELETE)
 # ==========================================
 @app.put("/assets/{asset_id}", response_model=schemas.AssetResponse, tags=["Gestión de Activos"])
-def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session = Depends(get_db)):
+def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     db_asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not db_asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
@@ -322,19 +367,16 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
             
     for key, value in datos_nuevos.items():
         setattr(db_asset, key, value)
-        
-    primer_admin = db.query(models.Admin).first()
-    admin_id_registro = primer_admin.id if primer_admin else None
 
     if lista_cambios:
-        nota_auditoria = "Edición de propiedades: " + " | ".join(lista_cambios)
+        nota_auditoria = "Edicion de propiedades: " + " | ".join(lista_cambios)
     else:
-        nota_auditoria = "Formulario de edición guardado sin cambios en los valores."
+        nota_auditoria = "Formulario de edicion guardado sin cambios en los valores."
     
     registro_historial = models.History(
         asset_id=db_asset.id,
         asignado_a_id=db_asset.person_id,
-        realizado_por_id=admin_id_registro,
+        realizado_por_id=current_admin.id,
         tipo_accion="Modified",
         estado_anterior=db_asset.status,
         estado_nuevo=db_asset.status,
@@ -347,7 +389,7 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
     return db_asset
 
 @app.delete("/assets/{asset_id}", tags=["Gestión de Activos"])
-def delete_asset(asset_id: int, db: Session = Depends(get_db)):
+def delete_asset(asset_id: int, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     db_asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not db_asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
@@ -357,14 +399,11 @@ def delete_asset(asset_id: int, db: Session = Depends(get_db)):
 
     db_asset.status = "Archived"
     db_asset.person_id = None 
-    
-    primer_admin = db.query(models.Admin).first()
-    admin_id_registro = primer_admin.id if primer_admin else None
 
     registro_historial = models.History(
         asset_id=db_asset.id,
         asignado_a_id=persona_que_tenia,
-        realizado_por_id=admin_id_registro,
+        realizado_por_id=current_admin.id,
         tipo_accion="Archived",
         estado_anterior=estado_anterior,
         estado_nuevo="Archived",
@@ -376,25 +415,19 @@ def delete_asset(asset_id: int, db: Session = Depends(get_db)):
     return {"message": "Activo movido a eliminados recientemente"}
 
 # ==========================================
-# 10. ENDPOINT DE AUTENTICACIÓN (LOGIN)
+# 10. ENDPOINT DE AUTENTICACIÓN (LOGIN CON JWT)
 # ==========================================
-@app.post("/auth/login", tags=["Autenticación"])
-def login_admin(credentials: dict, db: Session = Depends(get_db)):
-    username = credentials.get("username")
-    password = credentials.get("password")
-    
-    if not username or not password:
-        raise HTTPException(status_code=400, detail="Faltan usuario o contraseña")
-        
-    admin = db.query(models.Admin).filter(models.Admin.username == username).first()
-    
-    # ➔ CORREGIDO: Comparación directa usando admin.password_hash
-    if not admin or admin.password_hash != password:
-        raise HTTPException(status_code=401, detail="Credenciales incorrectas ❌")
-        
-    return {
-        "id": admin.id,
-        "username": admin.username,
-        "email": admin.email,
-        "role": admin.role
-    }
+@app.post("/auth/login", response_model=schemas.TokenResponse, tags=["Autenticación"])
+def login_admin(credentials: schemas.LoginRequest, db: Session = Depends(get_db)):
+    admin = db.query(models.Admin).filter(models.Admin.username == credentials.username).first()
+
+    if not admin or not verify_password(credentials.password, admin.password_hash):
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+
+    token = create_access_token({"id": admin.id, "username": admin.username})
+    return schemas.TokenResponse(
+        access_token=token,
+        admin=schemas.AdminResponse(
+            id=admin.id, username=admin.username, email=admin.email, role=admin.role
+        )
+    )

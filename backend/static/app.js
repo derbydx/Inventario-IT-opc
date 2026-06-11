@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = "";
 
 let currentAssets = [];
 let globalCategories = [];
@@ -7,6 +7,8 @@ let globalLocations = [];
 let globalPersons = [];
 let globalAdmins = [];
 let globalDepartments = [];
+let currentPage = 1;
+const pageSize = 15;
 
 function getToken() {
     const session = localStorage.getItem("adminSession");
@@ -77,6 +79,11 @@ async function loadDropdownData() {
             globalCategories = await resCats.json();
             const fill = (sel) => { sel.innerHTML = '<option value="">-- Seleccione Categoria --</option>'; globalCategories.forEach(c => { sel.innerHTML += `<option value="${c.id}">${c.category_name}</option>`; });};
             fill(assetCatSelect); fill(editCatSelect);
+            const filterCat = document.getElementById("filterCategory");
+            if (filterCat) {
+                filterCat.innerHTML = '<option value="">Todas las categorias</option>';
+                globalCategories.forEach(c => { filterCat.innerHTML += `<option value="${c.id}">${c.category_name}</option>`; });
+            }
         }
         const resSites = await api("/sites/");
         if (resSites.ok) {
@@ -105,11 +112,33 @@ async function loadDropdownData() {
     } catch (e) { console.error(e); }
 }
 
+function buildAssetQuery() {
+    const search = document.getElementById("searchInput").value;
+    const status = document.getElementById("filterStatus").value;
+    const category = document.getElementById("filterCategory").value;
+    const skip = (currentPage - 1) * pageSize;
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (status) params.set("status", status);
+    if (category) params.set("category_id", category);
+    params.set("skip", skip);
+    params.set("limit", pageSize);
+    return params.toString();
+}
+
+function changePage(delta) {
+    currentPage += delta;
+    if (currentPage < 1) currentPage = 1;
+    loadAssets();
+    document.getElementById("pageInfo").innerText = `Pagina ${currentPage}`;
+}
+
 async function loadAssets() {
     const tableBody = document.getElementById("assetsTableBody");
     const countSpan = document.getElementById("assetCount");
     try {
-        const response = await api("/assets/");
+        const query = buildAssetQuery();
+        const response = await api(`/assets/?${query}`);
         if (!response.ok) throw new Error("Error en el servidor");
         
         currentAssets = await response.json();
@@ -120,10 +149,13 @@ async function loadAssets() {
         if (activeAssets.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>`;
             countSpan.innerText = "0 Equipos";
+            document.getElementById("prevPage").disabled = currentPage <= 1;
             return;
         }
 
         countSpan.innerText = `${activeAssets.length} ${activeAssets.length === 1 ? 'Equipo' : 'Equipos'}`;
+        document.getElementById("prevPage").disabled = currentPage <= 1;
+        document.getElementById("nextPage").disabled = activeAssets.length < pageSize;
 
         activeAssets.forEach(asset => {
             const row = document.createElement("tr");
@@ -510,7 +542,6 @@ function setupCatalogFormsListeners() {
             }
         } catch (e) { alert("Error de conexion: " + e.message); }
     });
-    });
 }
 
 function checkSession() {
@@ -530,7 +561,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     const passwordInput = document.getElementById("login_password").value;
 
     try {
-        const response = await fetch(`${API_URL}/auth/login`, {
+        const response = await fetch(`/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username: usernameInput, password: passwordInput })

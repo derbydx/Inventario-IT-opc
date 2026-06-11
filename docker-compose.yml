@@ -1,0 +1,12 @@
+services:
+  inventario:
+    build: .
+    container_name: inventario-it
+    ports:
+      - "8000:8000"
+    volumes:
+      - inventario-data:/app/backend
+    restart: unless-stopped
+
+volumes:
+  inventario-data:

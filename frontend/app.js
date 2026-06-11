@@ -25,7 +25,6 @@ document.addEventListener("DOMContentLoaded", () => {
 // ==========================================
 async function loadDropdownData() {
     const personSelect = document.getElementById("modal_person_id");
-    const adminSelect = document.getElementById("modal_admin_id");
     const assetCatSelect = document.getElementById("asset_category_id");
     const assetSiteSelect = document.getElementById("asset_site_id");
     const assetLocSelect = document.getElementById("asset_location_id");
@@ -43,12 +42,6 @@ async function loadDropdownData() {
             globalPersons = await resPersons.json();
             personSelect.innerHTML = '<option value="">-- Seleccione un Empleado --</option>';
             globalPersons.forEach(p => { personSelect.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
-        }
-        const resAdmins = await fetch(`${API_URL}/admins/`);
-        if (resAdmins.ok) {
-            globalAdmins = await resAdmins.json();
-            adminSelect.innerHTML = '<option value="">-- Seleccione su Usuario --</option>';
-            globalAdmins.forEach(a => { adminSelect.innerHTML += `<option value="${a.id}">${a.username} [${a.role}]</option>`; });
         }
         const resCats = await fetch(`${API_URL}/categories/`);
         if (resCats.ok) {
@@ -84,7 +77,7 @@ async function loadDropdownData() {
 }
 
 // ==========================================
-// 2. RENDEREAR INVENTARIO GLOBAL (ACTIVOS VIGENTES)
+// 2. RENDEREAR INVENTARIO GLOBAL 
 // ==========================================
 async function loadAssets() {
     const tableBody = document.getElementById("assetsTableBody");
@@ -96,7 +89,6 @@ async function loadAssets() {
         currentAssets = await response.json();
         tableBody.innerHTML = "";
         
-        // FILTRADO REAL: Oculta los equipos dados de baja ("Archived")
         const activeAssets = currentAssets.filter(a => a.status !== "Archived");
         
         if (activeAssets.length === 0) {
@@ -160,26 +152,22 @@ async function openDetailsModal(assetId) {
     document.getElementById("det_category_name").innerText = categoryObj ? categoryObj.category_name : `ID: ${asset.category_id}`;
     document.getElementById("det_location_path").innerText = `${siteObj ? siteObj.site_name : 'Site'} ➔ ${locationObj ? locationObj.location_name : 'Ubicación'}`;
 
-    // ==========================================================
-    // NUEVO: CONTROL VISUAL COMPLETO PARA EL BADGE DEL STATUS
-    // ==========================================================
     const statusElement = document.getElementById("det_status");
-    let badgeColor = "bg-gray-100 text-gray-800"; // Color por defecto (Gris)
+    let badgeColor = "bg-gray-100 text-gray-800"; 
 
     if (asset.status === "Check in" || asset.status === "Available" || asset.status === "Found") {
-        badgeColor = "bg-green-100 text-green-800"; // Operativos / Disponibles (Verde)
+        badgeColor = "bg-green-100 text-green-800";
     } else if (asset.status === "Checkout") {
-        badgeColor = "bg-blue-100 text-blue-800"; // En uso por personal (Azul)
+        badgeColor = "bg-blue-100 text-blue-800"; 
     } else if (asset.status === "Broken" || asset.status === "Lost/Missing" || asset.status === "Dispose") {
-        badgeColor = "bg-red-100 text-red-800"; // Alertas / Bajas (Rojo)
+        badgeColor = "bg-red-100 text-red-800"; 
     } else if (asset.status === "Under repair") {
-        badgeColor = "bg-amber-100 text-amber-800"; // Mantenimiento (Marrón/Amarillo)
+        badgeColor = "bg-amber-100 text-amber-800"; 
     } else if (asset.status === "Reserved" || asset.status === "Lease") {
-        badgeColor = "bg-purple-100 text-purple-800"; // Casos especiales (Morado)
+        badgeColor = "bg-purple-100 text-purple-800";
     }
 
     statusElement.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeColor}">${asset.status}</span>`;
-    // ==========================================================
 
     const containerAsignado = document.getElementById("det_assigned_container");
     if (employeeObj) {
@@ -212,8 +200,8 @@ async function openDetailsModal(assetId) {
                     const row = document.createElement("tr");
                     const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
                     let actionClass = item.tipo_accion === "Checkout" ? "text-blue-600 font-bold" : (item.tipo_accion === "Archived" ? "text-red-600 font-bold" : "text-amber-600 font-bold");
-                    const adminObj = globalAdmins.find(a => a.id === item.realizado_por_id);
-                    row.innerHTML = `<td class="px-3 py-1.5 text-gray-400 text-[11px]">${fecha}</td><td class="px-3 py-1.5 uppercase ${actionClass}">${item.tipo_accion}</td><td class="px-3 py-1.5 text-gray-500">${adminObj ? adminObj.username : 'Admin'}</td><td class="px-3 py-1.5 text-gray-700 italic">${item.notas_detalle || '-'}</td>`;
+                    // Aquí mostramos "Sistema" o podemos buscar el nombre si lo cargamos
+                    row.innerHTML = `<td class="px-3 py-1.5 text-gray-400 text-[11px]">${fecha}</td><td class="px-3 py-1.5 uppercase ${actionClass}">${item.tipo_accion}</td><td class="px-3 py-1.5 text-gray-500">Admin_${item.realizado_por_id}</td><td class="px-3 py-1.5 text-gray-700 italic">${item.notas_detalle || '-'}</td>`;
                     historyBody.appendChild(row);
                 });
             }
@@ -297,7 +285,7 @@ async function restoreAsset(assetId, assetTag) {
 }
 
 // ==========================================
-// 6. FORMULARIOS DE EDICIÓN, BAJAS Y CAMBIO DE STATUS
+// 6. FORMULARIOS DE EDICIÓN, BAJAS Y STATUS
 // ==========================================
 function openEditAssetModal(assetId) {
     const asset = currentAssets.find(a => a.id === parseInt(assetId));
@@ -312,7 +300,6 @@ function openEditAssetModal(assetId) {
     document.getElementById("edit_asset_site_id").value = asset.site_id;
     document.getElementById("edit_asset_location_id").value = asset.location_id;
     
-    // ASIGNACIÓN DEL STATUS ACTUAL EN EL SELECT
     document.getElementById("edit_asset_status").value = asset.status;
 
     document.getElementById("editAssetModal").classList.remove("hidden");
@@ -327,7 +314,6 @@ function setupEditAssetFormListener() {
         e.preventDefault();
         const assetId = document.getElementById("edit_asset_id").value;
 
-        // Recolectamos todos los campos del formulario incluyendo el nuevo dropdown de status
         const updatedData = {
             asset_tag_id: document.getElementById("edit_asset_tag_id").value,
             asset_description: document.getElementById("edit_asset_description").value,
@@ -337,7 +323,7 @@ function setupEditAssetFormListener() {
             category_id: parseInt(document.getElementById("edit_asset_category_id").value),
             site_id: parseInt(document.getElementById("edit_asset_site_id").value),
             location_id: parseInt(document.getElementById("edit_asset_location_id").value),
-            status: document.getElementById("edit_asset_status").value // Captura el estado seleccionado
+            status: document.getElementById("edit_asset_status").value 
         };
 
         try {
@@ -351,8 +337,8 @@ function setupEditAssetFormListener() {
                 alert("¡Modificado con éxito! ✏️🎉");
                 closeEditAssetModal();
                 closeDetailsModal();
-                loadAssets();   // Refresca el inventario en pantalla
-                loadHistory();  // Refresca la auditoría inferior en caliente
+                loadAssets();   
+                loadHistory();  
             } else {
                 const errData = await response.json();
                 alert(`⚠️ Error del servidor: ${errData.detail || "No se pudo actualizar"}`);
@@ -374,7 +360,7 @@ async function triggerDeleteAsset(assetId, assetTag) {
 }
 
 // ==========================================
-// 7. HISTORIAL GENERAL Y PROCESOS MAESTROS
+// 7. HISTORIAL GENERAL Y MOVIMIENTOS
 // ==========================================
 async function loadHistory() {
     const historyBody = document.getElementById("historyTableBody");
@@ -393,8 +379,8 @@ async function loadHistory() {
             const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
             const assetObj = currentAssets.find(a => a.id === item.asset_id);
             const employeeObj = globalPersons.find(p => p.id === item.asignado_a_id);
-            const adminObj = globalAdmins.find(a => a.id === item.realizado_por_id);
-            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge}">${item.tipo_accion}</td><td class="px-4 py-2 font-bold text-gray-700">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="px-4 py-2 text-gray-600">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacén')}</td><td class="px-4 py-2 text-gray-600">${adminObj ? adminObj.username : 'ID: ' + item.realizado_por_id}</td><td class="px-4 py-2 text-gray-500 italic max-w-xs truncate">${item.notas_detalle || '-'}</td>`;
+            
+            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge}">${item.tipo_accion}</td><td class="px-4 py-2 font-bold text-gray-700">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="px-4 py-2 text-gray-600">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacén')}</td><td class="px-4 py-2 text-gray-600">Admin_${item.realizado_por_id}</td><td class="px-4 py-2 text-gray-500 italic max-w-xs truncate">${item.notas_detalle || '-'}</td>`;
             historyBody.appendChild(row);
         });
     } catch (e) { console.error(e); }
@@ -410,6 +396,44 @@ function openModal(assetId, assetTag, actionType) {
 }
 function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); }
 
+function setupMovementFormListener() {
+    document.getElementById("movementForm").addEventListener("submit", async (e) => {
+        e.preventDefault(); 
+        const assetId = document.getElementById("modal_asset_id").value; 
+        const actionType = document.getElementById("modal_action_type").value; 
+        const notas = document.getElementById("modal_notas").value;
+
+        // AUTOMATIZACIÓN: Extraemos al admin logueado desde la sesión
+        const session = localStorage.getItem("adminUser");
+        if (!session) {
+            alert("⚠️ Sesión no detectada. Inicie sesión de nuevo.");
+            window.location.reload();
+            return;
+        }
+        const loggedInAdmin = JSON.parse(session);
+        const adminId = loggedInAdmin.id;
+
+        let url = `${API_URL}/assets/${assetId}/checkin?admin_id=${adminId}`; 
+        if (notas) url += `&notas=${encodeURIComponent(notas)}`;
+        
+        if (actionType === "checkout") { 
+            const personId = document.getElementById("modal_person_id").value; 
+            url = `${API_URL}/assets/${assetId}/checkout?person_id=${personId}&admin_id=${adminId}`; 
+            if (notas) url += `&notas=${encodeURIComponent(notas)}`; 
+        }
+        
+        try { 
+            const response = await fetch(url, { method: "POST" }); 
+            if (response.ok) { 
+                alert(`Movimiento procesado con éxito por: ${loggedInAdmin.username} 🚀`); 
+                closeModal(); 
+                loadAssets(); 
+                loadHistory(); 
+            } 
+        } catch (e) { alert("Error."); }
+    });
+}
+
 function setupFormListener() {
     document.getElementById("assetForm").addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -417,14 +441,7 @@ function setupFormListener() {
         try { const response = await fetch(`${API_URL}/assets/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(assetData) }); if (response.status === 201) { alert("¡Activo registrado con éxito! 🎉"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
     });
 }
-function setupMovementFormListener() {
-    document.getElementById("movementForm").addEventListener("submit", async (e) => {
-        e.preventDefault(); const assetId = document.getElementById("modal_asset_id").value; const actionType = document.getElementById("modal_action_type").value; const adminId = document.getElementById("modal_admin_id").value; const notas = document.getElementById("modal_notas").value;
-        let url = `${API_URL}/assets/${assetId}/checkin?admin_id=${adminId}`; if (notas) url += `&notas=${encodeURIComponent(notas)}`;
-        if (actionType === "checkout") { const personId = document.getElementById("modal_person_id").value; url = `${API_URL}/assets/${assetId}/checkout?person_id=${personId}&admin_id=${adminId}`; if (notas) url += `&notas=${encodeURIComponent(notas)}`; }
-        try { const response = await fetch(url, { method: "POST" }); if (response.ok) { alert(`Movimiento procesado con éxito 🚀`); closeModal(); loadAssets(); loadHistory(); } } catch (e) { alert("Error."); }
-    });
-}
+
 function setupPersonFormListener() {
     document.getElementById("personForm").addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -432,37 +449,55 @@ function setupPersonFormListener() {
         try { const response = await fetch(`${API_URL}/persons/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(personData) }); if (response.status === 201) { alert("¡Empleado dado de alta! 👤🎉"); closePersonModal(); loadDropdownData(); } } catch (e) { alert("Error."); }
     });
 }
+
 function setupCatalogFormsListeners() {
-    document.getElementById("form_add_category").addEventListener("submit", async (e) => { e.preventDefault(); const name = document.getElementById("cat_name_input").value; const res = await fetch(`${API_URL}/categories/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category_name: name }) }); if (res.ok) { closeCategoryModal(); document.getElementById("form_add_category").reset(); loadDropdownData(); } });
-    document.getElementById("form_add_site").addEventListener("submit", async (e) => { e.preventDefault(); const data = { site_name: document.getElementById("site_name_input").value, city: document.getElementById("site_city_input").value || null, country: document.getElementById("site_country_input").value || null }; const res = await fetch(`${API_URL}/sites/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); if (res.ok) { closeSiteModal(); document.getElementById("form_add_site").reset(); loadDropdownData(); } });
-    document.getElementById("form_add_location").addEventListener("submit", async (e) => { e.preventDefault(); const data = { location_name: document.getElementById("loc_name_input").value, site_id: parseInt(document.getElementById("loc_site_select").value) }; const res = await fetch(`${API_URL}/locations/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); if (res.ok) { closeLocationModal(); document.getElementById("form_add_location").reset(); loadDropdownData(); } });
-    document.getElementById("form_add_department").addEventListener("submit", async (e) => { e.preventDefault(); const name = document.getElementById("dept_name_input").value; const res = await fetch(`${API_URL}/departments/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ department_name: name }) }); if (res.ok) { closeDepartmentModal(); document.getElementById("form_add_department").reset(); loadDropdownData(); } });
+    document.getElementById("form_add_category").addEventListener("submit", async (e) => { 
+        e.preventDefault(); 
+        const name = document.getElementById("cat_name_input").value; 
+        const res = await fetch(`${API_URL}/categories/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category_name: name }) }); 
+        if (res.ok) { alert("📁 ¡Categoría creada!"); closeCategoryModal(); document.getElementById("form_add_category").reset(); loadDropdownData(); } 
+    });
+    
+    document.getElementById("form_add_site").addEventListener("submit", async (e) => { 
+        e.preventDefault(); 
+        const data = { site_name: document.getElementById("site_name_input").value, city: document.getElementById("site_city_input").value || null, country: document.getElementById("site_country_input").value || null }; 
+        const res = await fetch(`${API_URL}/sites/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); 
+        if (res.ok) { alert("📍 ¡Sitio creado!"); closeSiteModal(); document.getElementById("form_add_site").reset(); loadDropdownData(); } 
+    });
+    
+    document.getElementById("form_add_location").addEventListener("submit", async (e) => { 
+        e.preventDefault(); 
+        const data = { location_name: document.getElementById("loc_name_input").value, site_id: parseInt(document.getElementById("loc_site_select").value) }; 
+        const res = await fetch(`${API_URL}/locations/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); 
+        if (res.ok) { alert("🔒 ¡Ubicación creada!"); closeLocationModal(); document.getElementById("form_add_location").reset(); loadDropdownData(); } 
+    });
+    
+    document.getElementById("form_add_department").addEventListener("submit", async (e) => { 
+        e.preventDefault(); 
+        const name = document.getElementById("dept_name_input").value; 
+        const res = await fetch(`${API_URL}/departments/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ department_name: name }) }); 
+        if (res.ok) { alert("🏢 ¡Departamento creado!"); closeDepartmentModal(); document.getElementById("form_add_department").reset(); loadDropdownData(); } 
+    });
 }
 
 // ==========================================
 // 8. CONTROL DE AUTENTICACIÓN Y SESIONES
 // ==========================================
-
-// Ejecuta la validación de sesión de inmediato
 function checkSession() {
     const session = localStorage.getItem("adminUser");
     const overlay = document.getElementById("loginOverlay");
     
     if (session) {
-        // Hay sesión activa: Ocultamos el bloqueo y cargamos los datos del inventario
         overlay.classList.add("hidden");
         const adminData = JSON.parse(session);
-        console.log(`Sesión activa: Bienvenido de vuelta, ${adminData.username} 👋`);
+        console.log(`Sesión activa: Bienvenido, ${adminData.username}`);
     } else {
-        // No hay sesión: Mostramos la pantalla de login obligatoria
         overlay.classList.remove("hidden");
     }
 }
 
-// Configura la escucha del envío del formulario de login
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    
     const usernameInput = document.getElementById("login_username").value;
     const passwordInput = document.getElementById("login_password").value;
 
@@ -475,16 +510,10 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
         if (response.ok) {
             const adminUser = await response.json();
-            
-            // Guardamos la sesión en las cookies locales del navegador
             localStorage.setItem("adminUser", JSON.stringify(adminUser));
-            
             alert(`¡Autenticación exitosa! Bienvenido ${adminUser.username} 🎉`);
-            
-            // Cerramos el bloqueo y refrescamos los datos operativos
             document.getElementById("loginOverlay").classList.add("hidden");
             document.getElementById("loginForm").reset();
-            
             loadAssets();
             loadDropdownData();
             loadHistory();
@@ -497,17 +526,15 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     }
 });
 
-// Función para destruir la sesión activa
 function logout() {
     if (confirm("¿Estás seguro de que deseas cerrar tu sesión de administrador?")) {
         localStorage.removeItem("adminUser");
-        // Forzamos la recarga para volver a bloquear el sistema
         window.location.reload();
     }
 }
 
 // ==========================================
-// FUNCIONES DE MODALES PRINCIPALES (RECUPERADAS)
+// FUNCIONES DE MODALES PRINCIPALES
 // ==========================================
 function openAssetModal() { document.getElementById("assetModal").classList.remove("hidden"); }
 function closeAssetModal() { document.getElementById("assetModal").classList.add("hidden"); document.getElementById("assetForm").reset(); }

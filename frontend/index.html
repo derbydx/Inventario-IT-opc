@@ -56,9 +56,7 @@
                         </tr>
                     </thead>
                     <tbody id="assetsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
-                        <tr>
-                            <td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando activos...</td>
-                        </tr>
+                        <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando activos...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -89,7 +87,7 @@
         </section>
     </main>
 
-    <div id="assetModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div id="assetModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-40">
         <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 border-t-4 border-t-blue-600">
             <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
                 <h3 class="text-lg font-bold text-gray-800">📦 Registrar Nuevo Activo</h3>
@@ -120,15 +118,24 @@
                 </div>
                 <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Categoría *</label>
+                        <div class="flex justify-between items-center">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Categoría *</label>
+                            <button type="button" onclick="openCategoryModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nueva</button>
+                        </div>
                         <select id="asset_category_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Sitio / Edificio *</label>
+                        <div class="flex justify-between items-center">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Sitio / Edificio *</label>
+                            <button type="button" onclick="openSiteModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nuevo</button>
+                        </div>
                         <select id="asset_site_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Ubicación Específica *</label>
+                        <div class="flex justify-between items-center">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Ubicación Específica *</label>
+                            <button type="button" onclick="openLocationModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nueva</button>
+                        </div>
                         <select id="asset_location_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                 </div>
@@ -173,21 +180,30 @@
                 </div>
                 <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Asignar a Departamento *</label>
+                        <div class="flex justify-between items-center">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Asignar a Departamento *</label>
+                            <button type="button" onclick="openDepartmentModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nuevo</button>
+                        </div>
                         <select id="person_department_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Asignar a Sitio Base *</label>
+                        <div class="flex justify-between items-center">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Asignar a Sitio Base *</label>
+                            <button type="button" onclick="openSiteModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nuevo</button>
+                        </div>
                         <select id="person_site_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Ubicación / Oficina Base *</label>
+                        <div class="flex justify-between items-center">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Ubicación / Oficina Base *</label>
+                            <button type="button" onclick="openLocationModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nueva</button>
+                        </div>
                         <select id="person_location_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-600 uppercase">Notas Adicionales</label>
-                    <textarea id="person_notes" rows="2" placeholder="Ej: Requiere laptop con privilegios AD locales" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm"></textarea>
+                    <textarea id="person_notes" rows="2" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm"></textarea>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closePersonModal()" class="px-4 py-2 bg-gray-200 rounded text-xs font-bold">Cancelar</button>
@@ -197,14 +213,17 @@
         </div>
     </div>
 
-    <div id="movementModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div id="movementModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-40">
         <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200">
             <h3 id="modalTitle" class="text-lg font-bold text-gray-800 mb-2">🔄 Procesar Movimiento</h3>
             <p id="modalAssetInfo" class="text-sm text-gray-500 mb-4 font-mono bg-gray-100 p-2 rounded"></p>
             <form id="movementForm" class="space-y-4">
                 <input type="hidden" id="modal_asset_id"><input type="hidden" id="modal_action_type">
                 <div id="div_asignado_a">
-                    <label class="block text-xs font-bold text-gray-600 uppercase">Seleccionar Empleado *</label>
+                    <div class="flex justify-between items-center">
+                        <label class="block text-xs font-bold text-gray-600 uppercase">Seleccionar Empleado *</label>
+                        <button type="button" onclick="openPersonModal()" class="text-blue-600 hover:text-blue-800 text-xs font-bold">+ Nuevo Empleado</button>
+                    </div>
                     <select id="modal_person_id" class="w-full mt-1 p-2 border border-gray-300 rounded bg-white text-sm"></select>
                 </div>
                 <div>
@@ -223,7 +242,7 @@
         </div>
     </div>
 
-    <div id="detailsModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div id="detailsModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-40">
         <div class="bg-white rounded-lg p-6 max-w-2xl w-full shadow-xl border border-gray-200 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-start border-b border-gray-200 pb-3 mb-4">
                 <div>
@@ -282,11 +301,11 @@
         </div>
     </div>
 
-    <div id="categoryModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-xl">
+    <div id="categoryModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
+        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl border border-gray-300">
             <h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">📁 Nueva Categoría de Equipo</h4>
             <form id="form_add_category" class="space-y-3">
-                <input type="text" id="cat_name_input" required placeholder="Ej: Laptops, Monitores, Switches" class="w-full p-2 border border-gray-300 rounded text-sm">
+                <input type="text" id="cat_name_input" required placeholder="Ej: Laptops, Monitores, Switches" class="w-full p-2 border border-gray-300 rounded text-sm bg-white">
                 <div class="flex justify-end gap-2 text-xs">
                     <button type="button" onclick="closeCategoryModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
                     <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
@@ -295,14 +314,14 @@
         </div>
     </div>
 
-    <div id="siteModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-xl">
+    <div id="siteModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
+        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl border border-gray-300">
             <h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">📍 Nuevo Sitio / Sucursal</h4>
             <form id="form_add_site" class="space-y-3">
-                <input type="text" id="site_name_input" required placeholder="Nombre (Ej: Oficina Central, Almacén TI)" class="w-full p-2 border border-gray-300 rounded text-sm">
+                <input type="text" id="site_name_input" required placeholder="Nombre (Ej: Oficina Central, Almacén TI)" class="w-full p-2 border border-gray-300 rounded text-sm bg-white">
                 <div class="grid grid-cols-2 gap-2">
-                    <input type="text" id="site_city_input" placeholder="Ciudad" class="p-2 border border-gray-300 rounded text-xs">
-                    <input type="text" id="site_country_input" placeholder="País" class="p-2 border border-gray-300 rounded text-xs">
+                    <input type="text" id="site_city_input" placeholder="Ciudad" class="p-2 border border-gray-300 rounded text-xs bg-white">
+                    <input type="text" id="site_country_input" placeholder="País" class="p-2 border border-gray-300 rounded text-xs bg-white">
                 </div>
                 <div class="flex justify-end gap-2 text-xs">
                     <button type="button" onclick="closeSiteModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
@@ -312,14 +331,27 @@
         </div>
     </div>
 
-    <div id="locationModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-xl">
+    <div id="locationModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
+        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl border border-gray-300">
             <h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">🔒 Nueva Ubicación / Rack / Pasillo</h4>
             <form id="form_add_location" class="space-y-3">
                 <select id="loc_site_select" required class="w-full p-2 border border-gray-300 rounded bg-white text-xs"></select>
-                <input type="text" id="loc_name_input" required placeholder="Nombre (Ej: Bodega B, Rack Central)" class="w-full p-2 border border-gray-300 rounded text-sm">
+                <input type="text" id="loc_name_input" required placeholder="Nombre (Ej: Bodega B, Rack Central)" class="w-full p-2 border border-gray-300 rounded text-sm bg-white">
                 <div class="flex justify-end gap-2 text-xs">
                     <button type="button" onclick="closeLocationModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
+                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="departmentModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
+        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl border border-gray-300">
+            <h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">🏢 Nuevo Departamento</h4>
+            <form id="form_add_department" class="space-y-3">
+                <input type="text" id="dept_name_input" required placeholder="Ej: Contabilidad, Soporte Técnico" class="w-full p-2 border border-gray-300 rounded text-sm bg-white">
+                <div class="flex justify-end gap-2 text-xs">
+                    <button type="button" onclick="closeDepartmentModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
                     <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
                 </div>
             </form>

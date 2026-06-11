@@ -1,13 +1,12 @@
 const API_URL = "http://127.0.0.1:8000";
 
-// Variables globales para almacenamiento local
 let currentAssets = [];
 let globalCategories = [];
 let globalSites = [];
 let globalLocations = [];
 let globalPersons = [];
 let globalAdmins = [];
-let globalDepartments = []; // <-- NUEVA: Para almacenar departamentos corporativos
+let globalDepartments = [];
 
 document.addEventListener("DOMContentLoaded", () => {
     loadAssets();
@@ -16,32 +15,27 @@ document.addEventListener("DOMContentLoaded", () => {
     setupFormListener();
     setupMovementFormListener();
     setupCatalogFormsListeners();
-    setupPersonFormListener(); // <-- NUEVA: Escucha para el alta del empleado
+    setupPersonFormListener();
 });
 
 // ==========================================
 // 1. CARGAR DESPLEGABLES Y ALMACENAR EN CACHÉ
 // ==========================================
 async function loadDropdownData() {
-    // Modal Movimientos
     const personSelect = document.getElementById("modal_person_id");
     const adminSelect = document.getElementById("modal_admin_id");
     
-    // Modal Registro Activos
     const assetCatSelect = document.getElementById("asset_category_id");
     const assetSiteSelect = document.getElementById("asset_site_id");
     const assetLocSelect = document.getElementById("asset_location_id");
     
-    // Modal Ubicación Base
     const locSiteSelect = document.getElementById("loc_site_select");
 
-    // NUEVOS: Desplegables del Modal de Empleados
     const personDeptSelect = document.getElementById("person_department_id");
     const personSiteSelect = document.getElementById("person_site_id");
     const personLocSelect = document.getElementById("person_location_id");
 
     try {
-        // A. Traer Empleados
         const resPersons = await fetch(`${API_URL}/persons/`);
         if (resPersons.ok) {
             globalPersons = await resPersons.json();
@@ -49,7 +43,6 @@ async function loadDropdownData() {
             globalPersons.forEach(p => { personSelect.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
         }
 
-        // B. Traer Administradores
         const resAdmins = await fetch(`${API_URL}/admins/`);
         if (resAdmins.ok) {
             globalAdmins = await resAdmins.json();
@@ -57,7 +50,6 @@ async function loadDropdownData() {
             globalAdmins.forEach(a => { adminSelect.innerHTML += `<option value="${a.id}">${a.username} [${a.role}]</option>`; });
         }
 
-        // C. Traer Categorías
         const resCats = await fetch(`${API_URL}/categories/`);
         if (resCats.ok) {
             globalCategories = await resCats.json();
@@ -65,7 +57,6 @@ async function loadDropdownData() {
             globalCategories.forEach(c => { assetCatSelect.innerHTML += `<option value="${c.id}">${c.category_name}</option>`; });
         }
 
-        // D. Traer Sitios (Alimenta 3 selects a la vez)
         const resSites = await fetch(`${API_URL}/sites/`);
         if (resSites.ok) {
             globalSites = await resSites.json();
@@ -80,7 +71,6 @@ async function loadDropdownData() {
             });
         }
 
-        // E. Traer Ubicaciones (Alimenta 2 selects a la vez)
         const resLocs = await fetch(`${API_URL}/locations/`);
         if (resLocs.ok) {
             globalLocations = await resLocs.json();
@@ -93,7 +83,6 @@ async function loadDropdownData() {
             });
         }
 
-        // F. NUEVA: Traer Departamentos Corporativos para el Empleado
         const resDepts = await fetch(`${API_URL}/departments/`);
         if (resDepts.ok) {
             globalDepartments = await resDepts.json();
@@ -160,7 +149,7 @@ async function loadAssets() {
 }
 
 // ==========================================
-// 3. DETALLES DE ACTIVO (NOMBRES EXTRACTED DESDE CACHÉ)
+// 3. DETALLES DE ACTIVO CON CRUCE DE CACHÉ
 // ==========================================
 async function openDetailsModal(assetId) {
     const asset = currentAssets.find(a => a.id === parseInt(assetId));
@@ -266,7 +255,6 @@ async function loadHistory() {
 function openAssetModal() { document.getElementById("assetModal").classList.remove("hidden"); }
 function closeAssetModal() { document.getElementById("assetModal").classList.add("hidden"); document.getElementById("assetForm").reset(); }
 
-// NUEVOS: Controladores para el Modal de Empleados
 function openPersonModal() { document.getElementById("personModal").classList.remove("hidden"); }
 function closePersonModal() { document.getElementById("personModal").classList.add("hidden"); document.getElementById("personForm").reset(); }
 
@@ -275,6 +263,10 @@ function closeCategoryModal() { document.getElementById("categoryModal").classLi
 
 function openSiteModal() { document.getElementById("siteModal").classList.remove("hidden"); }
 function closeSiteModal() { document.getElementById("siteModal").classList.add("hidden"); }
+
+// Nuevas funciones de control para Departamentos
+function openDepartmentModal() { document.getElementById("departmentModal").classList.remove("hidden"); }
+function closeDepartmentModal() { document.getElementById("departmentModal").classList.add("hidden"); }
 
 function openLocationModal() { document.getElementById("locationModal").classList.remove("hidden"); }
 function closeLocationModal() { document.getElementById("locationModal").classList.add("hidden"); }
@@ -363,11 +355,9 @@ function setupMovementFormListener() {
     });
 }
 
-// NUEVA FUNCIÓN: INTERCEPTOR PARA EL FORMULARIO DE ALTA DE EMPLEADOS
 function setupPersonFormListener() {
     document.getElementById("personForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        
         const personData = {
             full_name: document.getElementById("person_full_name").value,
             email: document.getElementById("person_email").value,
@@ -379,23 +369,17 @@ function setupPersonFormListener() {
             location_id: parseInt(document.getElementById("person_location_id").value),
             department_id: parseInt(document.getElementById("person_department_id").value)
         };
-
         try {
             const response = await fetch(`${API_URL}/persons/`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
+                method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(personData)
             });
-
             if (response.status === 201) {
                 alert("¡Empleado dado de alta exitosamente! 👤🎉");
                 closePersonModal();
-                loadDropdownData(); // Refresca las listas para incluir al nuevo empleado de inmediato
-            } else {
-                const err = await response.json();
-                alert(`Error: ${err.detail || "Campos duplicados o inconsistentes."}`);
-            }
-        } catch (error) { alert("Error de conexión con el servidor."); }
+                loadDropdownData();
+            } else { const err = await response.json(); alert(`Error: ${err.detail}`); }
+        } catch (error) { alert("Error."); }
     });
 }
 
@@ -439,5 +423,16 @@ function setupCatalogFormsListeners() {
             body: JSON.stringify(data)
         });
         if (res.ok) { alert("Ubicación agregada con éxito!"); closeLocationModal(); document.getElementById("form_add_location").reset(); loadDropdownData(); }
+    });
+
+    // Departamentos
+    document.getElementById("form_add_department").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("dept_name_input").value;
+        const res = await fetch(`${API_URL}/departments/`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ department_name: name })
+        });
+        if (res.ok) { alert("Departamento agregado con éxito!"); closeDepartmentModal(); document.getElementById("form_add_department").reset(); loadDropdownData(); }
     });
 }

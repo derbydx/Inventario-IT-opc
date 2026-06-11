@@ -1,6 +1,4 @@
 const API_URL = "http://127.0.0.1:8000";
-
-// Variable global para almacenar los activos en memoria local
 let currentAssets = [];
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -9,38 +7,78 @@ document.addEventListener("DOMContentLoaded", () => {
     loadHistory();
     setupFormListener();
     setupMovementFormListener();
+    setupCatalogFormsListeners(); // <-- NUEVA: Activa la escucha de los 4 catálogos
 });
 
 // ==========================================
-// CARGAR DROPDOWNS DINÁMICOS
+// 1. CARGAR MÁGICAMENTE TODOS LOS DESPLEGABLES
 // ==========================================
 async function loadDropdownData() {
+    // Selects del Modal de Movimientos
     const personSelect = document.getElementById("modal_person_id");
     const adminSelect = document.getElementById("modal_admin_id");
+    
+    // Selects del Formulario de Registro de Activos
+    const assetCatSelect = document.getElementById("asset_category_id");
+    const assetSiteSelect = document.getElementById("asset_site_id");
+    const assetLocSelect = document.getElementById("asset_location_id");
+    
+    // Select del sub-formulario de ubicaciones
+    const locSiteSelect = document.getElementById("loc_site_select");
+
     try {
+        // A. Cargar Personas (Empleados)
         const resPersons = await fetch(`${API_URL}/persons/`);
         if (resPersons.ok) {
             const persons = await resPersons.json();
             personSelect.innerHTML = '<option value="">-- Seleccione un Empleado --</option>';
-            persons.forEach(p => {
-                personSelect.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`;
-            });
+            persons.forEach(p => { personSelect.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
         }
+
+        // B. Cargar Administradores
         const resAdmins = await fetch(`${API_URL}/admins/`);
         if (resAdmins.ok) {
             const admins = await resAdmins.json();
             adminSelect.innerHTML = '<option value="">-- Seleccione su Usuario --</option>';
-            admins.forEach(a => {
-                adminSelect.innerHTML += `<option value="${a.id}">${a.username} [${a.role}]</option>`;
+            admins.forEach(a => { adminSelect.innerHTML += `<option value="${a.id}">${a.username} [${a.role}]</option>`; });
+        }
+
+        // C. Cargar Categorías
+        const resCats = await fetch(`${API_URL}/categories/`);
+        if (resCats.ok) {
+            const cats = await resCats.json();
+            assetCatSelect.innerHTML = '<option value="">-- Seleccione Categoría --</option>';
+            cats.forEach(c => { assetCatSelect.innerHTML += `<option value="${c.id}">${c.category_name}</option>`; });
+        }
+
+        // D. Cargar Sitios (Sincroniza dos selects a la vez)
+        const resSites = await fetch(`${API_URL}/sites/`);
+        if (resSites.ok) {
+            const sites = await resSites.json();
+            assetSiteSelect.innerHTML = '<option value="">-- Seleccione Sitio --</option>';
+            locSiteSelect.innerHTML = '<option value="">-- Vincular a qué Sitio? --</option>';
+            sites.forEach(s => {
+                const opt = `<option value="${s.id}">${s.site_name} (${s.city || ''})</option>`;
+                assetSiteSelect.innerHTML += opt;
+                locSiteSelect.innerHTML += opt;
             });
         }
+
+        // E. Cargar Ubicaciones
+        const resLocs = await fetch(`${API_URL}/locations/`);
+        if (resLocs.ok) {
+            const locs = await resLocs.json();
+            assetLocSelect.innerHTML = '<option value="">-- Seleccione Ubicación --</option>';
+            locs.forEach(l => { assetLocSelect.innerHTML += `<option value="${l.id}">${l.location_name}</option>`; });
+        }
+
     } catch (error) {
-        console.error("Error cargando los catálogos:", error);
+        console.error("Error al sincronizar listas de nombres:", error);
     }
 }
 
 // ==========================================
-// CARGAR ACTIVOS GLOBAL (CON FILA CLIQUEABLE)
+// 2. CARGAR ACTIVOS GLOBAL (CON FILA CLIQUEABLE)
 // ==========================================
 async function loadAssets() {
     const tableBody = document.getElementById("assetsTableBody");
@@ -49,7 +87,6 @@ async function loadAssets() {
         const response = await fetch(`${API_URL}/assets/`);
         if (!response.ok) throw new Error("Error en el servidor");
         
-        // Guardamos los activos en la variable global
         currentAssets = await response.json();
         tableBody.innerHTML = "";
         
@@ -63,10 +100,7 @@ async function loadAssets() {
 
         currentAssets.forEach(asset => {
             const row = document.createElement("tr");
-            // Agregamos clases visuales para que se note que es cliqueable
             row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer group";
-            
-            // Evento: Al hacer clic en la fila, abre los detalles profundos
             row.onclick = () => openDetailsModal(asset.id);
             
             let badgeColor = "bg-green-100 text-green-800";
@@ -101,30 +135,26 @@ async function loadAssets() {
 }
 
 // ==========================================
-// NUEVA LOGICA: DETALLES Y HISTORIAL POR EQUIPO
+// 3. DETALLES Y HISTORIAL POR EQUIPO (DRILL-DOWN)
 // ==========================================
 async function openDetailsModal(assetId) {
-    // 1. Buscar el activo en nuestra memoria local
     const asset = currentAssets.find(a => a.id === parseInt(assetId));
     if (!asset) return;
 
-    // 2. Pintar datos del activo en el modal
     document.getElementById("detailsTitle").innerText = `🔍 Hoja de Vida del Activo`;
     document.getElementById("detailsTag").innerText = `Asset Tag ID: ${asset.asset_tag_id}`;
     document.getElementById("det_description").innerText = asset.asset_description;
     document.getElementById("det_brand_model").innerText = `${asset.brand} - ${asset.model}`;
     document.getElementById("det_serial").innerText = asset.serial_no;
-    document.getElementById("det_ids").innerText = `Cat: ${asset.category_id} | Site: ${asset.site_id} | Loc: ${asset.location_id}`;
+    document.getElementById("det_ids").innerText = `Cat ID: ${asset.category_id} | Site ID: ${asset.site_id} | Loc ID: ${asset.location_id}`;
     document.getElementById("det_assigned").innerText = asset.person_id ? `Empleado ID (DB): ${asset.person_id}` : "Disponible en Almacén";
 
-    // Dar color dinámico al badge de estado dentro del modal
     const statusContainer = document.getElementById("det_status");
     let badgeColor = "bg-green-100 text-green-800";
     if (asset.status === "Checkout") badgeColor = "bg-blue-100 text-blue-800";
     if (asset.status === "Broken") badgeColor = "bg-red-100 text-red-800";
     statusContainer.innerHTML = `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${badgeColor}">${asset.status}</span>`;
 
-    // 3. Consultar todo el historial y FILTRAR solo el de este asset_id
     const historyBody = document.getElementById("assetSpecificHistoryBody");
     historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">Buscando bitácora de este equipo...</td></tr>`;
 
@@ -132,20 +162,16 @@ async function openDetailsModal(assetId) {
         const response = await fetch(`${API_URL}/history/`);
         if (response.ok) {
             const allHistory = await response.json();
-            // Filtramos estrictamente por el id de este equipo
             const specificHistory = allHistory.filter(h => h.asset_id === asset.id);
-            
             historyBody.innerHTML = "";
             if (specificHistory.length === 0) {
-                historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-3 text-center text-gray-400 italic">Este equipo no registra movimientos de asignación previos.</td></tr>`;
+                historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-3 text-center text-gray-400 italic">Este equipo no registra movimientos previos.</td></tr>`;
             } else {
-                // El más nuevo arriba
                 specificHistory.reverse();
                 specificHistory.forEach(item => {
                     const row = document.createElement("tr");
                     const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
                     let actionClass = item.tipo_accion === "Checkout" ? "text-blue-600 font-bold" : "text-amber-600 font-bold";
-
                     row.innerHTML = `
                         <td class="px-3 py-1.5 text-gray-400 text-[11px]">${fecha}</td>
                         <td class="px-3 py-1.5 uppercase ${actionClass}">${item.tipo_accion}</td>
@@ -156,20 +182,14 @@ async function openDetailsModal(assetId) {
                 });
             }
         }
-    } catch (error) {
-        historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-3 text-center text-red-500">Error cargando bitácora.</td></tr>`;
-    }
+    } catch (error) { historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-3 text-center text-red-500">Error.</td></tr>`; }
 
-    // 4. Mostrar el modal quitando la clase 'hidden'
     document.getElementById("detailsModal").classList.remove("hidden");
 }
-
-function closeDetailsModal() {
-    document.getElementById("detailsModal").classList.add("hidden");
-}
+function closeDetailsModal() { document.getElementById("detailsModal").classList.add("hidden"); }
 
 // ==========================================
-// LEER HISTORIAL GLOBAL (INFERIOR)
+// 4. LEER HISTORIAL GLOBAL (INFERIOR)
 // ==========================================
 async function loadHistory() {
     const historyBody = document.getElementById("historyTableBody");
@@ -189,7 +209,6 @@ async function loadHistory() {
             let actionBadge = "text-blue-600 font-bold";
             if (item.tipo_accion === "Check in") actionBadge = "text-amber-600 font-bold";
             const fechaFormateada = new Date(item.fecha_accion).toLocaleString('es-ES');
-
             row.innerHTML = `
                 <td class="px-4 py-2 text-gray-500 whitespace-nowrap">${fechaFormateada}</td>
                 <td class="px-4 py-2 uppercase ${actionBadge}">${item.tipo_accion}</td>
@@ -200,13 +219,11 @@ async function loadHistory() {
             `;
             historyBody.appendChild(row);
         });
-    } catch (error) {
-        historyBody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-red-500">Error al cargar la bitácora.</td></tr>`;
-    }
+    } catch (error) { historyBody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-red-500">Error.</td></tr>`; }
 }
 
 // ==========================================
-// REGISTRO DE NUEVO ACTIVO
+// 5. FORMULARIO: GUARDAR NUEVO ACTIVO
 // ==========================================
 function setupFormListener() {
     const form = document.getElementById("assetForm");
@@ -218,9 +235,9 @@ function setupFormListener() {
             brand: document.getElementById("brand").value,
             model: document.getElementById("model").value,
             serial_no: document.getElementById("serial_no").value,
-            category_id: parseInt(document.getElementById("category_id").value),
-            site_id: parseInt(document.getElementById("site_id").value),
-            location_id: parseInt(document.getElementById("location_id").value),
+            category_id: parseInt(document.getElementById("asset_category_id").value),
+            site_id: parseInt(document.getElementById("asset_site_id").value),
+            location_id: parseInt(document.getElementById("asset_location_id").value),
             status: "Check in"
         };
         try {
@@ -237,20 +254,17 @@ function setupFormListener() {
                 const errorData = await response.json();
                 alert(`Error: ${errorData.detail}`);
             }
-        } catch (error) {
-            alert("Error al conectar con el servidor.");
-        }
+        } catch (error) { alert("Error al conectar con el servidor."); }
     });
 }
 
 // ==========================================
-// CONTROLADOR DEL MODAL DE MOVIMIENTOS
+// CONTROLADORES MODAL DE MOVIMIENTOS
 // ==========================================
 function openModal(assetId, assetTag, actionType) {
     document.getElementById("modal_asset_id").value = assetId;
     document.getElementById("modal_action_type").value = actionType;
     document.getElementById("modalAssetInfo").innerText = `Activo Seleccionado: ${assetTag}`;
-    
     const divAsignadoA = document.getElementById("div_asignado_a");
     const modalTitle = document.getElementById("modalTitle");
     const submitBtn = document.getElementById("modalSubmitBtn");
@@ -270,15 +284,11 @@ function openModal(assetId, assetTag, actionType) {
     }
     document.getElementById("movementModal").classList.remove("hidden");
 }
-
 function closeModal() {
     document.getElementById("movementModal").classList.add("hidden");
     document.getElementById("movementForm").reset();
 }
 
-// ==========================================
-// PROCESAR MOVIMIENTO DE INVENTARIO
-// ==========================================
 function setupMovementFormListener() {
     const form = document.getElementById("movementForm");
     form.addEventListener("submit", async (e) => {
@@ -288,20 +298,11 @@ function setupMovementFormListener() {
         const adminId = document.getElementById("modal_admin_id").value;
         const notas = document.getElementById("modal_notas").value;
 
-        if (!adminId) {
-            alert("Debe seleccionar un administrador.");
-            return;
-        }
-
         let url = `${API_URL}/assets/${assetId}/checkin?admin_id=${adminId}`;
         if (notas) url += `&notas=${encodeURIComponent(notas)}`;
 
         if (actionType === "checkout") {
             const personId = document.getElementById("modal_person_id").value;
-            if (!personId) {
-                alert("Debe seleccionar un empleado.");
-                return;
-            }
             url = `${API_URL}/assets/${assetId}/checkout?person_id=${personId}&admin_id=${adminId}`;
             if (notas) url += `&notas=${encodeURIComponent(notas)}`;
         }
@@ -317,8 +318,71 @@ function setupMovementFormListener() {
                 const err = await response.json();
                 alert(`Error: ${err.detail || "No se pudo procesar"}`);
             }
-        } catch (error) {
-            alert("Error de conexión.");
-        }
+        } catch (error) { alert("Error de conexión."); }
+    });
+}
+
+// ==========================================
+// CONTROLADORES NUEVOS: MODAL DE CATÁLOGOS BASE
+// ==========================================
+function openCatalogsModal() { document.getElementById("catalogsModal").classList.remove("hidden"); }
+// Al cerrar refresca los desplegables por seguridad
+function closeCatalogsModal() { document.getElementById("catalogsModal").classList.add("hidden"); loadDropdownData(); }
+
+// ESCUCHA Y PROCESAMIENTO DE LOS 4 NUEVOS FORMULARIOS DE CATÁLOGO
+function setupCatalogFormsListeners() {
+    // A. Formulario Categorías
+    document.getElementById("form_add_category").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("cat_name_input").value;
+        const res = await fetch(`${API_URL}/categories/`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category_name: name })
+        });
+        if (res.ok) { alert("Categoría agregada con éxito!"); document.getElementById("form_add_category").reset(); loadDropdownData(); }
+        else { alert("Error al agregar la categoría."); }
+    });
+
+    // B. Formulario Departamentos
+    document.getElementById("form_add_department").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("dept_name_input").value;
+        const res = await fetch(`${API_URL}/departments/`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ department_name: name })
+        });
+        if (res.ok) { alert("Departamento agregado con éxito!"); document.getElementById("form_add_department").reset(); loadDropdownData(); }
+        else { alert("Error al agregar el departamento."); }
+    });
+
+    // C. Formulario Sitios
+    document.getElementById("form_add_site").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const data = {
+            site_name: document.getElementById("site_name_input").value,
+            city: document.getElementById("site_city_input").value || null,
+            country: document.getElementById("site_country_input").value || null
+        };
+        const res = await fetch(`${API_URL}/sites/`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+        if (res.ok) { alert("Sitio agregado con éxito!"); document.getElementById("form_add_site").reset(); loadDropdownData(); }
+        else { alert("Error al agregar el sitio."); }
+    });
+
+    // D. Formulario Ubicaciones
+    document.getElementById("form_add_location").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const data = {
+            location_name: document.getElementById("loc_name_input").value,
+            site_id: parseInt(document.getElementById("loc_site_select").value)
+        };
+        const res = await fetch(`${API_URL}/locations/`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+        if (res.ok) { alert("Ubicación agregada con éxito!"); document.getElementById("form_add_location").reset(); loadDropdownData(); }
+        else { alert("Error al agregar la ubicación."); }
     });
 }

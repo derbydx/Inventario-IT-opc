@@ -1,0 +1,15 @@
+python -m venv venv
+En VS Code, abre la terminal integrada pulsando Ctrl + ` (o yendo a Terminal > Nueva Terminal en el menú superior). Asegúrate de que diga "PowerShell" en la esquina superior derecha de la terminal.
+
+Para encapsular todo y que no haya conflictos, crea un entorno virtual ejecutando este comando:
+
+PowerShell
+python -m venv venv
+Activa el entorno virtual. (Recuerda que si PowerShell te da un error rojo de políticas, primero debes ejecutar Set-ExecutionPolicy Unrestricted -Scope Process y luego el comando de abajo):
+
+PowerShell
+.\venv\Scripts\activate
+
+Paso 3: Instalar el "Motor" (Dependencias)
+pip install fastapi uvicorn sqlalchemy pydantic
+

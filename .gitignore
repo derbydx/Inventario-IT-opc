@@ -1,0 +1,12 @@
+# Entornos virtuales
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Bases de datos locales
+*.db
+*.sqlite3
+
+# Archivos de configuración del editor
+.vscode/

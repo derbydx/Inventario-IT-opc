@@ -12,26 +12,30 @@
     <nav class="bg-blue-700 text-white p-4 shadow-md">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <h1 class="text-xl font-bold tracking-wide">🛡️ IT Asset Manager</h1>
-            <span class="bg-blue-900 px-3 py-1 rounded text-sm font-medium">Clon AssetTiger</span>
         </div>
     </nav>
 
     <div class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap gap-3">
-            <button onclick="openAssetModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
-                📦 Registrar Activo
-            </button>
-            <button onclick="openPersonModal()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
-                👤 Crear Empleado
-            </button>
-            <button onclick="openCategoryModal()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
-                📁 Crear Categoría
-            </button>
-            <button onclick="openSiteModal()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
-                📍 Crear Sitio
-            </button>
-            <button onclick="openLocationModal()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
-                🔒 Crear Ubicación
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+            <div class="flex flex-wrap gap-3">
+                <button onclick="openAssetModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
+                    📦 Registrar Activo
+                </button>
+                <button onclick="openPersonModal()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
+                    👤 Crear Empleado
+                </button>
+                <button onclick="openCategoryModal()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
+                    📁 Crear Categoría
+                </button>
+                <button onclick="openSiteModal()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
+                    📍 Crear Sitio
+                </button>
+                <button onclick="openLocationModal()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
+                    🔒 Crear Ubicación
+                </button>
+            </div>
+            <button onclick="openDeletedAssetsModal()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors flex items-center gap-1 cursor-pointer">
+                🗑️ Eliminados Recientemente
             </button>
         </div>
     </div>
@@ -40,7 +44,7 @@
         
         <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-gray-800">📋 Inventario Global de Activos</h2>
+                <h2 class="text-lg font-semibold text-gray-800">📋 Inventario Global de Activos Activos</h2>
                 <span id="assetCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Equipos</span>
             </div>
 
@@ -251,7 +255,7 @@
                 </div>
                 <button onclick="closeDetailsModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm mb-4">
                 <div>
                     <span class="block text-[10px] font-bold text-gray-400 uppercase">Descripción</span>
                     <p id="det_description" class="text-gray-700 font-medium">-</p>
@@ -277,86 +281,161 @@
                     <p id="det_location_path" class="text-gray-700 font-medium">-</p>
                 </div>
                 <div class="md:col-span-2">
-                    <span class="block text-[10px] font-bold text-gray-400 uppercase">Asignado Actualmente A</span>
-                    <p id="det_assigned" class="text-blue-700 font-semibold bg-blue-50 p-1.5 rounded border border-blue-100 mt-1">-</p>
+                    <span class="block text-[10px] font-bold text-gray-400 uppercase">Asignado Actualmente A (Haz clic para ver sus equipos)</span>
+                    <div id="det_assigned_container" class="mt-1"></div>
                 </div>
             </div>
-            <h4 class="text-sm font-bold text-gray-700 mb-2">📋 Historial de Cambios de este Equipo</h4>
-            <div class="overflow-x-auto border border-gray-200 rounded">
-                <table class="min-w-full divide-y divide-gray-200 text-xs font-mono">
-                    <thead class="bg-gray-100 text-gray-500">
+            
+            <div class="border border-gray-200 rounded-lg mb-6 overflow-hidden">
+                <button onclick="toggleSpecificHistory()" class="w-full bg-gray-50 p-3 text-left text-sm font-bold text-gray-700 hover:bg-gray-100 flex justify-between items-center transition-colors cursor-pointer">
+                    <span>📋 Historial de Cambios de este Equipo</span>
+                    <span id="historyToggleIcon" class="text-xs text-gray-400 transition-transform duration-200">▶️ Mostrar</span>
+                </button>
+                <div id="assetSpecificHistoryWrapper" class="hidden overflow-x-auto border-t border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200 text-xs font-mono">
+                        <thead class="bg-gray-50 text-gray-500">
+                            <tr>
+                                <th class="px-3 py-2 text-left font-bold uppercase">Fecha</th>
+                                <th class="px-3 py-2 text-left font-bold uppercase">Acción</th>
+                                <th class="px-3 py-2 text-left font-bold uppercase">Operador</th>
+                                <th class="px-3 py-2 text-left font-bold uppercase">Notas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assetSpecificHistoryBody" class="bg-white divide-y divide-gray-200 text-gray-600"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+                <button id="btn_delete_asset" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded text-xs transition-colors cursor-pointer">
+                    🚨 Dar de Baja (Mandar a papelera)
+                </button>
+                <div class="flex gap-2">
+                    <button id="btn_edit_asset" class="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded text-xs transition-colors cursor-pointer">
+                        ✏️ Editar Datos
+                    </button>
+                    <button onclick="closeDetailsModal()" class="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded text-xs cursor-pointer">
+                        Cerrar Ventana
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="editAssetModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 border-t-4 border-t-blue-500">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
+                <h3 class="text-lg font-bold text-gray-800">✏️ Editar Propiedades del Activo</h3>
+                <button onclick="closeEditAssetModal()" class="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">&times;</button>
+            </div>
+            <form id="editAssetForm" class="space-y-3">
+                <input type="hidden" id="edit_asset_id">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Asset Tag ID *</label>
+                    <input type="text" id="edit_asset_tag_id" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Descripción *</label>
+                    <input type="text" id="edit_asset_description" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">Marca *</label>
+                        <input type="text" id="edit_brand" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">Modelo *</label>
+                        <input type="text" id="edit_model" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Número de Serie *</label>
+                    <input type="text" id="edit_serial_no" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Categoría *</label>
+                        <select id="edit_asset_category_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Sitio / Edificio *</label>
+                        <select id="edit_asset_site_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Ubicación Específica *</label>
+                        <select id="edit_asset_location_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeEditAssetModal()" class="px-4 py-2 bg-gray-200 rounded text-xs font-bold">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold cursor-pointer">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="userAssetsModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-6 max-w-xl w-full shadow-2xl border border-gray-200 max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800">💼 Inventario Asignado a Persona</h3>
+                    <p id="userAssetsModalSubtitle" class="text-xs text-teal-700 font-medium mt-0.5"></p>
+                </div>
+                <button onclick="closeUserAssetsModal()" class="text-gray-400 hover:text-gray-600 text-2xl cursor-pointer">&times;</button>
+            </div>
+            <div class="overflow-x-auto rounded border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead class="bg-gray-100 text-gray-600">
                         <tr>
-                            <th class="px-3 py-2 text-left font-bold uppercase">Fecha</th>
-                            <th class="px-3 py-2 text-left font-bold uppercase">Acción</th>
-                            <th class="px-3 py-2 text-left font-bold uppercase">Operador</th>
-                            <th class="px-3 py-2 text-left font-bold uppercase">Notas</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Asset Tag</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Descripción</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Marca / Modelo</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Número de Serie</th>
                         </tr>
                     </thead>
-                    <tbody id="assetSpecificHistoryBody" class="bg-white divide-y divide-gray-200 text-gray-600"></tbody>
+                    <tbody id="userAssetsTableBody" class="bg-white divide-y divide-gray-200 text-gray-700 font-mono"></tbody>
                 </table>
             </div>
             <div class="flex justify-end pt-4 mt-4 border-t border-gray-100">
-                <button onclick="closeDetailsModal()" class="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded text-sm cursor-pointer">Cerrar Ventana</button>
+                <button onclick="closeUserAssetsModal()" class="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded text-xs cursor-pointer">Volver Detrás</button>
             </div>
         </div>
     </div>
 
-    <div id="categoryModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
-        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl border border-gray-300">
-            <h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">📁 Nueva Categoría de Equipo</h4>
-            <form id="form_add_category" class="space-y-3">
-                <input type="text" id="cat_name_input" required placeholder="Ej: Laptops, Monitores, Switches" class="w-full p-2 border border-gray-300 rounded text-sm bg-white">
-                <div class="flex justify-end gap-2 text-xs">
-                    <button type="button" onclick="closeCategoryModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
-                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
+    <div id="deletedAssetsModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-6 max-w-4xl w-full shadow-2xl border border-gray-200 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-red-700 flex items-center gap-1">🗑️ Equipos Eliminados Recientemente</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Bandeja de reciclaje segura. Los datos históricos de estos activos siguen protegidos en la base de datos.</p>
                 </div>
-            </form>
+                <button onclick="closeDeletedAssetsModal()" class="text-gray-400 hover:text-gray-600 text-2xl cursor-pointer">&times;</button>
+            </div>
+            <div class="overflow-x-auto rounded border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200 text-xs font-mono">
+                    <thead class="bg-red-50 text-red-800">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-bold uppercase">Asset Tag</th>
+                            <th class="px-4 py-3 text-left font-bold uppercase">Descripción</th>
+                            <th class="px-4 py-3 text-left font-bold uppercase">Marca / Modelo</th>
+                            <th class="px-4 py-3 text-left font-bold uppercase">Número de Serie</th>
+                            <th class="px-4 py-3 text-center font-bold uppercase">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deletedAssetsTableBody" class="bg-white divide-y divide-gray-200 text-gray-700">
+                        </tbody>
+                </table>
+            </div>
+            <div class="flex justify-end pt-4 mt-4 border-t border-gray-100">
+                <button onclick="closeDeletedAssetsModal()" class="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded text-xs cursor-pointer">Cerrar Papelera</button>
+            </div>
         </div>
     </div>
 
-    <div id="siteModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
-        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl border border-gray-300">
-            <h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">📍 Nuevo Sitio / Sucursal</h4>
-            <form id="form_add_site" class="space-y-3">
-                <input type="text" id="site_name_input" required placeholder="Nombre (Ej: Oficina Central, Almacén TI)" class="w-full p-2 border border-gray-300 rounded text-sm bg-white">
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="text" id="site_city_input" placeholder="Ciudad" class="p-2 border border-gray-300 rounded text-xs bg-white">
-                    <input type="text" id="site_country_input" placeholder="País" class="p-2 border border-gray-300 rounded text-xs bg-white">
-                </div>
-                <div class="flex justify-end gap-2 text-xs">
-                    <button type="button" onclick="closeSiteModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
-                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="locationModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
-        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl border border-gray-300">
-            <h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">🔒 Nueva Ubicación / Rack / Pasillo</h4>
-            <form id="form_add_location" class="space-y-3">
-                <select id="loc_site_select" required class="w-full p-2 border border-gray-300 rounded bg-white text-xs"></select>
-                <input type="text" id="loc_name_input" required placeholder="Nombre (Ej: Bodega B, Rack Central)" class="w-full p-2 border border-gray-300 rounded text-sm bg-white">
-                <div class="flex justify-end gap-2 text-xs">
-                    <button type="button" onclick="closeLocationModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
-                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="departmentModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
-        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl border border-gray-300">
-            <h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">🏢 Nuevo Departamento</h4>
-            <form id="form_add_department" class="space-y-3">
-                <input type="text" id="dept_name_input" required placeholder="Ej: Contabilidad, Soporte Técnico" class="w-full p-2 border border-gray-300 rounded text-sm bg-white">
-                <div class="flex justify-end gap-2 text-xs">
-                    <button type="button" onclick="closeDepartmentModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
-                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <div id="categoryModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">📁 Nueva Categoría</h4><form id="form_add_category" class="space-y-3"><input type="text" id="cat_name_input" required placeholder="Ej: Laptops" class="w-full p-2 border rounded text-sm bg-white"><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeCategoryModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>
+    <div id="siteModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">📍 Nuevo Sitio</h4><form id="form_add_site" class="space-y-3"><input type="text" id="site_name_input" required placeholder="Nombre Sitio" class="w-full p-2 border rounded text-sm bg-white"><div class="grid grid-cols-2 gap-2"><input type="text" id="site_city_input" placeholder="Ciudad" class="p-2 border rounded text-xs bg-white"><input type="text" id="site_country_input" placeholder="País" class="p-2 border rounded text-xs bg-white"></div><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeSiteModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>
+    <div id="locationModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">🔒 Nueva Ubicación</h4><form id="form_add_location" class="space-y-3"><select id="loc_site_select" required class="w-full p-2 border rounded bg-white text-xs"></select><input type="text" id="loc_name_input" required placeholder="Nombre Ubicación" class="w-full p-2 border rounded text-sm bg-white"><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeLocationModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>
+    <div id="departmentModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]"><div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl"><h4 class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">🏢 Nuevo Departamento</h4><form id="form_add_department" class="space-y-3"><input type="text" id="dept_name_input" required placeholder="Ej: Soporte" class="w-full p-2 border rounded text-sm bg-white"><div class="flex justify-end gap-2 text-xs"><button type="button" onclick="closeDepartmentModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button><button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button></div></form></div></div>
 
     <script src="app.js"></script>
 </body>

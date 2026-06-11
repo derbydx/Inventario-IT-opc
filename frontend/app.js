@@ -16,24 +16,25 @@ document.addEventListener("DOMContentLoaded", () => {
     setupMovementFormListener();
     setupCatalogFormsListeners();
     setupPersonFormListener();
+    setupEditAssetFormListener();
 });
 
 // ==========================================
-// 1. CARGAR DESPLEGABLES Y ALMACENAR EN CACHÉ
+// 1. CARGAR LISTAS MAESTRAS
 // ==========================================
 async function loadDropdownData() {
     const personSelect = document.getElementById("modal_person_id");
     const adminSelect = document.getElementById("modal_admin_id");
-    
     const assetCatSelect = document.getElementById("asset_category_id");
     const assetSiteSelect = document.getElementById("asset_site_id");
     const assetLocSelect = document.getElementById("asset_location_id");
-    
     const locSiteSelect = document.getElementById("loc_site_select");
-
     const personDeptSelect = document.getElementById("person_department_id");
     const personSiteSelect = document.getElementById("person_site_id");
     const personLocSelect = document.getElementById("person_location_id");
+    const editCatSelect = document.getElementById("edit_asset_category_id");
+    const editSiteSelect = document.getElementById("edit_asset_site_id");
+    const editLocSelect = document.getElementById("edit_asset_location_id");
 
     try {
         const resPersons = await fetch(`${API_URL}/persons/`);
@@ -42,59 +43,47 @@ async function loadDropdownData() {
             personSelect.innerHTML = '<option value="">-- Seleccione un Empleado --</option>';
             globalPersons.forEach(p => { personSelect.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
         }
-
         const resAdmins = await fetch(`${API_URL}/admins/`);
         if (resAdmins.ok) {
             globalAdmins = await resAdmins.json();
             adminSelect.innerHTML = '<option value="">-- Seleccione su Usuario --</option>';
             globalAdmins.forEach(a => { adminSelect.innerHTML += `<option value="${a.id}">${a.username} [${a.role}]</option>`; });
         }
-
         const resCats = await fetch(`${API_URL}/categories/`);
         if (resCats.ok) {
             globalCategories = await resCats.json();
-            assetCatSelect.innerHTML = '<option value="">-- Seleccione Categoría --</option>';
-            globalCategories.forEach(c => { assetCatSelect.innerHTML += `<option value="${c.id}">${c.category_name}</option>`; });
+            const fill = (sel) => { sel.innerHTML = '<option value="">-- Seleccione Categoría --</option>'; globalCategories.forEach(c => { sel.innerHTML += `<option value="${c.id}">${c.category_name}</option>`; });};
+            fill(assetCatSelect); fill(editCatSelect);
         }
-
         const resSites = await fetch(`${API_URL}/sites/`);
         if (resSites.ok) {
             globalSites = await resSites.json();
             assetSiteSelect.innerHTML = '<option value="">-- Seleccione Sitio --</option>';
+            editSiteSelect.innerHTML = '<option value="">-- Seleccione Sitio --</option>';
             locSiteSelect.innerHTML = '<option value="">-- Vincular a qué Sitio? --</option>';
             personSiteSelect.innerHTML = '<option value="">-- Seleccione Sitio Base --</option>';
             globalSites.forEach(s => {
                 const opt = `<option value="${s.id}">${s.site_name}</option>`;
-                assetSiteSelect.innerHTML += opt;
-                locSiteSelect.innerHTML += opt;
-                personSiteSelect.innerHTML += opt;
+                assetSiteSelect.innerHTML += opt; editSiteSelect.innerHTML += opt; locSiteSelect.innerHTML += opt; personSiteSelect.innerHTML += opt;
             });
         }
-
         const resLocs = await fetch(`${API_URL}/locations/`);
         if (resLocs.ok) {
             globalLocations = await resLocs.json();
-            assetLocSelect.innerHTML = '<option value="">-- Seleccione Ubicación --</option>';
-            personLocSelect.innerHTML = '<option value="">-- Seleccione Ubicación Base --</option>';
-            globalLocations.forEach(l => { 
-                const opt = `<option value="${l.id}">${l.location_name}</option>`;
-                assetLocSelect.innerHTML += opt;
-                personLocSelect.innerHTML += opt;
-            });
+            const fillL = (sel) => { sel.innerHTML = '<option value="">-- Seleccione Ubicación --</option>'; globalLocations.forEach(l => { sel.innerHTML += `<option value="${l.id}">${l.location_name}</option>`; });};
+            fillL(assetLocSelect); fillL(editLocSelect); fillL(personLocSelect);
         }
-
         const resDepts = await fetch(`${API_URL}/departments/`);
         if (resDepts.ok) {
             globalDepartments = await resDepts.json();
             personDeptSelect.innerHTML = '<option value="">-- Seleccione Departamento --</option>';
             globalDepartments.forEach(d => { personDeptSelect.innerHTML += `<option value="${d.id}">${d.department_name}</option>`; });
         }
-
-    } catch (error) { console.error("Error al sincronizar catálogos:", error); }
+    } catch (e) { console.error(e); }
 }
 
 // ==========================================
-// 2. CARGAR INVENTARIO GLOBAL
+// 2. RENDEREAR INVENTARIO (CORREGIDO)
 // ==========================================
 async function loadAssets() {
     const tableBody = document.getElementById("assetsTableBody");
@@ -106,15 +95,19 @@ async function loadAssets() {
         currentAssets = await response.json();
         tableBody.innerHTML = "";
         
-        if (currentAssets.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">No hay activos registrados.</td></tr>`;
+        // FILTRADO REAL: Solo activos vigentes
+        const activeAssets = currentAssets.filter(a => a.status !== "Archived");
+        
+        if (activeAssets.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>`;
             countSpan.innerText = "0 Equipos";
             return;
         }
 
-        countSpan.innerText = `${currentAssets.length} ${currentAssets.length === 1 ? 'Equipo' : 'Equipos'}`;
+        countSpan.innerText = `${activeAssets.length} ${activeAssets.length === 1 ? 'Equipo' : 'Equipos'}`;
 
-        currentAssets.forEach(asset => {
+        // CORRECCIÓN AQUÍ: Recorrer activeAssets en vez del arreglo completo original
+        activeAssets.forEach(asset => {
             const row = document.createElement("tr");
             row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer group";
             row.onclick = () => openDetailsModal(asset.id);
@@ -123,13 +116,9 @@ async function loadAssets() {
             if (asset.status === "Checkout") badgeColor = "bg-blue-100 text-blue-800";
             if (asset.status === "Broken") badgeColor = "bg-red-100 text-red-800";
 
-            let actionButton = "";
-            if (asset.status === "Check in") {
-                actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-out</button>`;
-            } else if (asset.status === "Checkout") {
+            let actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-out</button>`;
+            if (asset.status === "Checkout") {
                 actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkin')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-in</button>`;
-            } else {
-                actionButton = `<span class="text-xs text-gray-400 italic">No disponible</span>`;
             }
 
             row.innerHTML = `
@@ -145,15 +134,18 @@ async function loadAssets() {
             `;
             tableBody.appendChild(row);
         });
-    } catch (error) { tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-red-500 font-medium">⚠️ Error de conexión</td></tr>`; }
+    } catch (e) { tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-red-500 font-medium">⚠️ Error de conexión con el servidor backend</td></tr>`; }
 }
 
 // ==========================================
-// 3. DETALLES DE ACTIVO CON CRUCE DE CACHÉ
+// 3. HOJA DE VIDA Y ACORDEÓN
 // ==========================================
 async function openDetailsModal(assetId) {
     const asset = currentAssets.find(a => a.id === parseInt(assetId));
     if (!asset) return;
+
+    document.getElementById("assetSpecificHistoryWrapper").classList.add("hidden");
+    document.getElementById("historyToggleIcon").innerText = "▶️ Mostrar";
 
     const categoryObj = globalCategories.find(c => c.id === asset.category_id);
     const siteObj = globalSites.find(s => s.id === asset.site_id);
@@ -167,16 +159,23 @@ async function openDetailsModal(assetId) {
     
     document.getElementById("det_category_name").innerText = categoryObj ? categoryObj.category_name : `ID: ${asset.category_id}`;
     document.getElementById("det_location_path").innerText = `${siteObj ? siteObj.site_name : 'Site'} ➔ ${locationObj ? locationObj.location_name : 'Ubicación'}`;
-    document.getElementById("det_assigned").innerText = employeeObj ? `👤 ${employeeObj.full_name} [${employeeObj.title || 'Personal'}] - ID: ${employeeObj.employee_id}` : "🟢 Disponible en Almacén (Check in)";
 
-    const statusContainer = document.getElementById("det_status");
-    let badgeColor = "bg-green-100 text-green-800";
-    if (asset.status === "Checkout") badgeColor = "bg-blue-100 text-blue-800";
-    if (asset.status === "Broken") badgeColor = "bg-red-100 text-red-800";
-    statusContainer.innerHTML = `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${badgeColor}">${asset.status}</span>`;
+    const containerAsignado = document.getElementById("det_assigned_container");
+    if (employeeObj) {
+        containerAsignado.innerHTML = `
+            <button onclick="openUserAssetsModal('${employeeObj.id}', '${employeeObj.full_name}')" class="w-full text-left bg-blue-50 border border-blue-200 rounded p-2 text-blue-700 font-semibold hover:bg-blue-100 transition-colors cursor-pointer block flex justify-between items-center">
+                <span>👤 ${employeeObj.full_name} (${employeeObj.title || 'Personal'})</span>
+                <span class="text-[10px] bg-blue-600 text-white font-bold py-0.5 px-1.5 rounded uppercase tracking-wide">Ver Asignados ➔</span>
+            </button>`;
+    } else {
+        containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded">🟢 Disponible en Almacén</p>`;
+    }
+
+    document.getElementById("btn_delete_asset").onclick = () => triggerDeleteAsset(asset.id, asset.asset_tag_id);
+    document.getElementById("btn_edit_asset").onclick = () => openEditAssetModal(asset.id);
 
     const historyBody = document.getElementById("assetSpecificHistoryBody");
-    historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">Buscando bitácora de este equipo...</td></tr>`;
+    historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">Buscando...</td></tr>`;
 
     try {
         const response = await fetch(`${API_URL}/history/`);
@@ -185,254 +184,208 @@ async function openDetailsModal(assetId) {
             const specificHistory = allHistory.filter(h => h.asset_id === asset.id);
             historyBody.innerHTML = "";
             if (specificHistory.length === 0) {
-                historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-3 text-center text-gray-400 italic">Este equipo no registra movimientos.</td></tr>`;
+                historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-3 text-center text-gray-400 italic">Sin movimientos registrados.</td></tr>`;
             } else {
                 specificHistory.reverse();
                 specificHistory.forEach(item => {
                     const row = document.createElement("tr");
                     const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
-                    let actionClass = item.tipo_accion === "Checkout" ? "text-blue-600 font-bold" : "text-amber-600 font-bold";
+                    let actionClass = item.tipo_accion === "Checkout" ? "text-blue-600 font-bold" : (item.tipo_accion === "Archived" ? "text-red-600 font-bold" : "text-amber-600 font-bold");
                     const adminObj = globalAdmins.find(a => a.id === item.realizado_por_id);
-
-                    row.innerHTML = `
-                        <td class="px-3 py-1.5 text-gray-400 text-[11px]">${fecha}</td>
-                        <td class="px-3 py-1.5 uppercase ${actionClass}">${item.tipo_accion}</td>
-                        <td class="px-3 py-1.5 text-gray-500">${adminObj ? adminObj.username : 'Admin ID: ' + item.realizado_por_id}</td>
-                        <td class="px-3 py-1.5 text-gray-700 italic">${item.notas_detalle || '-'}</td>
-                    `;
+                    row.innerHTML = `<td class="px-3 py-1.5 text-gray-400 text-[11px]">${fecha}</td><td class="px-3 py-1.5 uppercase ${actionClass}">${item.tipo_accion}</td><td class="px-3 py-1.5 text-gray-500">${adminObj ? adminObj.username : 'Admin'}</td><td class="px-3 py-1.5 text-gray-700 italic">${item.notas_detalle || '-'}</td>`;
                     historyBody.appendChild(row);
                 });
             }
         }
-    } catch (error) { historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-3 text-center text-red-500">Error.</td></tr>`; }
+    } catch (e) { console.error(e); }
 
     document.getElementById("detailsModal").classList.remove("hidden");
 }
 function closeDetailsModal() { document.getElementById("detailsModal").classList.add("hidden"); }
 
+function toggleSpecificHistory() {
+    const wrapper = document.getElementById("assetSpecificHistoryWrapper");
+    const icon = document.getElementById("historyToggleIcon");
+    if (wrapper.classList.contains("hidden")) { wrapper.classList.remove("hidden"); icon.innerText = "👇 Ocultar"; } 
+    else { wrapper.classList.add("hidden"); icon.innerText = "▶️ Mostrar"; }
+}
+
 // ==========================================
-// 4. LEER HISTORIAL DE AUDITORÍA GLOBAL
+// 4. REVERSE LOOKUP (EQUIPOS DE USUARIO)
+// ==========================================
+function openUserAssetsModal(personId, personName) {
+    document.getElementById("userAssetsModalSubtitle").innerText = `Empleado: ${personName}`;
+    const tableBody = document.getElementById("userAssetsTableBody");
+    tableBody.innerHTML = "";
+    const assignedDevices = currentAssets.filter(a => a.person_id === parseInt(personId));
+
+    if (assignedDevices.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">No registra activos en custodia.</td></tr>`;
+    } else {
+        assignedDevices.forEach(dev => {
+            const row = document.createElement("tr");
+            row.innerHTML = `<td class="px-3 py-2 font-bold text-blue-600">${dev.asset_tag_id}</td><td class="px-3 py-2 text-gray-600">${dev.asset_description}</td><td class="px-3 py-2 text-gray-500">${dev.brand} ${dev.model}</td><td class="px-3 py-2 font-bold text-gray-400">${dev.serial_no}</td>`;
+            tableBody.appendChild(row);
+        });
+    }
+    document.getElementById("userAssetsModal").classList.remove("hidden");
+}
+function closeUserAssetsModal() { document.getElementById("userAssetsModal").classList.add("hidden"); }
+
+// ==========================================
+// 5. BANDEJA DE ELIMINADOS (PAPELERA)
+// ==========================================
+function openDeletedAssetsModal() {
+    const tableBody = document.getElementById("deletedAssetsTableBody");
+    tableBody.innerHTML = "";
+    const deletedDevices = currentAssets.filter(a => a.status === "Archived");
+
+    if (deletedDevices.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400 italic">Bandeja vacía. No hay equipos eliminados recientemente.</td></tr>`;
+    } else {
+        deletedDevices.forEach(dev => {
+            const row = document.createElement("tr");
+            row.className = "hover:bg-red-50/30 transition-colors";
+            row.innerHTML = `
+                <td class="px-4 py-3 font-bold text-red-700">${dev.asset_tag_id}</td>
+                <td class="px-4 py-3 text-gray-600">${dev.asset_description}</td>
+                <td class="px-4 py-3 text-gray-500">${dev.brand} ${dev.model}</td>
+                <td class="px-4 py-3 font-mono text-gray-400">${dev.serial_no}</td>
+                <td class="px-4 py-3 text-center">
+                    <button onclick="restoreAsset('${dev.id}', '${dev.asset_tag_id}')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] uppercase py-1 px-3 rounded shadow transition-colors cursor-pointer">
+                        Restaurar
+                    </button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+    document.getElementById("deletedAssetsModal").classList.remove("hidden");
+}
+function closeDeletedAssetsModal() { document.getElementById("deletedAssetsModal").classList.add("hidden"); }
+
+async function restoreAsset(assetId, assetTag) {
+    const asset = currentAssets.find(a => a.id === parseInt(assetId));
+    if (!asset) return;
+    const restoredData = { ...asset, status: "Check in" };
+    try {
+        const response = await fetch(`${API_URL}/assets/${assetId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(restoredData) });
+        if (response.ok) { alert(`El activo ${assetTag} ha sido restaurado exitosamente al almacén. 🚀`); closeDeletedAssetsModal(); loadAssets(); loadHistory(); }
+    } catch (e) { alert("Error."); }
+}
+
+// ==========================================
+// 6. FORMULARIOS DE EDICIÓN Y BAJAS
+// ==========================================
+function openEditAssetModal(assetId) {
+    const asset = currentAssets.find(a => a.id === parseInt(assetId));
+    if (!asset) return;
+    document.getElementById("edit_asset_id").value = asset.id;
+    document.getElementById("edit_asset_tag_id").value = asset.asset_tag_id;
+    document.getElementById("edit_asset_description").value = asset.asset_description;
+    document.getElementById("edit_brand").value = asset.brand;
+    document.getElementById("edit_model").value = asset.model;
+    document.getElementById("edit_serial_no").value = asset.serial_no;
+    document.getElementById("edit_asset_category_id").value = asset.category_id;
+    document.getElementById("edit_asset_site_id").value = asset.site_id;
+    document.getElementById("edit_asset_location_id").value = asset.location_id;
+    document.getElementById("editAssetModal").classList.remove("hidden");
+}
+function closeEditAssetModal() { document.getElementById("editAssetModal").classList.add("hidden"); }
+
+function setupEditAssetFormListener() {
+    document.getElementById("editAssetForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const assetId = document.getElementById("edit_asset_id").value;
+        const currentAssetData = currentAssets.find(a => a.id === parseInt(assetId));
+        const updatedData = {
+            asset_tag_id: document.getElementById("edit_asset_tag_id").value,
+            asset_description: document.getElementById("edit_asset_description").value,
+            brand: document.getElementById("edit_brand").value,
+            model: document.getElementById("edit_model").value,
+            serial_no: document.getElementById("edit_serial_no").value,
+            category_id: parseInt(document.getElementById("edit_asset_category_id").value),
+            site_id: parseInt(document.getElementById("edit_asset_site_id").value),
+            location_id: parseInt(document.getElementById("edit_asset_location_id").value),
+            status: currentAssetData ? currentAssetData.status : "Check in"
+        };
+        try {
+            const response = await fetch(`${API_URL}/assets/${assetId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updatedData) });
+            if (response.ok) { alert("¡Modificado con éxito! ✏️🎉"); closeEditAssetModal(); closeDetailsModal(); loadAssets(); }
+        } catch (e) { alert("Error."); }
+    });
+}
+
+async function triggerDeleteAsset(assetId, assetTag) {
+    const confirmacion = confirm(`⚠️ ¿Deseas dar de baja el activo ${assetTag}?\nSe ocultará del inventario global y se moverá a la papelera.`);
+    if (!confirmacion) return;
+    try {
+        const response = await fetch(`${API_URL}/assets/${assetId}`, { method: "DELETE" });
+        if (response.ok) { alert("Movido a la papelera correctamente. 🗑️"); closeDetailsModal(); loadAssets(); loadHistory(); }
+    } catch (e) { alert("Error."); }
+}
+
+// ==========================================
+// 7. HISTORIAL GENERAL Y PROCESOS SECUNDARIOS
 // ==========================================
 async function loadHistory() {
     const historyBody = document.getElementById("historyTableBody");
     try {
         const response = await fetch(`${API_URL}/history/`);
-        if (!response.ok) throw new Error("No se pudo obtener el historial");
+        if (!response.ok) throw new Error("Error");
         const historyData = await response.json();
         historyBody.innerHTML = "";
-        if (historyData.length === 0) {
-            historyBody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-gray-400 italic">Sin movimientos registrados.</td></tr>`;
-            return;
-        }
+        if (historyData.length === 0) { historyBody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-gray-400 italic">Sin movimientos.</td></tr>`; return; }
         historyData.reverse();
         historyData.forEach(item => {
-            const row = document.createElement("tr");
-            row.className = "hover:bg-gray-50 text-xs";
+            const row = document.createElement("tr"); row.className = "hover:bg-gray-50 text-xs";
             let actionBadge = "text-blue-600 font-bold";
             if (item.tipo_accion === "Check in") actionBadge = "text-amber-600 font-bold";
-            const fechaFormateada = new Date(item.fecha_accion).toLocaleString('es-ES');
-            
+            if (item.tipo_accion === "Archived") actionBadge = "text-red-600 font-bold";
+            const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
             const assetObj = currentAssets.find(a => a.id === item.asset_id);
             const employeeObj = globalPersons.find(p => p.id === item.asignado_a_id);
             const adminObj = globalAdmins.find(a => a.id === item.realizado_por_id);
-
-            row.innerHTML = `
-                <td class="px-4 py-2 text-gray-500 whitespace-nowrap">${fechaFormateada}</td>
-                <td class="px-4 py-2 uppercase ${actionBadge}">${item.tipo_accion}</td>
-                <td class="px-4 py-2 font-bold text-gray-700">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td>
-                <td class="px-4 py-2 text-gray-600">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacén')}</td>
-                <td class="px-4 py-2 text-gray-600">${adminObj ? adminObj.username : 'ID: ' + item.realizado_por_id}</td>
-                <td class="px-4 py-2 text-gray-500 italic max-w-xs truncate" title="${item.notas_detalle || ''}">${item.notas_detalle || '-'}</td>
-            `;
+            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge}">${item.tipo_accion}</td><td class="px-4 py-2 font-bold text-gray-700">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="px-4 py-2 text-gray-600">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacén')}</td><td class="px-4 py-2 text-gray-600">${adminObj ? adminObj.username : 'ID: ' + item.realizado_por_id}</td><td class="px-4 py-2 text-gray-500 italic max-w-xs truncate">${item.notas_detalle || '-'}</td>`;
             historyBody.appendChild(row);
         });
-    } catch (error) { console.error(error); }
+    } catch (e) { console.error(e); }
 }
 
-// ==========================================
-// 5. CONTROLADORES APERTURA/CIERRE DE MODALES
-// ==========================================
-function openAssetModal() { document.getElementById("assetModal").classList.remove("hidden"); }
-function closeAssetModal() { document.getElementById("assetModal").classList.add("hidden"); document.getElementById("assetForm").reset(); }
-
-function openPersonModal() { document.getElementById("personModal").classList.remove("hidden"); }
-function closePersonModal() { document.getElementById("personModal").classList.add("hidden"); document.getElementById("personForm").reset(); }
-
-function openCategoryModal() { document.getElementById("categoryModal").classList.remove("hidden"); }
-function closeCategoryModal() { document.getElementById("categoryModal").classList.add("hidden"); }
-
-function openSiteModal() { document.getElementById("siteModal").classList.remove("hidden"); }
-function closeSiteModal() { document.getElementById("siteModal").classList.add("hidden"); }
-
-// Nuevas funciones de control para Departamentos
-function openDepartmentModal() { document.getElementById("departmentModal").classList.remove("hidden"); }
-function closeDepartmentModal() { document.getElementById("departmentModal").classList.add("hidden"); }
-
-function openLocationModal() { document.getElementById("locationModal").classList.remove("hidden"); }
-function closeLocationModal() { document.getElementById("locationModal").classList.add("hidden"); }
-
 function openModal(assetId, assetTag, actionType) {
-    document.getElementById("modal_asset_id").value = assetId;
-    document.getElementById("modal_action_type").value = actionType;
+    document.getElementById("modal_asset_id").value = assetId; document.getElementById("modal_action_type").value = actionType;
     document.getElementById("modalAssetInfo").innerText = `Activo Seleccionado: ${assetTag}`;
-    const divAsignadoA = document.getElementById("div_asignado_a");
-    const modalTitle = document.getElementById("modalTitle");
-    const submitBtn = document.getElementById("modalSubmitBtn");
-
-    if (actionType === "checkout") {
-        modalTitle.innerText = "📤 Registrar Asignación (Check-out)";
-        submitBtn.innerText = "Asignar Equipo";
-        submitBtn.className = "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-sm transition-colors cursor-pointer";
-        divAsignadoA.classList.remove("hidden");
-    } else {
-        modalTitle.innerText = "📥 Registrar Devolución (Check-in)";
-        submitBtn.innerText = "Recibir en Almacén";
-        submitBtn.className = "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-sm transition-colors cursor-pointer";
-        divAsignadoA.classList.add("hidden");
-    }
+    const divAsignadoA = document.getElementById("div_asignado_a"); const modalTitle = document.getElementById("modalTitle"); const submitBtn = document.getElementById("modalSubmitBtn");
+    if (actionType === "checkout") { modalTitle.innerText = "📤 Registrar Asignación (Check-out)"; submitBtn.innerText = "Asignar Equipo"; submitBtn.className = "px-4 py-2 bg-blue-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.remove("hidden"); } 
+    else { modalTitle.innerText = "📥 Registrar Devolución (Check-in)"; submitBtn.innerText = "Recibir en Almacén"; submitBtn.className = "px-4 py-2 bg-amber-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.add("hidden"); }
     document.getElementById("movementModal").classList.remove("hidden");
 }
 function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); }
-
-// ==========================================
-// 6. EVENTOS DE ENVÍO DE FORMULARIOS (POST)
-// ==========================================
 function setupFormListener() {
     document.getElementById("assetForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const assetData = {
-            asset_tag_id: document.getElementById("asset_tag_id").value,
-            asset_description: document.getElementById("asset_description").value,
-            brand: document.getElementById("brand").value,
-            model: document.getElementById("model").value,
-            serial_no: document.getElementById("serial_no").value,
-            category_id: parseInt(document.getElementById("asset_category_id").value),
-            site_id: parseInt(document.getElementById("asset_site_id").value),
-            location_id: parseInt(document.getElementById("asset_location_id").value),
-            status: "Check in"
-        };
-        try {
-            const response = await fetch(`${API_URL}/assets/`, {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(assetData)
-            });
-            if (response.status === 201) {
-                alert("¡Activo registrado con éxito! 🎉");
-                closeAssetModal();
-                loadAssets();
-            } else { const err = await response.json(); alert(`Error: ${err.detail}`); }
-        } catch (error) { alert("Error de conexión."); }
+        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category_id: parseInt(document.getElementById("asset_category_id").value), site_id: parseInt(document.getElementById("asset_site_id").value), location_id: parseInt(document.getElementById("asset_location_id").value), status: "Check in" };
+        try { const response = await fetch(`${API_URL}/assets/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(assetData) }); if (response.status === 201) { alert("¡Activo registrado con éxito! 🎉"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
     });
 }
-
 function setupMovementFormListener() {
-    const form = document.getElementById("movementForm");
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const assetId = document.getElementById("modal_asset_id").value;
-        const actionType = document.getElementById("modal_action_type").value;
-        const adminId = document.getElementById("modal_admin_id").value;
-        const notas = document.getElementById("modal_notas").value;
-
-        let url = `${API_URL}/assets/${assetId}/checkin?admin_id=${adminId}`;
-        if (notas) url += `&notas=${encodeURIComponent(notas)}`;
-
-        if (actionType === "checkout") {
-            const personId = document.getElementById("modal_person_id").value;
-            url = `${API_URL}/assets/${assetId}/checkout?person_id=${personId}&admin_id=${adminId}`;
-            if (notas) url += `&notas=${encodeURIComponent(notas)}`;
-        }
-
-        try {
-            const response = await fetch(url, { method: "POST" });
-            if (response.ok) {
-                alert(`Movimiento procesado con éxito 🚀`);
-                closeModal();
-                loadAssets();
-                loadHistory();
-            } else { const err = await response.json(); alert(`Error: ${err.detail}`); }
-        } catch (error) { alert("Error."); }
+    document.getElementById("movementForm").addEventListener("submit", async (e) => {
+        e.preventDefault(); const assetId = document.getElementById("modal_asset_id").value; const actionType = document.getElementById("modal_action_type").value; const adminId = document.getElementById("modal_admin_id").value; const notas = document.getElementById("modal_notas").value;
+        let url = `${API_URL}/assets/${assetId}/checkin?admin_id=${adminId}`; if (notas) url += `&notas=${encodeURIComponent(notas)}`;
+        if (actionType === "checkout") { const personId = document.getElementById("modal_person_id").value; url = `${API_URL}/assets/${assetId}/checkout?person_id=${personId}&admin_id=${adminId}`; if (notas) url += `&notas=${encodeURIComponent(notas)}`; }
+        try { const response = await fetch(url, { method: "POST" }); if (response.ok) { alert(`Movimiento procesado con éxito 🚀`); closeModal(); loadAssets(); loadHistory(); } } catch (e) { alert("Error."); }
     });
 }
-
 function setupPersonFormListener() {
     document.getElementById("personForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const personData = {
-            full_name: document.getElementById("person_full_name").value,
-            email: document.getElementById("person_email").value,
-            employee_id: document.getElementById("person_employee_id").value,
-            title: document.getElementById("person_title").value || null,
-            phone: document.getElementById("person_phone").value || null,
-            notes: document.getElementById("person_notes").value || null,
-            site_id: parseInt(document.getElementById("person_site_id").value),
-            location_id: parseInt(document.getElementById("person_location_id").value),
-            department_id: parseInt(document.getElementById("person_department_id").value)
-        };
-        try {
-            const response = await fetch(`${API_URL}/persons/`, {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(personData)
-            });
-            if (response.status === 201) {
-                alert("¡Empleado dado de alta exitosamente! 👤🎉");
-                closePersonModal();
-                loadDropdownData();
-            } else { const err = await response.json(); alert(`Error: ${err.detail}`); }
-        } catch (error) { alert("Error."); }
+        const personData = { full_name: document.getElementById("person_full_name").value, email: document.getElementById("person_email").value, employee_id: document.getElementById("person_employee_id").value, title: document.getElementById("person_title").value || null, phone: document.getElementById("person_phone").value || null, notes: document.getElementById("person_notes").value || null, site_id: parseInt(document.getElementById("person_site_id").value), location_id: parseInt(document.getElementById("person_location_id").value), department_id: parseInt(document.getElementById("person_department_id").value) };
+        try { const response = await fetch(`${API_URL}/persons/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(personData) }); if (response.status === 201) { alert("¡Empleado dado de alta! 👤🎉"); closePersonModal(); loadDropdownData(); } } catch (e) { alert("Error."); }
     });
 }
-
-// ESCUCHA DE FORMULARIOS DE CATÁLOGOS BASE
 function setupCatalogFormsListeners() {
-    // Categorías
-    document.getElementById("form_add_category").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const name = document.getElementById("cat_name_input").value;
-        const res = await fetch(`${API_URL}/categories/`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ category_name: name })
-        });
-        if (res.ok) { alert("Categoría agregada con éxito!"); closeCategoryModal(); document.getElementById("form_add_category").reset(); loadDropdownData(); }
-    });
-
-    // Sitios
-    document.getElementById("form_add_site").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const data = {
-            site_name: document.getElementById("site_name_input").value,
-            city: document.getElementById("site_city_input").value || null,
-            country: document.getElementById("site_country_input").value || null
-        };
-        const res = await fetch(`${API_URL}/sites/`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
-        });
-        if (res.ok) { alert("Sitio agregado con éxito!"); closeSiteModal(); document.getElementById("form_add_site").reset(); loadDropdownData(); }
-    });
-
-    // Ubicaciones
-    document.getElementById("form_add_location").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const data = {
-            location_name: document.getElementById("loc_name_input").value,
-            site_id: parseInt(document.getElementById("loc_site_select").value)
-        };
-        const res = await fetch(`${API_URL}/locations/`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
-        });
-        if (res.ok) { alert("Ubicación agregada con éxito!"); closeLocationModal(); document.getElementById("form_add_location").reset(); loadDropdownData(); }
-    });
-
-    // Departamentos
-    document.getElementById("form_add_department").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const name = document.getElementById("dept_name_input").value;
-        const res = await fetch(`${API_URL}/departments/`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ department_name: name })
-        });
-        if (res.ok) { alert("Departamento agregado con éxito!"); closeDepartmentModal(); document.getElementById("form_add_department").reset(); loadDropdownData(); }
-    });
+    document.getElementById("form_add_category").addEventListener("submit", async (e) => { e.preventDefault(); const name = document.getElementById("cat_name_input").value; const res = await fetch(`${API_URL}/categories/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category_name: name }) }); if (res.ok) { closeCategoryModal(); document.getElementById("form_add_category").reset(); loadDropdownData(); } });
+    document.getElementById("form_add_site").addEventListener("submit", async (e) => { e.preventDefault(); const data = { site_name: document.getElementById("site_name_input").value, city: document.getElementById("site_city_input").value || null, country: document.getElementById("site_country_input").value || null }; const res = await fetch(`${API_URL}/sites/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); if (res.ok) { closeSiteModal(); document.getElementById("form_add_site").reset(); loadDropdownData(); } });
+    document.getElementById("form_add_location").addEventListener("submit", async (e) => { e.preventDefault(); const data = { location_name: document.getElementById("loc_name_input").value, site_id: parseInt(document.getElementById("loc_site_select").value) }; const res = await fetch(`${API_URL}/locations/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); if (res.ok) { closeLocationModal(); document.getElementById("form_add_location").reset(); loadDropdownData(); } });
+    document.getElementById("form_add_department").addEventListener("submit", async (e) => { e.preventDefault(); const name = document.getElementById("dept_name_input").value; const res = await fetch(`${API_URL}/departments/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ department_name: name }) }); if (res.ok) { closeDepartmentModal(); document.getElementById("form_add_department").reset(); loadDropdownData(); } });
 }

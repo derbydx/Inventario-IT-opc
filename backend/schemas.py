@@ -108,7 +108,7 @@ class AssetBase(BaseModel):
     serial_no: str
     notas_adicionales: Optional[str] = None
     numero_telefono: Optional[str] = None
-    status: AssetStatus = AssetStatus.CHECK_IN  # Valida contra el Enum de arriba
+    status: str = "Check in"  # ➔ Corregido: Alineado perfectamente a 4 espacios
     category_id: int
     site_id: int
     location_id: int

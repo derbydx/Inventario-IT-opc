@@ -1,24 +1,25 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
+import traceback
 
 import models
 import schemas
 from database import engine, get_db
 
-# ==========================================
-# CREACIÓN AUTOMÁTICA DE TABLAS
-# ==========================================
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="IT Asset Manager API",
-    description="Backend completo estilo AssetTiger para control de activos de TI",
+    description="Backend completo estilo AssetTiger",
     version="1.0.0"
 )
 
-# Configuración de CORS para evitar bloqueos del navegador
+# ==========================================
+# CONFIGURACIÓN DE CORS BLINDADA
+# ==========================================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,6 +27,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==========================================
+# CAPTURADOR GLOBAL DE ERRORES (ANTI-CORS FALSE)
+# ==========================================
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # Imprime el error real detallado en la terminal de VS Code
+    print("❌ ERROR CRÍTICO DETECTADO EN EL BACKEND:")
+    traceback.print_exc()
+    
+    # Devuelve el error al frontend con la cabecera CORS forzada para poder leerlo
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Error interno en Python/SQLite: {str(exc)}"},
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
 
 @app.get("/", tags=["Diagnóstico"])
 def read_root():
@@ -251,3 +268,54 @@ def asset_checkin(asset_id: int, admin_id: int, nuevo_estado: str = "Check in", 
 @app.get("/history/", response_model=List[schemas.HistoryResponse], tags=["Acciones de Inventario"])
 def view_history(db: Session = Depends(get_db)):
     return db.query(models.History).all()
+
+# ==========================================
+# 9. EDICIÓN Y ELIMINACIÓN DE ACTIVOS
+# ==========================================
+
+@app.put("/assets/{asset_id}", response_model=schemas.AssetResponse, tags=["Gestión de Activos"])
+def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session = Depends(get_db)):
+    db_asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+    if not db_asset:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+    
+    # Sobrescribir los valores con los nuevos datos del formulario
+    for key, value in asset_update.model_dump().items():
+        setattr(db_asset, key, value)
+        
+    db.commit()
+    db.refresh(db_asset)
+    return db_asset
+
+@app.delete("/assets/{asset_id}", tags=["Gestión de Activos"])
+def delete_asset(asset_id: int, db: Session = Depends(get_db)):
+    db_asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+    if not db_asset:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+    
+    # Soft Delete: Guardamos estados para la auditoría antes de archivar
+    estado_anterior = db_asset.status
+    persona_que_tenia = db_asset.person_id
+
+    # Modificamos el activo para mandarlo a la papelera
+    db_asset.status = "Archived"
+    db_asset.person_id = None # Se libera del empleado al darse de baja
+    
+    # BUSQUEDA DINÁMICA DEL ADMIN: Evita caídas por llaves foráneas fijas
+    primer_admin = db.query(models.Admin).first()
+    admin_id_registro = primer_admin.id if primer_admin else None
+
+    # Dejamos constancia histórica del borrado lógico
+    registro_historial = models.History(
+        asset_id=db_asset.id,
+        asignado_a_id=persona_que_tenia,
+        realizado_por_id=admin_id_registro,
+        tipo_accion="Archived",
+        estado_anterior=estado_anterior,
+        estado_nuevo="Archived",
+        notas_detalle="Activo enviado a Eliminados Recientemente (Baja de Inventario)"
+    )
+    
+    db.add(registro_historial)
+    db.commit()
+    return {"message": "Activo movido a eliminados recientemente"}

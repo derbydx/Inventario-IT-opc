@@ -279,24 +279,52 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
     if not db_asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
     
-    # 1. Guardamos una copia de los datos clave antes de que se sobrescriban (para la nota de auditoría)
-    tag_anterior = db_asset.asset_tag_id
-    desc_anterior = db_asset.asset_description
+    # Diccionario para traducir los nombres técnicos a etiquetas limpias en español
+    etiquetas = {
+        "asset_tag_id": "Asset Tag",
+        "asset_description": "Descripción",
+        "brand": "Marca",
+        "model": "Modelo",
+        "serial_no": "Número de Serie",
+        "category_id": "ID de Categoría",
+        "site_id": "ID de Sitio",
+        "location_id": "ID de Ubicación",
+        "notas_adicionales": "Notas",
+        "numero_telefono": "Teléfono"
+    }
     
-    # 2. Sobrescribir los valores con los nuevos datos del formulario
-    for key, value in asset_update.model_dump().items():
+    # 1. Algoritmo de comparación (Diff) en caliente
+    lista_cambios = []
+    datos_nuevos = asset_update.model_dump()
+    
+    for campo, nuevo_valor in datos_nuevos.items():
+        # Obtenemos el valor que tiene actualmente en SQLite
+        viejo_valor = getattr(db_asset, campo, None)
+        
+        # Si el valor cambió y no es una propiedad vacía irrelevante
+        if viejo_valor != nuevo_valor:
+            # Traducimos el nombre del campo si existe en nuestro mapa
+            nombre_limpio = etiquetas.get(campo, campo)
+            lista_cambios.append(f"{nombre_limpio} cambiado de '{viejo_valor}' a '{nuevo_valor}'")
+            
+    # 2. Aplicamos la actualización real en las columnas de la base de datos
+    for key, value in datos_nuevos.items():
         setattr(db_asset, key, value)
         
-    # 3. Buscar dinámicamente al administrador operativo para no romper llaves foráneas
+    # 3. Buscar al administrador operativo para registrar la firma de auditoría
     primer_admin = db.query(models.Admin).first()
     admin_id_registro = primer_admin.id if primer_admin else None
 
-    # 4. Creamos de forma automática la fila de auditoría para este cambio
-    nota_auditoria = f"Propiedades del activo editadas. (Tag anterior: {tag_anterior} | Desc anterior: {desc_anterior})"
+    # 4. Construir la nota detallada según los cambios encontrados
+    if lista_cambios:
+        nota_auditoria = "Edición de propiedades: " + " | ".join(lista_cambios)
+    else:
+        nota_auditoria = "Formulario de edición guardado sin cambios en los valores."
     
+    # 5. Escribir la fila inalterable en la bitácora de History
     registro_historial = models.History(
         asset_id=db_asset.id,
-        asignado_a_id=db_asset.person_id, # Sigue bajo la custodia de la misma persona
+        asignado_a_id=db_asset.person_id,
         realizado_por_id=admin_id_registro,
         tipo_accion="Modified",
         estado_anterior=db_asset.status,
@@ -308,36 +336,3 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
     db.commit()
     db.refresh(db_asset)
     return db_asset
-
-@app.delete("/assets/{asset_id}", tags=["Gestión de Activos"])
-def delete_asset(asset_id: int, db: Session = Depends(get_db)):
-    db_asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
-    if not db_asset:
-        raise HTTPException(status_code=404, detail="Activo no encontrado")
-    
-    # Soft Delete: Guardamos estados para la auditoría antes de archivar
-    estado_anterior = db_asset.status
-    persona_que_tenia = db_asset.person_id
-
-    # Modificamos el activo para mandarlo a la papelera
-    db_asset.status = "Archived"
-    db_asset.person_id = None # Se libera del empleado al darse de baja
-    
-    # BUSQUEDA DINÁMICA DEL ADMIN: Evita caídas por llaves foráneas fijas
-    primer_admin = db.query(models.Admin).first()
-    admin_id_registro = primer_admin.id if primer_admin else None
-
-    # Dejamos constancia histórica del borrado lógico
-    registro_historial = models.History(
-        asset_id=db_asset.id,
-        asignado_a_id=persona_que_tenia,
-        realizado_por_id=admin_id_registro,
-        tipo_accion="Archived",
-        estado_anterior=estado_anterior,
-        estado_nuevo="Archived",
-        notas_detalle="Activo enviado a Eliminados Recientemente (Baja de Inventario)"
-    )
-    
-    db.add(registro_historial)
-    db.commit()
-    return {"message": "Activo movido a eliminados recientemente"}

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Asset Manager - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-900">
+
+    <nav class="bg-blue-700 text-white p-4 shadow-md">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-wide">🛡️ IT Asset Manager</h1>
+            <span class="bg-blue-800 px-3 py-1 rounded text-sm font-medium">Clon AssetTiger</span>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                ➕ Registrar Nuevo Activo
+            </h2>
+            
+            <form id="assetForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Asset Tag ID *</label>
+                    <input type="text" id="asset_tag_id" required placeholder="Ej: A-1001" class="w-full mt-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Descripción *</label>
+                    <input type="text" id="asset_description" required placeholder="Ej: ThinkPad X1 Carbon 16GB" class="w-full mt-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">Marca *</label>
+                        <input type="text" id="brand" required placeholder="Lenovo" class="w-full mt-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase">Modelo *</label>
+                        <input type="text" id="model" required placeholder="X1 Carbon" class="w-full mt-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Número de Serie *</label>
+                    <input type="text" id="serial_no" required placeholder="Ej: PF2X9B1" class="w-full mt-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 bg-gray-50 p-3 rounded border border-gray-200">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Cat ID</label>
+                        <input type="number" id="category_id" value="1" required class="w-full p-1 border border-gray-300 rounded text-center">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Site ID</label>
+                        <input type="number" id="site_id" value="1" required class="w-full p-1 border border-gray-300 rounded text-center">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Loc ID</label>
+                        <input type="number" id="location_id" value="1" required class="w-full p-1 border border-gray-300 rounded text-center">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow transition-colors cursor-pointer">
+                    Guardar Activo
+                </button>
+            </form>
+        </section>
+
+        <section class="lg:col-span-2 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">📋 Inventario Global</h2>
+                <span id="assetCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Equipos</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Asset Tag</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Descripción</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Marca/Modelo</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assetsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando activos...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="movementModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200">
+            <h3 id="modalTitle" class="text-lg font-bold text-gray-800 mb-2">🔄 Procesar Movimiento</h3>
+            <p id="modalAssetInfo" class="text-sm text-gray-500 mb-4 font-mono bg-gray-100 p-2 rounded"></p>
+            
+            <form id="movementForm" class="space-y-4">
+                <input type="hidden" id="modal_asset_id">
+                <input type="hidden" id="modal_action_type">
+
+                <div id="div_asignado_a">
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Seleccionar Empleado *</label>
+                    <select id="modal_person_id" class="w-full mt-1 p-2 border border-gray-300 rounded bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
+                        <option value="">Cargando empleados...</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Administrador que procesa *</label>
+                    <select id="modal_admin_id" required class="w-full mt-1 p-2 border border-gray-300 rounded bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
+                        <option value="">Cargando administradores...</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Notas del Movimiento</label>
+                    <textarea id="modal_notas" rows="2" placeholder="Ej: Entrega de equipo por renovación" class="w-full mt-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded font-medium text-sm transition-colors cursor-pointer">
+                        Cancelar
+                    </button>
+                    <button type="submit" id="modalSubmitBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-sm transition-colors cursor-pointer">
+                        Confirmar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

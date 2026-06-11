@@ -365,6 +365,24 @@
                         <label class="block text-[10px] font-bold text-gray-500 uppercase">Ubicación Específica *</label>
                         <select id="edit_asset_location_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Estado (Status) *</label>
+                        <select id="edit_asset_status" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white">
+                            <option value="Check in">Check in</option>
+                            <option value="Checkout">Checkout</option>
+                            <option value="Available">Available</option>
+                            <option value="Broken">Broken</option>
+                            <option value="Under repair">Under repair</option>
+                            <option value="Reserved">Reserved</option>
+                            <option value="Lost/Missing">Lost/Missing</option>
+                            <option value="Found">Found</option>
+                            <option value="Dispose">Dispose</option>
+                            <option value="Donate">Donate</option>
+                            <option value="Sold">Sold</option>
+                            <option value="Lease">Lease</option>
+                            <option value="Lease return">Lease return</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeEditAssetModal()" class="px-4 py-2 bg-gray-200 rounded text-xs font-bold">Cancelar</button>
@@ -422,8 +440,7 @@
                             <th class="px-4 py-3 text-center font-bold uppercase">Acción</th>
                         </tr>
                     </thead>
-                    <tbody id="deletedAssetsTableBody" class="bg-white divide-y divide-gray-200 text-gray-700">
-                        </tbody>
+                    <tbody id="deletedAssetsTableBody" class="bg-white divide-y divide-gray-200 text-gray-700"></tbody>
                 </table>
             </div>
             <div class="flex justify-end pt-4 mt-4 border-t border-gray-100">

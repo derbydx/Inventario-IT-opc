@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ==========================================
-// 1. CARGAR LISTAS MAESTRAS
+// 1. CARGAR LISTAS MAESTRAS EN CACHÉ LOCAL
 // ==========================================
 async function loadDropdownData() {
     const personSelect = document.getElementById("modal_person_id");
@@ -83,7 +83,7 @@ async function loadDropdownData() {
 }
 
 // ==========================================
-// 2. RENDEREAR INVENTARIO (CORREGIDO)
+// 2. RENDEREAR INVENTARIO GLOBAL (ACTIVOS VIGENTES)
 // ==========================================
 async function loadAssets() {
     const tableBody = document.getElementById("assetsTableBody");
@@ -95,7 +95,7 @@ async function loadAssets() {
         currentAssets = await response.json();
         tableBody.innerHTML = "";
         
-        // FILTRADO REAL: Solo activos vigentes
+        // FILTRADO REAL: Oculta los equipos dados de baja ("Archived")
         const activeAssets = currentAssets.filter(a => a.status !== "Archived");
         
         if (activeAssets.length === 0) {
@@ -106,7 +106,6 @@ async function loadAssets() {
 
         countSpan.innerText = `${activeAssets.length} ${activeAssets.length === 1 ? 'Equipo' : 'Equipos'}`;
 
-        // CORRECCIÓN AQUÍ: Recorrer activeAssets en vez del arreglo completo original
         activeAssets.forEach(asset => {
             const row = document.createElement("tr");
             row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer group";
@@ -138,7 +137,7 @@ async function loadAssets() {
 }
 
 // ==========================================
-// 3. HOJA DE VIDA Y ACORDEÓN
+// 3. HOJA DE VIDA DEL ACTIVO (DETALLES)
 // ==========================================
 async function openDetailsModal(assetId) {
     const asset = currentAssets.find(a => a.id === parseInt(assetId));
@@ -159,6 +158,27 @@ async function openDetailsModal(assetId) {
     
     document.getElementById("det_category_name").innerText = categoryObj ? categoryObj.category_name : `ID: ${asset.category_id}`;
     document.getElementById("det_location_path").innerText = `${siteObj ? siteObj.site_name : 'Site'} ➔ ${locationObj ? locationObj.location_name : 'Ubicación'}`;
+
+    // ==========================================================
+    // NUEVO: CONTROL VISUAL COMPLETO PARA EL BADGE DEL STATUS
+    // ==========================================================
+    const statusElement = document.getElementById("det_status");
+    let badgeColor = "bg-gray-100 text-gray-800"; // Color por defecto (Gris)
+
+    if (asset.status === "Check in" || asset.status === "Available" || asset.status === "Found") {
+        badgeColor = "bg-green-100 text-green-800"; // Operativos / Disponibles (Verde)
+    } else if (asset.status === "Checkout") {
+        badgeColor = "bg-blue-100 text-blue-800"; // En uso por personal (Azul)
+    } else if (asset.status === "Broken" || asset.status === "Lost/Missing" || asset.status === "Dispose") {
+        badgeColor = "bg-red-100 text-red-800"; // Alertas / Bajas (Rojo)
+    } else if (asset.status === "Under repair") {
+        badgeColor = "bg-amber-100 text-amber-800"; // Mantenimiento (Marrón/Amarillo)
+    } else if (asset.status === "Reserved" || asset.status === "Lease") {
+        badgeColor = "bg-purple-100 text-purple-800"; // Casos especiales (Morado)
+    }
+
+    statusElement.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeColor}">${asset.status}</span>`;
+    // ==========================================================
 
     const containerAsignado = document.getElementById("det_assigned_container");
     if (employeeObj) {
@@ -201,6 +221,7 @@ async function openDetailsModal(assetId) {
 
     document.getElementById("detailsModal").classList.remove("hidden");
 }
+
 function closeDetailsModal() { document.getElementById("detailsModal").classList.add("hidden"); }
 
 function toggleSpecificHistory() {
@@ -211,7 +232,7 @@ function toggleSpecificHistory() {
 }
 
 // ==========================================
-// 4. REVERSE LOOKUP (EQUIPOS DE USUARIO)
+// 4. REVERSE LOOKUP (EQUIPOS DE UN USUARIO)
 // ==========================================
 function openUserAssetsModal(personId, personName) {
     document.getElementById("userAssetsModalSubtitle").innerText = `Empleado: ${personName}`;
@@ -275,7 +296,7 @@ async function restoreAsset(assetId, assetTag) {
 }
 
 // ==========================================
-// 6. FORMULARIOS DE EDICIÓN Y BAJAS
+// 6. FORMULARIOS DE EDICIÓN, BAJAS Y CAMBIO DE STATUS
 // ==========================================
 function openEditAssetModal(assetId) {
     const asset = currentAssets.find(a => a.id === parseInt(assetId));
@@ -289,11 +310,14 @@ function openEditAssetModal(assetId) {
     document.getElementById("edit_asset_category_id").value = asset.category_id;
     document.getElementById("edit_asset_site_id").value = asset.site_id;
     document.getElementById("edit_asset_location_id").value = asset.location_id;
+    
+    // ASIGNACIÓN DEL STATUS ACTUAL EN EL SELECT
+    document.getElementById("edit_asset_status").value = asset.status;
+
     document.getElementById("editAssetModal").classList.remove("hidden");
 }
 function closeEditAssetModal() { document.getElementById("editAssetModal").classList.add("hidden"); }
 
-// Busca esta función dentro de tu app.js y déjala configurada así:
 function setupEditAssetFormListener() {
     const form = document.getElementById("editAssetForm");
     if (!form) return;
@@ -301,9 +325,8 @@ function setupEditAssetFormListener() {
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const assetId = document.getElementById("edit_asset_id").value;
-        const currentAssetData = currentAssets.find(a => a.id === parseInt(assetId));
 
-        // Recolectamos todos los campos requeridos por el backend
+        // Recolectamos todos los campos del formulario incluyendo el nuevo dropdown de status
         const updatedData = {
             asset_tag_id: document.getElementById("edit_asset_tag_id").value,
             asset_description: document.getElementById("edit_asset_description").value,
@@ -313,7 +336,7 @@ function setupEditAssetFormListener() {
             category_id: parseInt(document.getElementById("edit_asset_category_id").value),
             site_id: parseInt(document.getElementById("edit_asset_site_id").value),
             location_id: parseInt(document.getElementById("edit_asset_location_id").value),
-            status: currentAssetData ? currentAssetData.status : "Check in"
+            status: document.getElementById("edit_asset_status").value // Captura el estado seleccionado
         };
 
         try {
@@ -327,11 +350,10 @@ function setupEditAssetFormListener() {
                 alert("¡Modificado con éxito! ✏️🎉");
                 closeEditAssetModal();
                 closeDetailsModal();
-                loadAssets();   // Refresca la tabla principal
-                loadHistory();  // Refresca la bitácora de auditoría abajo
+                loadAssets();   // Refresca el inventario en pantalla
+                loadHistory();  // Refresca la auditoría inferior en caliente
             } else {
                 const errData = await response.json();
-                // Si el backend rechaza la petición, nos dirá exactamente por qué
                 alert(`⚠️ Error del servidor: ${errData.detail || "No se pudo actualizar"}`);
             }
         } catch (error) {
@@ -351,7 +373,7 @@ async function triggerDeleteAsset(assetId, assetTag) {
 }
 
 // ==========================================
-// 7. HISTORIAL GENERAL Y PROCESOS SECUNDARIOS
+// 7. HISTORIAL GENERAL Y PROCESOS MAESTROS
 // ==========================================
 async function loadHistory() {
     const historyBody = document.getElementById("historyTableBody");
@@ -386,6 +408,7 @@ function openModal(assetId, assetTag, actionType) {
     document.getElementById("movementModal").classList.remove("hidden");
 }
 function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); }
+
 function setupFormListener() {
     document.getElementById("assetForm").addEventListener("submit", async (e) => {
         e.preventDefault();

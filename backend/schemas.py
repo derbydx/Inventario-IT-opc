@@ -4,16 +4,23 @@ from typing import Optional
 from enum import Enum
 
 # ==========================================
-# REGLA ESTRICTA DE ESTADOS (ENUM)
+# REGLA ESTRICTA DE ESTADOS COMPLETOS (ENUM)
 # ==========================================
 class AssetStatus(str, Enum):
-    CHECK_IN = "Check in"
-    CHECK_OUT = "Checkout"
+    AVAILABLE = "Available"
     BROKEN = "Broken"
-    DISPOSED = "Disposed"
+    CHECK_OUT = "Checkout"
+    CHECK_IN = "Check in"
+    DISPOSE = "Dispose"
     DONATE = "Donate"
-    LOST = "Lost"
+    LEASE = "Lease"
+    LEASE_RETURN = "Lease return"
+    LOST_MISSING = "Lost/Missing"
     FOUND = "Found"
+    RESERVED = "Reserved"
+    SOLD = "Sold"
+    UNDER_REPAIR = "Under repair"
+    ARCHIVED = "Archived"  # Conservado para nuestra papelera de reciclaje lógica
 
 # ==========================================
 # SCHEMAS DE CATÁLOGOS
@@ -108,7 +115,7 @@ class AssetBase(BaseModel):
     serial_no: str
     notas_adicionales: Optional[str] = None
     numero_telefono: Optional[str] = None
-    status: str = "Check in"  # ➔ Corregido: Alineado perfectamente a 4 espacios
+    status: str = "Check in"  # Alineación impecable
     category_id: int
     site_id: int
     location_id: int
@@ -131,7 +138,7 @@ class HistoryResponse(BaseModel):
     tipo_accion: str
     estado_anterior: str
     estado_nuevo: str
-    notas_detalle: Optional[str] = None
+    notas_detalle: Optional[str] = None  # Mapeado con tu base de datos
     asset_id: int
     asignado_a_id: Optional[int] = None
     realizado_por_id: int

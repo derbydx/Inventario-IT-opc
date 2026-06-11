@@ -8,10 +8,35 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-900">
+    
+    <div id="loginOverlay" class="fixed inset-0 bg-gray-900 flex items-center justify-center p-4 z-[100] transition-opacity duration-300">
+        <div class="bg-white rounded-xl p-8 max-w-sm w-full shadow-2xl border-t-4 border-t-blue-700 space-y-6">
+            <div class="text-center">
+                <h2 class="text-2xl font-black text-gray-800 tracking-tight">🛡️ IT Asset Manager</h2>
+                <p class="text-xs text-gray-400 mt-1 uppercase font-bold tracking-wider">Control de Seguridad de Infraestructura</p>
+            </div>
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Usuario Administrador</label>
+                    <input type="text" id="login_username" required placeholder="Ej: derby_admin" class="w-full mt-1 p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Contraseña</label>
+                    <input type="password" id="login_password" required placeholder="••••••••" class="w-full mt-1 p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm shadow-md transition-all transform active:scale-[0.98] cursor-pointer">
+                    Ingresar al Panel
+                </button>
+            </form>
+        </div>
+    </div>
 
     <nav class="bg-blue-700 text-white p-4 shadow-md">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <h1 class="text-xl font-bold tracking-wide">🛡️ IT Asset Manager</h1>
+            <button onclick="logout()" class="text-xs bg-blue-900/50 hover:bg-blue-900 border border-blue-400 px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer">
+                🚪 Cerrar Sesión
+            </button>
         </div>
     </nav>
 
@@ -222,17 +247,14 @@
             <h3 id="modalTitle" class="text-lg font-bold text-gray-800 mb-2">🔄 Procesar Movimiento</h3>
             <p id="modalAssetInfo" class="text-sm text-gray-500 mb-4 font-mono bg-gray-100 p-2 rounded"></p>
             <form id="movementForm" class="space-y-4">
-                <input type="hidden" id="modal_asset_id"><input type="hidden" id="modal_action_type">
+                <input type="hidden" id="modal_asset_id">
+                <input type="hidden" id="modal_action_type">
                 <div id="div_asignado_a">
                     <div class="flex justify-between items-center">
                         <label class="block text-xs font-bold text-gray-600 uppercase">Seleccionar Empleado *</label>
                         <button type="button" onclick="openPersonModal()" class="text-blue-600 hover:text-blue-800 text-xs font-bold">+ Nuevo Empleado</button>
                     </div>
                     <select id="modal_person_id" class="w-full mt-1 p-2 border border-gray-300 rounded bg-white text-sm"></select>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-600 uppercase">Administrador que procesa *</label>
-                    <select id="modal_admin_id" required class="w-full mt-1 p-2 border border-gray-300 rounded bg-white text-sm"></select>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-600 uppercase">Notas</label>

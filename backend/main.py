@@ -9,7 +9,45 @@ import models
 import schemas
 from database import engine, get_db
 
+# Inicializar la base de datos SQLite
 models.Base.metadata.create_all(bind=engine)
+
+# ==========================================
+# SEEDER AUTOMÁTICO: CREAR PRIMER ADMIN SI NO EXISTE
+# ==========================================
+# ==========================================
+# SEEDER AUTOMÁTICO REFORZADO (REPARA CONTRASEÑAS)
+# ==========================================
+def crear_admin_por_defecto():
+    db = get_db().__next__()
+    try:
+        # Buscamos específicamente si ya existe el usuario 'derby_admin'
+        admin = db.query(models.Admin).filter(models.Admin.username == "derby_admin").first()
+        
+        if not admin:
+            print("🚀 Sembrando cuenta de administrador inicial...")
+            nuevo_admin = models.Admin(
+                username="derby_admin",
+                email="derby@empresa.com",
+                password_hash="admin123",
+                role="Administrator"
+            )
+            db.add(nuevo_admin)
+            db.commit()
+            print("✅ Usuario 'derby_admin' creado con éxito. Contraseña: admin123")
+        else:
+            # Si el usuario ya existía de pruebas viejas, le forzamos la contraseña correcta
+            admin.password_hash = "admin123"
+            db.commit()
+            print("🔄 Usuario 'derby_admin' detectado. Contraseña restablecida/fijada en: admin123")
+            
+    except Exception as e:
+        print(f"⚠️ No se pudo verificar/crear el admin inicial: {e}")
+    finally:
+        db.close()
+
+# Ejecutamos el Seeder al arrancar el backend
+crear_admin_por_defecto()
 
 app = FastAPI(
     title="IT Asset Manager API",
@@ -29,15 +67,12 @@ app.add_middleware(
 )
 
 # ==========================================
-# CAPTURADOR GLOBAL DE ERRORES (ANTI-CORS FALSE)
+# CAPTURADOR GLOBAL DE ERRORES
 # ==========================================
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    # Imprime el error real detallado en la terminal de VS Code
     print("❌ ERROR CRÍTICO DETECTADO EN EL BACKEND:")
     traceback.print_exc()
-    
-    # Devuelve el error al frontend con la cabecera CORS forzada para poder leerlo
     return JSONResponse(
         status_code=500,
         content={"detail": f"Error interno en Python/SQLite: {str(exc)}"},
@@ -71,7 +106,6 @@ def list_sites(db: Session = Depends(get_db)):
 # ==========================================
 @app.post("/locations/", response_model=schemas.LocationResponse, status_code=status.HTTP_201_CREATED, tags=["Sitios y Ubicaciones"])
 def create_location(location: schemas.LocationBase, db: Session = Depends(get_db)):
-    # Validar que el sitio exista antes de meterle una ubicación
     db_site = db.query(models.Site).filter(models.Site.id == location.site_id).first()
     if not db_site:
         raise HTTPException(status_code=404, detail="El Sitio especificado (site_id) no existe")
@@ -130,7 +164,7 @@ def create_admin(admin: schemas.AdminCreate, db: Session = Depends(get_db)):
     if db_admin:
         raise HTTPException(status_code=400, detail="El nombre de usuario o email ya están registrados")
     
-    # Por ahora guardamos el texto plano. En fases posteriores implementaremos hashing real de seguridad.
+    # ➔ CORREGIDO: password_hash mapeado correctamente con models.py
     nuevo_admin = models.Admin(
         username=admin.username,
         email=admin.email,
@@ -184,35 +218,27 @@ def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db)):
 def list_assets(db: Session = Depends(get_db)):
     return db.query(models.Asset).all()
 
-    # ==========================================
+# ==========================================
 # 8. ACCIONES DE INVENTARIO: CHECKOUT Y CHECKIN
 # ==========================================
-
 @app.post("/assets/{asset_id}/checkout", tags=["Acciones de Inventario"])
 def asset_checkout(asset_id: int, person_id: int, admin_id: int, notas: str = None, db: Session = Depends(get_db)):
-    # 1. Verificar que el activo exista
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
     
-    # 2. Verificar que no esté ya prestado
     if asset.status == "Checkout":
         raise HTTPException(status_code=400, detail="El activo ya se encuentra asignado (Checkout)")
         
-    # 3. Verificar que el empleado y el admin existan
     person = db.query(models.Person).filter(models.Person.id == person_id).first()
     admin = db.query(models.Admin).filter(models.Admin.id == admin_id).first()
     if not person or not admin:
         raise HTTPException(status_code=404, detail="Empleado o Administrador no encontrado")
 
-    # 4. Guardamos el estado anterior para la auditoría
     estado_anterior = asset.status
-
-    # 5. Actualizamos el activo
     asset.status = "Checkout"
     asset.person_id = person_id
     
-    # 6. CREAMOS EL REGISTRO EN EL HISTORIAL (Auditoría)
     registro_historial = models.History(
         asset_id=asset.id,
         asignado_a_id=person_id,
@@ -228,15 +254,12 @@ def asset_checkout(asset_id: int, person_id: int, admin_id: int, notas: str = No
     db.refresh(asset)
     return {"message": f"Asset {asset.asset_tag_id} asignado exitosamente", "asset_status": asset.status}
 
-
 @app.post("/assets/{asset_id}/checkin", tags=["Acciones de Inventario"])
 def asset_checkin(asset_id: int, admin_id: int, nuevo_estado: str = "Check in", notas: str = None, db: Session = Depends(get_db)):
-    # 1. Verificar que el activo exista
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
     
-    # 2. Verificar que el admin exista
     admin = db.query(models.Admin).filter(models.Admin.id == admin_id).first()
     if not admin:
         raise HTTPException(status_code=404, detail="Administrador no encontrado")
@@ -244,11 +267,9 @@ def asset_checkin(asset_id: int, admin_id: int, nuevo_estado: str = "Check in", 
     estado_anterior = asset.status
     persona_que_devuelve = asset.person_id
 
-    # 3. Actualizamos el activo (Vuelve al almacén o cambia a Broken, Lost, etc.)
     asset.status = nuevo_estado
-    asset.person_id = None # Se libera de la persona
+    asset.person_id = None 
     
-    # 4. CREAMOS EL REGISTRO EN EL HISTORIAL
     registro_historial = models.History(
         asset_id=asset.id,
         asignado_a_id=persona_que_devuelve,
@@ -264,22 +285,19 @@ def asset_checkin(asset_id: int, admin_id: int, nuevo_estado: str = "Check in", 
     db.refresh(asset)
     return {"message": f"Asset {asset.asset_tag_id} recibido exitosamente", "asset_status": asset.status}
 
-# Endpoint rápido para revisar el historial completo de auditoría
 @app.get("/history/", response_model=List[schemas.HistoryResponse], tags=["Acciones de Inventario"])
 def view_history(db: Session = Depends(get_db)):
     return db.query(models.History).all()
 
 # ==========================================
-# 9. EDICIÓN Y ELIMINACIÓN DE ACTIVOS
+# 9. EDICIÓN Y ELIMINACIÓN (SOFT DELETE)
 # ==========================================
-
 @app.put("/assets/{asset_id}", response_model=schemas.AssetResponse, tags=["Gestión de Activos"])
 def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session = Depends(get_db)):
     db_asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not db_asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
     
-    # Diccionario para traducir los nombres técnicos a etiquetas limpias en español
     etiquetas = {
         "asset_tag_id": "Asset Tag",
         "asset_description": "Descripción",
@@ -293,35 +311,26 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
         "numero_telefono": "Teléfono"
     }
     
-    # 1. Algoritmo de comparación (Diff) en caliente
     lista_cambios = []
     datos_nuevos = asset_update.model_dump()
     
     for campo, nuevo_valor in datos_nuevos.items():
-        # Obtenemos el valor que tiene actualmente en SQLite
         viejo_valor = getattr(db_asset, campo, None)
-        
-        # Si el valor cambió y no es una propiedad vacía irrelevante
         if viejo_valor != nuevo_valor:
-            # Traducimos el nombre del campo si existe en nuestro mapa
             nombre_limpio = etiquetas.get(campo, campo)
             lista_cambios.append(f"{nombre_limpio} cambiado de '{viejo_valor}' a '{nuevo_valor}'")
             
-    # 2. Aplicamos la actualización real en las columnas de la base de datos
     for key, value in datos_nuevos.items():
         setattr(db_asset, key, value)
         
-    # 3. Buscar al administrador operativo para registrar la firma de auditoría
     primer_admin = db.query(models.Admin).first()
     admin_id_registro = primer_admin.id if primer_admin else None
 
-    # 4. Construir la nota detallada según los cambios encontrados
     if lista_cambios:
         nota_auditoria = "Edición de propiedades: " + " | ".join(lista_cambios)
     else:
         nota_auditoria = "Formulario de edición guardado sin cambios en los valores."
     
-    # 5. Escribir la fila inalterable en la bitácora de History
     registro_historial = models.History(
         asset_id=db_asset.id,
         asignado_a_id=db_asset.person_id,
@@ -336,3 +345,56 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
     db.commit()
     db.refresh(db_asset)
     return db_asset
+
+@app.delete("/assets/{asset_id}", tags=["Gestión de Activos"])
+def delete_asset(asset_id: int, db: Session = Depends(get_db)):
+    db_asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+    if not db_asset:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+    
+    estado_anterior = db_asset.status
+    persona_que_tenia = db_asset.person_id
+
+    db_asset.status = "Archived"
+    db_asset.person_id = None 
+    
+    primer_admin = db.query(models.Admin).first()
+    admin_id_registro = primer_admin.id if primer_admin else None
+
+    registro_historial = models.History(
+        asset_id=db_asset.id,
+        asignado_a_id=persona_que_tenia,
+        realizado_por_id=admin_id_registro,
+        tipo_accion="Archived",
+        estado_anterior=estado_anterior,
+        estado_nuevo="Archived",
+        notas_detalle="Activo enviado a Eliminados Recientemente (Baja de Inventario)"
+    )
+    
+    db.add(registro_historial)
+    db.commit()
+    return {"message": "Activo movido a eliminados recientemente"}
+
+# ==========================================
+# 10. ENDPOINT DE AUTENTICACIÓN (LOGIN)
+# ==========================================
+@app.post("/auth/login", tags=["Autenticación"])
+def login_admin(credentials: dict, db: Session = Depends(get_db)):
+    username = credentials.get("username")
+    password = credentials.get("password")
+    
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Faltan usuario o contraseña")
+        
+    admin = db.query(models.Admin).filter(models.Admin.username == username).first()
+    
+    # ➔ CORREGIDO: Comparación directa usando admin.password_hash
+    if not admin or admin.password_hash != password:
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas ❌")
+        
+    return {
+        "id": admin.id,
+        "username": admin.username,
+        "email": admin.email,
+        "role": admin.role
+    }

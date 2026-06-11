@@ -9,6 +9,7 @@ let globalAdmins = [];
 let globalDepartments = [];
 
 document.addEventListener("DOMContentLoaded", () => {
+    checkSession();
     loadAssets();
     loadDropdownData();
     loadHistory();
@@ -437,3 +438,91 @@ function setupCatalogFormsListeners() {
     document.getElementById("form_add_location").addEventListener("submit", async (e) => { e.preventDefault(); const data = { location_name: document.getElementById("loc_name_input").value, site_id: parseInt(document.getElementById("loc_site_select").value) }; const res = await fetch(`${API_URL}/locations/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); if (res.ok) { closeLocationModal(); document.getElementById("form_add_location").reset(); loadDropdownData(); } });
     document.getElementById("form_add_department").addEventListener("submit", async (e) => { e.preventDefault(); const name = document.getElementById("dept_name_input").value; const res = await fetch(`${API_URL}/departments/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ department_name: name }) }); if (res.ok) { closeDepartmentModal(); document.getElementById("form_add_department").reset(); loadDropdownData(); } });
 }
+
+// ==========================================
+// 8. CONTROL DE AUTENTICACIÓN Y SESIONES
+// ==========================================
+
+// Ejecuta la validación de sesión de inmediato
+function checkSession() {
+    const session = localStorage.getItem("adminUser");
+    const overlay = document.getElementById("loginOverlay");
+    
+    if (session) {
+        // Hay sesión activa: Ocultamos el bloqueo y cargamos los datos del inventario
+        overlay.classList.add("hidden");
+        const adminData = JSON.parse(session);
+        console.log(`Sesión activa: Bienvenido de vuelta, ${adminData.username} 👋`);
+    } else {
+        // No hay sesión: Mostramos la pantalla de login obligatoria
+        overlay.classList.remove("hidden");
+    }
+}
+
+// Configura la escucha del envío del formulario de login
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    
+    const usernameInput = document.getElementById("login_username").value;
+    const passwordInput = document.getElementById("login_password").value;
+
+    try {
+        const response = await fetch(`${API_URL}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: usernameInput, password: passwordInput })
+        });
+
+        if (response.ok) {
+            const adminUser = await response.json();
+            
+            // Guardamos la sesión en las cookies locales del navegador
+            localStorage.setItem("adminUser", JSON.stringify(adminUser));
+            
+            alert(`¡Autenticación exitosa! Bienvenido ${adminUser.username} 🎉`);
+            
+            // Cerramos el bloqueo y refrescamos los datos operativos
+            document.getElementById("loginOverlay").classList.add("hidden");
+            document.getElementById("loginForm").reset();
+            
+            loadAssets();
+            loadDropdownData();
+            loadHistory();
+        } else {
+            const err = await response.json();
+            alert(`⚠️ Acceso Denegado: ${err.detail || "Verifique sus datos."}`);
+        }
+    } catch (error) {
+        alert("Error de conexión con el módulo de autenticación.");
+    }
+});
+
+// Función para destruir la sesión activa
+function logout() {
+    if (confirm("¿Estás seguro de que deseas cerrar tu sesión de administrador?")) {
+        localStorage.removeItem("adminUser");
+        // Forzamos la recarga para volver a bloquear el sistema
+        window.location.reload();
+    }
+}
+
+// ==========================================
+// FUNCIONES DE MODALES PRINCIPALES (RECUPERADAS)
+// ==========================================
+function openAssetModal() { document.getElementById("assetModal").classList.remove("hidden"); }
+function closeAssetModal() { document.getElementById("assetModal").classList.add("hidden"); document.getElementById("assetForm").reset(); }
+
+function openPersonModal() { document.getElementById("personModal").classList.remove("hidden"); }
+function closePersonModal() { document.getElementById("personModal").classList.add("hidden"); document.getElementById("personForm").reset(); }
+
+function openCategoryModal() { document.getElementById("categoryModal").classList.remove("hidden"); }
+function closeCategoryModal() { document.getElementById("categoryModal").classList.add("hidden"); document.getElementById("form_add_category").reset(); }
+
+function openSiteModal() { document.getElementById("siteModal").classList.remove("hidden"); }
+function closeSiteModal() { document.getElementById("siteModal").classList.add("hidden"); document.getElementById("form_add_site").reset(); }
+
+function openLocationModal() { document.getElementById("locationModal").classList.remove("hidden"); }
+function closeLocationModal() { document.getElementById("locationModal").classList.add("hidden"); document.getElementById("form_add_location").reset(); }
+
+function openDepartmentModal() { document.getElementById("departmentModal").classList.remove("hidden"); }
+function closeDepartmentModal() { document.getElementById("departmentModal").classList.add("hidden"); document.getElementById("form_add_department").reset(); }

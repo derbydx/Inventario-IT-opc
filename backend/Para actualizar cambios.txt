@@ -1,0 +1,9 @@
+lujo de trabajo para cambios futuros:
+
+Trabajas localmente en prueba, haces commits
+git push origin prueba
+En PythonAnywhere Bash console:
+cd ~/Inventario-IT-opc
+git pull origin prueba
+Ir a Web tab -> "Reload"
+Pregunta: Quieres que al ejecutar este plan guarde el SECRET_KEY en una variable de entorno en PythonAnywhere (mas seguro) o prefieres mantenerlo hardcodeado por ahora?

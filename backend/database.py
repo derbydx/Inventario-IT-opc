@@ -1,8 +1,11 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # 1. Definimos el nombre del archivo local de la base de datos SQLite
-SQLALCHEMY_DATABASE_URL = "sqlite:///./it_inventario.db"
+# Usa ruta absoluta basada en la ubicacion de este archivo
+DB_DIR = os.path.dirname(os.path.abspath(__file__))
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.join(DB_DIR, 'it_inventario.db')}"
 
 # 2. Creamos el motor de conexión (Engine)
 # 'check_same_thread': False es obligatorio solo para SQLite en FastAPI

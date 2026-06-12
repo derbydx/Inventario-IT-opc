@@ -18,21 +18,10 @@ class Site(Base):
     zip_code = Column(String(20))
     country = Column(String(100))
 
-class Location(Base):
-    __tablename__ = "locations"
-    id = Column(Integer, primary_key=True, index=True)
-    location_name = Column(String(100), index=True)
-    site_id = Column(Integer, ForeignKey("sites.id"))
-
 class Department(Base):
     __tablename__ = "departments"
     id = Column(Integer, primary_key=True, index=True)
     department_name = Column(String(100), unique=True, index=True)
-
-class Category(Base):
-    __tablename__ = "categories"
-    id = Column(Integer, primary_key=True, index=True)
-    category_name = Column(String(100), unique=True, index=True)
 
 # ==========================================
 # 2. DIRECTORIO DE EMPLEADOS Y ACCESOS ADMIN
@@ -49,7 +38,6 @@ class Person(Base):
     
     # Conexiones geográficas y organizacionales
     site_id = Column(Integer, ForeignKey("sites.id"))
-    location_id = Column(Integer, ForeignKey("locations.id"))
     department_id = Column(Integer, ForeignKey("departments.id"))
 
 class Admin(Base):
@@ -80,9 +68,8 @@ class Asset(Base):
     
     # Llaves Foráneas
     person_id = Column(Integer, ForeignKey("persons.id"), nullable=True)
-    category_id = Column(Integer, ForeignKey("categories.id"))
+    category = Column(String(100), index=True)
     site_id = Column(Integer, ForeignKey("sites.id"))
-    location_id = Column(Integer, ForeignKey("locations.id"))
 
 # ==========================================
 # 4. TABLA DE AUDITORÍA: HISTORIAL

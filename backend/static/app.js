@@ -2,7 +2,6 @@ const API_URL = "";
 
 let currentAssets = [];
 let globalSites = [];
-let globalLocations = [];
 let globalPersons = [];
 let globalAdmins = [];
 let globalDepartments = [];
@@ -57,7 +56,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setupImportFormListener();
     setupEditPersonFormListener();
     setupEditSiteFormListener();
-    setupEditLocationFormListener();
     setupEditDepartmentFormListener();
 });
 
@@ -65,14 +63,10 @@ async function loadDropdownData() {
     const personSelect = document.getElementById("modal_person_id");
     const assetCatSelect = document.getElementById("asset_category");
     const assetSiteSelect = document.getElementById("asset_site_id");
-    const assetLocSelect = document.getElementById("asset_location_id");
-    const locSiteSelect = document.getElementById("loc_site_select");
     const personDeptSelect = document.getElementById("person_department_id");
     const personSiteSelect = document.getElementById("person_site_id");
-    const personLocSelect = document.getElementById("person_location_id");
     const editCatSelect = document.getElementById("edit_asset_category");
     const editSiteSelect = document.getElementById("edit_asset_site_id");
-    const editLocSelect = document.getElementById("edit_asset_location_id");
 
     try {
         const resPersons = await api("/persons/");
@@ -117,18 +111,11 @@ async function loadDropdownData() {
             globalSites = await resSites.json();
             assetSiteSelect.innerHTML = '<option value="">-- Seleccione Sitio --</option>';
             editSiteSelect.innerHTML = '<option value="">-- Seleccione Sitio --</option>';
-            locSiteSelect.innerHTML = '<option value="">-- Vincular a que Sitio? --</option>';
             personSiteSelect.innerHTML = '<option value="">-- Seleccione Sitio Base --</option>';
             globalSites.forEach(s => {
                 const opt = `<option value="${s.id}">${s.site_name}</option>`;
-                assetSiteSelect.innerHTML += opt; editSiteSelect.innerHTML += opt; locSiteSelect.innerHTML += opt; personSiteSelect.innerHTML += opt;
+                assetSiteSelect.innerHTML += opt; editSiteSelect.innerHTML += opt; personSiteSelect.innerHTML += opt;
             });
-        }
-        const resLocs = await api("/locations/");
-        if (resLocs.ok) {
-            globalLocations = await resLocs.json();
-            const fillL = (sel) => { sel.innerHTML = '<option value="">-- Seleccione Ubicacion --</option>'; globalLocations.forEach(l => { sel.innerHTML += `<option value="${l.id}">${l.location_name}</option>`; });};
-            fillL(assetLocSelect); fillL(editLocSelect); fillL(personLocSelect);
         }
         const resDepts = await api("/departments/");
         if (resDepts.ok) {
@@ -222,7 +209,6 @@ async function openDetailsModal(assetId) {
     document.getElementById("historyToggleIcon").innerText = "Mostrar";
 
     const siteObj = globalSites.find(s => s.id === asset.site_id);
-    const locationObj = globalLocations.find(l => l.id === asset.location_id);
     const employeeObj = globalPersons.find(p => p.id === asset.person_id);
 
     document.getElementById("detailsTag").innerText = `Asset Tag ID: ${asset.asset_tag_id}`;
@@ -231,8 +217,7 @@ async function openDetailsModal(assetId) {
     document.getElementById("det_serial").innerText = asset.serial_no;
     
     document.getElementById("det_category").innerText = asset.category || "-";
-    document.getElementById("det_location_path").innerText = `${siteObj ? siteObj.site_name : 'Site'} ${locationObj ? locationObj.location_name : 'Ubicacion'}`;
-
+    
     const statusElement = document.getElementById("det_status");
     let badgeColor = "bg-gray-100 text-gray-800"; 
 
@@ -369,7 +354,6 @@ function openEditAssetModal(assetId) {
     document.getElementById("edit_serial_no").value = asset.serial_no;
     document.getElementById("edit_asset_category").value = asset.category || "";
     document.getElementById("edit_asset_site_id").value = asset.site_id;
-    document.getElementById("edit_asset_location_id").value = asset.location_id;
     
     document.getElementById("edit_asset_status").value = asset.status;
 
@@ -393,7 +377,6 @@ function setupEditAssetFormListener() {
             serial_no: document.getElementById("edit_serial_no").value,
             category: document.getElementById("edit_asset_category").value,
             site_id: parseInt(document.getElementById("edit_asset_site_id").value),
-            location_id: parseInt(document.getElementById("edit_asset_location_id").value),
             status: document.getElementById("edit_asset_status").value 
         };
 
@@ -485,7 +468,6 @@ async function loadPersons() {
 
 async function loadCatalogs() {
     const sitesBody = document.getElementById("sitesTableBody");
-    const locsBody = document.getElementById("locationsTableBody");
     const deptsBody = document.getElementById("departmentsTableBody");
     try {
         const resSites = await api("/sites/");
@@ -500,22 +482,6 @@ async function loadCatalogs() {
                     row.className = "hover:bg-blue-50/50 transition-colors";
                     row.innerHTML = `<td class="px-3 py-2 font-medium">${s.site_name}</td><td class="px-3 py-2 text-gray-500">${s.city || '-'}</td><td class="px-3 py-2 text-gray-500">${s.country || '-'}</td><td class="px-3 py-2 text-center"><button onclick="openEditSiteModal(${s.id})" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-blue-300 transition-colors cursor-pointer">Editar</button></td>`;
                     sitesBody.appendChild(row);
-                });
-            }
-        }
-        const resLocs = await api("/locations/");
-        if (resLocs.ok) {
-            const locs = await resLocs.json();
-            locsBody.innerHTML = "";
-            if (locs.length === 0) {
-                locsBody.innerHTML = '<tr><td colspan="3" class="px-3 py-3 text-center text-gray-400 italic">Sin ubicaciones registradas.</td></tr>';
-            } else {
-                locs.forEach(l => {
-                    const site = globalSites.find(s => s.id === l.site_id);
-                    const row = document.createElement("tr");
-                    row.className = "hover:bg-blue-50/50 transition-colors";
-                    row.innerHTML = `<td class="px-3 py-2 font-medium">${l.location_name}</td><td class="px-3 py-2 text-gray-500">${site ? site.site_name : '-'}</td><td class="px-3 py-2 text-center"><button onclick="openEditLocationModal(${l.id})" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-blue-300 transition-colors cursor-pointer">Editar</button></td>`;
-                    locsBody.appendChild(row);
                 });
             }
         }
@@ -552,16 +518,14 @@ async function openEditPersonModal(personId) {
         sel.innerHTML = "";
         items.forEach(item => {
             const opt = document.createElement("option");
-            opt.value = item.id; opt.text = item.department_name || item.site_name || item.location_name;
+            opt.value = item.id; opt.text = item.department_name || item.site_name;
             sel.appendChild(opt);
         });
     };
     fillEditSelect("edit_person_department_id", globalDepartments);
     fillEditSelect("edit_person_site_id", globalSites);
-    fillEditSelect("edit_person_location_id", globalLocations);
     document.getElementById("edit_person_department_id").value = p.department_id;
     document.getElementById("edit_person_site_id").value = p.site_id;
-    document.getElementById("edit_person_location_id").value = p.location_id;
     document.getElementById("editPersonModal").classList.remove("hidden");
 }
 function closeEditPersonModal() {
@@ -582,8 +546,7 @@ function setupEditPersonFormListener() {
             phone: document.getElementById("edit_person_phone").value || null,
             notes: document.getElementById("edit_person_notes").value || null,
             department_id: parseInt(document.getElementById("edit_person_department_id").value),
-            site_id: parseInt(document.getElementById("edit_person_site_id").value),
-            location_id: parseInt(document.getElementById("edit_person_location_id").value)
+            site_id: parseInt(document.getElementById("edit_person_site_id").value)
         };
         try {
             const res = await api(`/persons/${id}`, { method: "PUT", body: JSON.stringify(data) });
@@ -626,46 +589,6 @@ function setupEditSiteFormListener() {
             const res = await api(`/sites/${id}`, { method: "PUT", body: JSON.stringify(data) });
             if (res.ok) {
                 alert("Sitio actualizado!"); closeEditSiteModal();
-                await loadDropdownData(); await loadCatalogs();
-            } else {
-                const err = await res.json().catch(()=>({detail:"Error"}));
-                alert("Error: " + (err.detail || "No se pudo actualizar"));
-            }
-        } catch (e) { alert("Error de conexion"); }
-    });
-}
-
-async function openEditLocationModal(locId) {
-    const loc = globalLocations.find(l => l.id === locId);
-    if (!loc) return;
-    document.getElementById("edit_location_id").value = loc.id;
-    document.getElementById("edit_loc_name_input").value = loc.location_name;
-    const sel = document.getElementById("edit_loc_site_select");
-    sel.innerHTML = "";
-    globalSites.forEach(s => {
-        const opt = document.createElement("option");
-        opt.value = s.id; opt.text = s.site_name;
-        sel.appendChild(opt);
-    });
-    sel.value = loc.site_id;
-    document.getElementById("editLocationModal").classList.remove("hidden");
-}
-function closeEditLocationModal() { document.getElementById("editLocationModal").classList.add("hidden"); }
-
-function setupEditLocationFormListener() {
-    const form = document.getElementById("form_edit_location");
-    if (!form) return;
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const id = document.getElementById("edit_location_id").value;
-        const data = {
-            location_name: document.getElementById("edit_loc_name_input").value,
-            site_id: parseInt(document.getElementById("edit_loc_site_select").value)
-        };
-        try {
-            const res = await api(`/locations/${id}`, { method: "PUT", body: JSON.stringify(data) });
-            if (res.ok) {
-                alert("Ubicacion actualizada!"); closeEditLocationModal();
                 await loadDropdownData(); await loadCatalogs();
             } else {
                 const err = await res.json().catch(()=>({detail:"Error"}));
@@ -745,7 +668,7 @@ function setupMovementFormListener() {
 function setupFormListener() {
     document.getElementById("assetForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: parseInt(document.getElementById("asset_site_id").value), location_id: parseInt(document.getElementById("asset_location_id").value), status: "Check in" };
+        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: parseInt(document.getElementById("asset_site_id").value), status: "Check in" };
         try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { alert("Activo registrado con exito!"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
     });
 }
@@ -753,7 +676,7 @@ function setupFormListener() {
 function setupPersonFormListener() {
     document.getElementById("personForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const personData = { full_name: document.getElementById("person_full_name").value, email: document.getElementById("person_email").value, employee_id: document.getElementById("person_employee_id").value, title: document.getElementById("person_title").value || null, phone: document.getElementById("person_phone").value || null, notes: document.getElementById("person_notes").value || null, site_id: parseInt(document.getElementById("person_site_id").value), location_id: parseInt(document.getElementById("person_location_id").value), department_id: parseInt(document.getElementById("person_department_id").value) };
+        const personData = { full_name: document.getElementById("person_full_name").value, email: document.getElementById("person_email").value, employee_id: document.getElementById("person_employee_id").value, title: document.getElementById("person_title").value || null, phone: document.getElementById("person_phone").value || null, notes: document.getElementById("person_notes").value || null, site_id: parseInt(document.getElementById("person_site_id").value), department_id: parseInt(document.getElementById("person_department_id").value) };
         try { const response = await api("/persons/", { method: "POST", body: JSON.stringify(personData) }); if (response.status === 201) { alert("Empleado dado de alta!"); closePersonModal(); loadDropdownData(); } } catch (e) { alert("Error."); }
     });
 }
@@ -770,21 +693,6 @@ function setupCatalogFormsListeners() {
             } else {
                 const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
                 alert("Error: " + (err.detail || "No se pudo crear el sitio"));
-            }
-        } catch (e) { alert("Error de conexion: " + e.message); }
-    });
-    
-    document.getElementById("form_add_location").addEventListener("submit", async (e) => { 
-        e.preventDefault(); 
-        try {
-            const data = { location_name: document.getElementById("loc_name_input").value, site_id: parseInt(document.getElementById("loc_site_select").value) }; 
-            const res = await api("/locations/", { method: "POST", body: JSON.stringify(data) }); 
-            if (res.ok) { 
-                alert("Ubicacion creada!"); closeLocationModal(); document.getElementById("form_add_location").reset(); 
-                loadDropdownData(); 
-            } else {
-                const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
-                alert("Error: " + (err.detail || "No se pudo crear la ubicacion"));
             }
         } catch (e) { alert("Error de conexion: " + e.message); }
     });
@@ -869,9 +777,6 @@ function closePersonModal() { document.getElementById("personModal").classList.a
 function openSiteModal() { document.getElementById("siteModal").classList.remove("hidden"); }
 function closeSiteModal() { document.getElementById("siteModal").classList.add("hidden"); document.getElementById("form_add_site").reset(); }
 
-function openLocationModal() { document.getElementById("locationModal").classList.remove("hidden"); }
-function closeLocationModal() { document.getElementById("locationModal").classList.add("hidden"); document.getElementById("form_add_location").reset(); }
-
 function openDepartmentModal() { document.getElementById("departmentModal").classList.remove("hidden"); }
 function closeDepartmentModal() { document.getElementById("departmentModal").classList.add("hidden"); document.getElementById("form_add_department").reset(); }
 
@@ -885,7 +790,7 @@ function toggleCollapse(id) {
 }
 
 function showSection(name) {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -897,6 +802,7 @@ function showSection(name) {
     if (name === 'history' && typeof loadHistory === 'function') loadHistory();
     if (name === 'assets' && typeof loadAssets === 'function') loadAssets();
     if (name === 'dashboard') updateDashboard();
+    if (name === 'reports') populateReportPersonSelect();
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -929,7 +835,7 @@ async function exportEntity(entity) {
         const blob = await res.blob();
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        const names = { assets:"activos", persons:"empleados", sites:"sitios", locations:"ubicaciones" };
+        const names = { assets:"activos", persons:"empleados", sites:"sitios" };
         a.download = names[entity]||entity+".xlsx";
         a.click();
         URL.revokeObjectURL(a.href);
@@ -970,4 +876,49 @@ function setupImportFormListener() {
             resultDiv.classList.remove("hidden");
         }
     });
+}
+
+function populateReportPersonSelect() {
+    const sel = document.getElementById("report_person_id");
+    sel.innerHTML = '<option value="">-- Seleccione un Empleado --</option>';
+    globalPersons.forEach(p => {
+        sel.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`;
+    });
+}
+
+async function loadCheckoutReport() {
+    const personId = document.getElementById("report_person_id").value;
+    const mode = document.getElementById("report_mode").value;
+    const tbody = document.getElementById("reportResultsBody");
+    if (!personId) { tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-amber-600 font-medium">Seleccione un empleado primero.</td></tr>'; return; }
+    tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        const res = await api(`/reports/person-checkouts/${personId}?mode=${mode}`);
+        if (!res.ok) throw new Error("Error en el servidor");
+        const data = await res.json();
+        tbody.innerHTML = "";
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-gray-400 italic">Sin resultados para este empleado.</td></tr>';
+            return;
+        }
+        data.forEach(item => {
+            const row = document.createElement("tr");
+            row.className = "hover:bg-blue-50/50 transition-colors";
+            let badge = "bg-green-100 text-green-800";
+            if (item.status === "Checkout") badge = "bg-blue-100 text-blue-800";
+            row.innerHTML = `
+                <td class="px-3 py-2 font-mono font-bold">${item.asset_tag_id}</td>
+                <td class="px-3 py-2">${item.asset_description}</td>
+                <td class="px-3 py-2">${item.brand} ${item.model}</td>
+                <td class="px-3 py-2 font-mono">${item.serial_no}</td>
+                <td class="px-3 py-2">${item.category}</td>
+                <td class="px-3 py-2">${item.site_name}</td>
+                <td class="px-3 py-2 text-gray-500 text-[10px]">${item.assigned_date ? new Date(item.assigned_date).toLocaleDateString('es-ES') : '-'}</td>
+                <td class="px-3 py-2 text-gray-500 text-[10px]">${item.returned_date ? new Date(item.returned_date).toLocaleDateString('es-ES') : '-'}</td>
+                <td class="px-3 py-2"><span class="px-2 py-0.5 inline-flex text-[10px] leading-5 font-semibold rounded-full ${badge}">${item.status}</span></td>`;
+            tbody.appendChild(row);
+        });
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>';
+    }
 }

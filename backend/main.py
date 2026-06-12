@@ -134,34 +134,7 @@ def update_site(site_id: int, site: schemas.SiteBase, db: Session = Depends(get_
     return db_site
 
 # ==========================================
-# 2. ENDPOINTS: UBICACIONES (LOCATIONS)
-# ==========================================
-@app.post("/locations/", response_model=schemas.LocationResponse, status_code=status.HTTP_201_CREATED, tags=["Sitios y Ubicaciones"])
-def create_location(location: schemas.LocationBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
-    db_site = db.query(models.Site).filter(models.Site.id == location.site_id).first()
-    if not db_site:
-        raise HTTPException(status_code=404, detail="El Sitio especificado (site_id) no existe")
-    nueva_ubicacion = models.Location(**location.model_dump())
-    db.add(nueva_ubicacion)
-    db.commit()
-    db.refresh(nueva_ubicacion)
-    return nueva_ubicacion
-
-@app.get("/locations/", response_model=List[schemas.LocationResponse], tags=["Sitios y Ubicaciones"])
-def list_locations(db: Session = Depends(get_db)):
-    return db.query(models.Location).all()
-
-@app.put("/locations/{loc_id}", response_model=schemas.LocationResponse, tags=["Sitios y Ubicaciones"])
-def update_location(loc_id: int, loc: schemas.LocationBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
-    db_loc = db.query(models.Location).filter(models.Location.id == loc_id).first()
-    if not db_loc: raise HTTPException(404, "Ubicacion no encontrada")
-    for k, v in loc.model_dump().items():
-        setattr(db_loc, k, v)
-    db.commit(); db.refresh(db_loc)
-    return db_loc
-
-# ==========================================
-# 3. ENDPOINTS: DEPARTAMENTOS
+# 2. ENDPOINTS: DEPARTAMENTOS
 # ==========================================
 @app.post("/departments/", response_model=schemas.DepartmentResponse, status_code=status.HTTP_201_CREATED, tags=["Catálogos"])
 def create_department(dept: schemas.DepartmentBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
@@ -384,7 +357,6 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
         "serial_no": "Número de Serie",
         "category": "Categoria",
         "site_id": "ID de Sitio",
-        "location_id": "ID de Ubicación",
         "notas_adicionales": "Notas",
         "numero_telefono": "Teléfono"
     }
@@ -484,9 +456,8 @@ def export_persons(db: Session = Depends(get_db)):
     for p in q:
         dept = db.query(models.Department).filter(models.Department.id == p.department_id).first()
         site = db.query(models.Site).filter(models.Site.id == p.site_id).first()
-        loc = db.query(models.Location).filter(models.Location.id == p.location_id).first()
-        rows.append((p.full_name, p.email, p.employee_id, p.title or "", p.phone or "", dept.department_name if dept else "", site.site_name if site else "", loc.location_name if loc else ""))
-    buf = _make_excel(["Nombre", "Email", "EmployeeID", "Titulo", "Telefono", "Departamento", "Sitio", "Ubicacion"], rows)
+        rows.append((p.full_name, p.email, p.employee_id, p.title or "", p.phone or "", dept.department_name if dept else "", site.site_name if site else ""))
+    buf = _make_excel(["Nombre", "Email", "EmployeeID", "Titulo", "Telefono", "Departamento", "Sitio"], rows)
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=empleados.xlsx"})
 
 @app.get("/export/sites/", tags=["Import/Export"])
@@ -496,28 +467,15 @@ def export_sites(db: Session = Depends(get_db)):
     buf = _make_excel(["Sitio", "Ciudad", "Pais"], rows)
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=sitios.xlsx"})
 
-@app.get("/export/locations/", tags=["Import/Export"])
-def export_locations(db: Session = Depends(get_db)):
-    q = db.query(models.Location).all()
-    rows = []
-    for l in q:
-        site = db.query(models.Site).filter(models.Site.id == l.site_id).first()
-        rows.append((l.location_name, site.site_name if site else ""))
-    buf = _make_excel(["Ubicacion", "Sitio"], rows)
-    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=ubicaciones.xlsx"})
-
 # ---------- PLANTILLAS ----------
 @app.get("/export/assets/template/", tags=["Import/Export"])
-def template_assets(): return StreamingResponse(_make_excel(["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio", "Ubicacion", "AsignadoA"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_activos.xlsx"})
+def template_assets(): return StreamingResponse(_make_excel(["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio", "AsignadoA"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_activos.xlsx"})
 
 @app.get("/export/persons/template/", tags=["Import/Export"])
-def template_persons(): return StreamingResponse(_make_excel(["Nombre", "Email", "EmployeeID", "Titulo", "Telefono", "Departamento", "Sitio", "Ubicacion"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_empleados.xlsx"})
+def template_persons(): return StreamingResponse(_make_excel(["Nombre", "Email", "EmployeeID", "Titulo", "Telefono", "Departamento", "Sitio"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_empleados.xlsx"})
 
 @app.get("/export/sites/template/", tags=["Import/Export"])
 def template_sites(): return StreamingResponse(_make_excel(["Sitio", "Ciudad", "Pais"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_sitios.xlsx"})
-
-@app.get("/export/locations/template/", tags=["Import/Export"])
-def template_locations(): return StreamingResponse(_make_excel(["Ubicacion", "Sitio"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_ubicaciones.xlsx"})
 
 # ---------- IMPORTAR ----------
 @app.post("/import/sites/", tags=["Import/Export"])
@@ -539,28 +497,6 @@ def import_sites(file: UploadFile = File(...), db: Session = Depends(get_db), ad
     db.commit()
     return {"importados": ok}
 
-@app.post("/import/locations/", tags=["Import/Export"])
-def import_locations(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
-    wb = openpyxl.load_workbook(file.file)
-    ws = wb.active
-    h = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
-    for col in ["Ubicacion", "Sitio"]:
-        if col not in h: raise HTTPException(400, f"Falta columna '{col}'")
-    i_ubi, i_sit = h.index("Ubicacion"), h.index("Sitio")
-    ok = 0
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        if all(c is None for c in row): continue
-        name = (row[i_ubi] or "").strip()
-        sitio = (row[i_sit] or "").strip()
-        if not name: raise HTTPException(400, f"Fila {ok+2}: Ubicacion vacia")
-        if not sitio: raise HTTPException(400, f"Fila {ok+2}: Sitio vacio")
-        site = db.query(models.Site).filter(models.Site.site_name == sitio).first()
-        if not site: raise HTTPException(400, f"Fila {ok+2}: Sitio '{sitio}' no existe")
-        db.add(models.Location(location_name=name, site_id=site.id))
-        ok += 1
-    db.commit()
-    return {"importados": ok}
-
 @app.post("/import/persons/", tags=["Import/Export"])
 def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
     wb = openpyxl.load_workbook(file.file)
@@ -570,7 +506,7 @@ def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), 
         if col not in h: raise HTTPException(400, f"Falta columna '{col}'")
     def _ci(name): return h.index(name) if name in h else None
     i_fn, i_em, i_eid = h.index("Nombre"), h.index("Email"), h.index("EmployeeID")
-    i_tit, i_tel, i_not, i_dept, i_sit, i_loc = _ci("Titulo"), _ci("Telefono"), _ci("Notas"), _ci("Departamento"), _ci("Sitio"), _ci("Ubicacion")
+    i_tit, i_tel, i_not, i_dept, i_sit = _ci("Titulo"), _ci("Telefono"), _ci("Notas"), _ci("Departamento"), _ci("Sitio")
     ok = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
         if all(c is None for c in row): continue
@@ -582,7 +518,7 @@ def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), 
         if not eid: raise HTTPException(400, f"Fila {ok+2}: EmployeeID vacio")
         if db.query(models.Person).filter(models.Person.email == email).first(): raise HTTPException(400, f"Fila {ok+2}: Email '{email}' ya existe")
         if db.query(models.Person).filter(models.Person.employee_id == eid).first(): raise HTTPException(400, f"Fila {ok+2}: EmployeeID '{eid}' ya existe")
-        dept_id, site_id, loc_id = None, None, None
+        dept_id, site_id = None, None
         if i_dept is not None and (row[i_dept] or "").strip():
             dept_name = (row[i_dept] or "").strip()
             d = db.query(models.Department).filter(models.Department.department_name == dept_name).first()
@@ -597,17 +533,9 @@ def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), 
                 s = models.Site(site_name=sit_name)
                 db.add(s); db.flush()
             site_id = s.id
-        if i_loc is not None and (row[i_loc] or "").strip():
-            loc_name = (row[i_loc] or "").strip()
-            l = db.query(models.Location).filter(models.Location.location_name == loc_name).first()
-            if not l:
-                l = models.Location(location_name=loc_name)
-                db.add(l); db.flush()
-            loc_id = l.id
         if dept_id is None: raise HTTPException(400, f"Fila {ok+2}: Departamento requerido")
         if site_id is None: raise HTTPException(400, f"Fila {ok+2}: Sitio requerido")
-        if loc_id is None: raise HTTPException(400, f"Fila {ok+2}: Ubicacion requerida")
-        db.add(models.Person(full_name=full_name, email=email, employee_id=eid, title=(row[i_tit] or "").strip() if i_tit is not None else None, phone=(row[i_tel] or "").strip() if i_tel is not None else None, notes=(row[i_not] or "").strip() if i_not is not None else None, department_id=dept_id, site_id=site_id, location_id=loc_id))
+        db.add(models.Person(full_name=full_name, email=email, employee_id=eid, title=(row[i_tit] or "").strip() if i_tit is not None else None, phone=(row[i_tel] or "").strip() if i_tel is not None else None, notes=(row[i_not] or "").strip() if i_not is not None else None, department_id=dept_id, site_id=site_id))
         ok += 1
     db.commit()
     return {"importados": ok}
@@ -617,9 +545,9 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
     wb = openpyxl.load_workbook(file.file)
     ws = wb.active
     h = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
-    for col in ["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio", "Ubicacion"]:
+    for col in ["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio"]:
         if col not in h: raise HTTPException(400, f"Falta columna '{col}'")
-    i_tag, i_desc, i_brand, i_model, i_ser, i_cat, i_sit, i_loc = (h.index(c) for c in ["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio", "Ubicacion"])
+    i_tag, i_desc, i_brand, i_model, i_ser, i_cat, i_sit = (h.index(c) for c in ["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio"])
     i_asignado = h.index("AsignadoA") if "AsignadoA" in h else None
     ok = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
@@ -631,7 +559,6 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
         ser = (row[i_ser] or "").strip()
         cat_name = (row[i_cat] or "").strip()
         sit_name = (row[i_sit] or "").strip()
-        loc_name = (row[i_loc] or "").strip()
         if not tag: raise HTTPException(400, f"Fila {ok+2}: AssetTag vacio")
         if not desc: raise HTTPException(400, f"Fila {ok+2}: Descripcion vacia")
         if not brand: raise HTTPException(400, f"Fila {ok+2}: Marca vacia")
@@ -639,12 +566,9 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
         if not ser: raise HTTPException(400, f"Fila {ok+2}: Serie vacia")
         if not cat_name: raise HTTPException(400, f"Fila {ok+2}: Categoria vacia")
         if not sit_name: raise HTTPException(400, f"Fila {ok+2}: Sitio vacio")
-        if not loc_name: raise HTTPException(400, f"Fila {ok+2}: Ubicacion vacia")
         if db.query(models.Asset).filter(models.Asset.asset_tag_id == tag).first(): raise HTTPException(400, f"Fila {ok+2}: AssetTag '{tag}' ya existe")
         site = db.query(models.Site).filter(models.Site.site_name == sit_name).first()
         if not site: raise HTTPException(400, f"Fila {ok+2}: Sitio '{sit_name}' no existe")
-        loc = db.query(models.Location).filter(models.Location.location_name == loc_name).first()
-        if not loc: raise HTTPException(400, f"Fila {ok+2}: Ubicacion '{loc_name}' no existe")
 
         person_id = None
         status = "Check in"
@@ -659,7 +583,7 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
                 status = "Checkout"
                 notas_historial = f"Importado con asignacion a {person.full_name}"
 
-        asset = models.Asset(asset_tag_id=tag, asset_description=desc, brand=brand, model=model, serial_no=ser, category=cat_name, site_id=site.id, location_id=loc.id, person_id=person_id, status=status)
+        asset = models.Asset(asset_tag_id=tag, asset_description=desc, brand=brand, model=model, serial_no=ser, category=cat_name, site_id=site.id, person_id=person_id, status=status)
         db.add(asset)
         db.flush()
 
@@ -674,7 +598,74 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
     return {"importados": ok}
 
 # ==========================================
-# 12. ENDPOINT DE AUTENTICACIÓN (LOGIN CON JWT)
+# 12. ENDPOINTS DE REPORTES
+# ==========================================
+@app.get("/reports/person-checkouts/{person_id}", tags=["Reportes"])
+def report_person_checkouts(person_id: int, mode: str = "current", db: Session = Depends(get_db)):
+    person = db.query(models.Person).filter(models.Person.id == person_id).first()
+    if not person:
+        raise HTTPException(404, "Empleado no encontrado")
+
+    if mode == "current":
+        assets = db.query(models.Asset).filter(
+            models.Asset.person_id == person_id,
+            models.Asset.status == "Checkout"
+        ).all()
+        results = []
+        for a in assets:
+            site = db.query(models.Site).filter(models.Site.id == a.site_id).first()
+            results.append(schemas.PersonCheckoutReportItem(
+                asset_tag_id=a.asset_tag_id,
+                asset_description=a.asset_description,
+                brand=a.brand,
+                model=a.model,
+                serial_no=a.serial_no,
+                category=a.category or "",
+                site_name=site.site_name if site else "",
+                assigned_date=None,
+                returned_date=None,
+                status=a.status
+            ))
+        return results
+    else:
+        history = db.query(models.History).filter(
+            models.History.asignado_a_id == person_id,
+            models.History.tipo_accion.in_(["Checkout", "Check in"])
+        ).order_by(models.History.asset_id, models.History.fecha_accion).all()
+        asset_map = {}
+        for h in history:
+            aid = h.asset_id
+            if aid not in asset_map:
+                asset_map[aid] = {"checkout": None, "checkin": None}
+            if h.tipo_accion == "Checkout" and asset_map[aid]["checkout"] is None:
+                asset_map[aid]["checkout"] = h.fecha_accion
+            if h.tipo_accion == "Check in":
+                asset_map[aid]["checkin"] = h.fecha_accion
+        asset_ids = list(asset_map.keys())
+        assets = db.query(models.Asset).filter(models.Asset.id.in_(asset_ids)).all()
+        asset_dict = {a.id: a for a in assets}
+        results = []
+        for aid, dates in asset_map.items():
+            a = asset_dict.get(aid)
+            if not a:
+                continue
+            site = db.query(models.Site).filter(models.Site.id == a.site_id).first()
+            results.append(schemas.PersonCheckoutReportItem(
+                asset_tag_id=a.asset_tag_id,
+                asset_description=a.asset_description,
+                brand=a.brand,
+                model=a.model,
+                serial_no=a.serial_no,
+                category=a.category or "",
+                site_name=site.site_name if site else "",
+                assigned_date=dates["checkout"].isoformat() if dates["checkout"] else None,
+                returned_date=dates["checkin"].isoformat() if dates["checkin"] else None,
+                status=a.status
+            ))
+        return results
+
+# ==========================================
+# 13. ENDPOINT DE AUTENTICACIÓN (LOGIN CON JWT)
 # ==========================================
 @app.post("/auth/login", response_model=schemas.TokenResponse, tags=["Autenticación"])
 def login_admin(credentials: schemas.LoginRequest, db: Session = Depends(get_db)):

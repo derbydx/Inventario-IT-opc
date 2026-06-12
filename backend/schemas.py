@@ -40,15 +40,6 @@ class SiteResponse(SiteBase):
     class Config:
         from_attributes = True
 
-class LocationBase(BaseModel):
-    location_name: str
-    site_id: int
-
-class LocationResponse(LocationBase):
-    id: int
-    class Config:
-        from_attributes = True
-
 class DepartmentBase(BaseModel):
     department_name: str
 
@@ -68,7 +59,6 @@ class PersonBase(BaseModel):
     phone: Optional[str] = None
     notes: Optional[str] = None
     site_id: int
-    location_id: int
     department_id: int
 
 class PersonCreate(PersonBase):
@@ -82,7 +72,6 @@ class PersonUpdate(BaseModel):
     phone: Optional[str] = None
     notes: Optional[str] = None
     site_id: Optional[int] = None
-    location_id: Optional[int] = None
     department_id: Optional[int] = None
 
 class PersonResponse(PersonBase):
@@ -130,7 +119,6 @@ class AssetBase(BaseModel):
     status: str = "Check in"  # Alineación impecable
     category: str = None
     site_id: int
-    location_id: int
 
 class AssetCreate(AssetBase):
     pass
@@ -156,3 +144,18 @@ class HistoryResponse(BaseModel):
     realizado_por_id: int
     class Config:
         from_attributes = True
+
+# ==========================================
+# SCHEMAS DE REPORTES
+# ==========================================
+class PersonCheckoutReportItem(BaseModel):
+    asset_tag_id: str
+    asset_description: str
+    brand: str
+    model: str
+    serial_no: str
+    category: str
+    site_name: str
+    assigned_date: Optional[str] = None
+    returned_date: Optional[str] = None
+    status: str

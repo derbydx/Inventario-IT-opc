@@ -118,7 +118,7 @@ class AssetBase(BaseModel):
     numero_telefono: Optional[str] = None
     status: str = "Check in"  # Alineación impecable
     category: str = None
-    site_id: int
+    site_id: Optional[int] = None
 
 class AssetCreate(AssetBase):
     pass
@@ -149,6 +149,7 @@ class HistoryResponse(BaseModel):
 # SCHEMAS DE REPORTES
 # ==========================================
 class PersonCheckoutReportItem(BaseModel):
+    asset_id: int
     asset_tag_id: str
     asset_description: str
     brand: str

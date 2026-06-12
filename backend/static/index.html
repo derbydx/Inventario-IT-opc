@@ -54,6 +54,9 @@
                     <button onclick="showSection('assets')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
                         <span>Listado Activos</span>
                     </button>
+                    <button onclick="showAdvancedSearch()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
+                        <span>Busqueda Avanzada</span>
+                    </button>
                     <button onclick="openAssetModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
                         <span>+ Nuevo Activo</span>
                     </button>
@@ -162,10 +165,25 @@
                 <section id="assetsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-semibold text-gray-800">Inventario Global de Activos</h2>
-                        <span id="assetCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Equipos</span>
+                        <div class="flex items-center gap-2">
+                            <span id="assetCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Equipos</span>
+                            <div class="relative">
+                                <button onclick="toggleColumnPanel('assets')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Columnas</button>
+                                <div id="colPanel_assets" class="hidden absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg p-3 z-20 w-44 text-xs space-y-1.5">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="serie" onchange="toggleColumn('assets','serie')" checked> Serie</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="category" onchange="toggleColumn('assets','category')" checked> Categoria</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="site" onchange="toggleColumn('assets','site')" checked> Sitio</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="phone" onchange="toggleColumn('assets','phone')" checked> Telefono</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="vendor" onchange="toggleColumn('assets','vendor')" checked> Vendor</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="date" onchange="toggleColumn('assets','date')" checked> Fecha Compra</label>
+                                </div>
+                            </div>
+                            <button onclick="exportVisibleCSV('assets')" class="text-[11px] bg-green-100 hover:bg-green-200 border border-green-300 px-2.5 py-1 rounded font-bold text-green-800 cursor-pointer">Exportar</button>
+                        </div>
                     </div>
                     <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <input type="text" id="searchInput" placeholder="Buscar por tag, descripcion, marca, modelo o serie..." oninput="loadAssets()" class="flex-1 min-w-[200px] p-2 border border-gray-300 rounded text-xs bg-white">
+                        <button onclick="showAdvancedSearch()" class="px-3 py-2 bg-amber-400 hover:bg-amber-500 text-white text-xs font-bold rounded transition-colors cursor-pointer">Avanzada</button>
                         <select id="filterStatus" onchange="loadAssets()" class="p-2 border border-gray-300 rounded text-xs bg-white">
                             <option value="">Todos los estados</option>
                             <option value="Check in">Check in</option>
@@ -179,6 +197,128 @@
                             <option value="">Todas las categorias</option>
                         </select>
                     </div>
+                    <!-- BUSQUEDA AVANZADA PANEL -->
+                    <div id="advancedSearchPanel" class="hidden mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <h3 class="text-sm font-bold text-amber-800 mb-3">Busqueda Avanzada</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Buscar</label>
+                                <input type="text" id="adv_search" placeholder="Keyword" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Condicion</label>
+                                <select id="adv_condition" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="contains">Contiene</option>
+                                    <option value="exact">Exacto</option>
+                                    <option value="startswith">Empieza con</option>
+                                    <option value="endswith">Termina con</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Campo de busqueda</label>
+                                <select id="adv_field" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="asset_tag_id">Asset Tag ID</option>
+                                    <option value="asset_description">Descripcion</option>
+                                    <option value="brand">Marca</option>
+                                    <option value="model">Modelo</option>
+                                    <option value="serial_no">Serie</option>
+                                    <option value="category">Categoria</option>
+                                    <option value="notas_adicionales">Notas</option>
+                                    <option value="numero_telefono">Telefono</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sitio</label>
+                                <select id="adv_site" class="w-full p-2 border border-gray-300 rounded text-xs bg-white"><option value="">Todos los Sitios</option></select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categoria</label>
+                                <select id="adv_category" class="w-full p-2 border border-gray-300 rounded text-xs bg-white"><option value="">Todas las Categorias</option></select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Departamento</label>
+                                <select id="adv_department" class="w-full p-2 border border-gray-300 rounded text-xs bg-white"><option value="">Todos los Departamentos</option></select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Estado</label>
+                                <select id="adv_status" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="">Cualquier Estado</option>
+                                    <option value="Check in">Check in</option>
+                                    <option value="Checkout">Checkout</option>
+                                    <option value="Available">Available</option>
+                                    <option value="Broken">Broken</option>
+                                    <option value="Under repair">Under repair</option>
+                                    <option value="Reserved">Reserved</option>
+                                    <option value="Lost/Missing">Lost/Missing</option>
+                                    <option value="Dispose">Dispose</option>
+                                    <option value="Sold">Sold</option>
+                                    <option value="Found">Found</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Persona asignada</label>
+                                <select id="adv_person" class="w-full p-2 border border-gray-300 rounded text-xs bg-white"><option value="">Cualquier Persona</option></select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Comprado a (Vendor)</label>
+                                <input type="text" id="adv_vendor" placeholder="Cualquier Vendor" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                            </div>
+                        </div>
+                        <hr class="my-3 border-amber-200">
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Agrupar por</label>
+                                <select id="adv_group" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="">Ninguno</option>
+                                    <option value="category">Categoria</option>
+                                    <option value="site">Sitio</option>
+                                    <option value="status">Estado</option>
+                                    <option value="brand">Marca</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">No. Resultados</label>
+                                <select id="adv_limit" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                    <option value="250" selected>250</option>
+                                    <option value="500">500</option>
+                                    <option value="1000">1000</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Rango de fecha por</label>
+                                <select id="adv_datefield" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="purchase_date">Fecha de Creacion</option>
+                                    <option value="assigned_date">Fecha de Asignacion</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Rango rapido</label>
+                                <select id="adv_quickdate" class="w-full p-2 border border-gray-300 rounded text-xs bg-white" onchange="applyQuickDateRange()">
+                                    <option value="">Personalizado</option>
+                                    <option value="today">Hoy</option>
+                                    <option value="7days">Ultimos 7 dias</option>
+                                    <option value="30days">Ultimos 30 dias</option>
+                                    <option value="this_month">Este Mes</option>
+                                    <option value="last_month">Mes Pasado</option>
+                                    <option value="this_year">Este Ano</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Fecha personalizada</label>
+                                <input type="text" id="adv_daterange" placeholder="dd/MM/yyyy - dd/MM/yyyy" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-2">
+                            <button onclick="cancelAdvancedSearch()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded transition-colors cursor-pointer">Cancelar</button>
+                            <button onclick="executeAdvancedSearch()" class="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-white text-xs font-bold rounded shadow transition-colors cursor-pointer">Search</button>
+                        </div>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
@@ -188,6 +328,12 @@
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Marca/Modelo</th>
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
                                     <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                                    <th data-col="serie" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Serie</th>
+                                    <th data-col="category" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoria</th>
+                                    <th data-col="site" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Sitio</th>
+                                    <th data-col="phone" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Telefono</th>
+                                    <th data-col="vendor" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Vendor</th>
+                                    <th data-col="date" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha Compra</th>
                                 </tr>
                             </thead>
                             <tbody id="assetsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
@@ -206,7 +352,19 @@
                 <section id="employeesSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-semibold text-gray-800">Directorio de Empleados</h2>
-                        <button onclick="loadPersons()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded border border-gray-300 transition-colors cursor-pointer">Actualizar</button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="loadPersons()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded border border-gray-300 transition-colors cursor-pointer">Actualizar</button>
+                            <div class="relative">
+                                <button onclick="toggleColumnPanel('employees')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Columnas</button>
+                                <div id="colPanel_employees" class="hidden absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg p-3 z-20 w-44 text-xs space-y-1.5">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="dept" onchange="toggleColumn('employees','dept')" checked> Departamento</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="site" onchange="toggleColumn('employees','site')" checked> Sitio</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="phone" onchange="toggleColumn('employees','phone')" checked> Telefono</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="notes" onchange="toggleColumn('employees','notes')" checked> Notas</label>
+                                </div>
+                            </div>
+                            <button onclick="exportVisibleCSV('employees')" class="text-[11px] bg-green-100 hover:bg-green-200 border border-green-300 px-2.5 py-1 rounded font-bold text-green-800 cursor-pointer">Exportar</button>
+                        </div>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
@@ -215,13 +373,15 @@
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Email</th>
                                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Employee ID</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Departamento</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Sitio</th>
+                                    <th data-col="dept" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Departamento</th>
+                                    <th data-col="site" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Sitio</th>
+                                    <th data-col="phone" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Telefono</th>
+                                    <th data-col="notes" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Notas</th>
                                     <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="personsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
-                                <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 italic">Cargando empleados...</td></tr>
+                                <tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 italic">Cargando empleados...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -297,7 +457,22 @@
 
                 <!-- SECTION: REPORTES -->
                 <section id="reportsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
-                    <h2 class="text-lg font-bold text-gray-800 mb-4">Checkout by Person</h2>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800">Checkout by Person</h2>
+                        <div class="flex items-center gap-2">
+                            <div class="relative">
+                                <button onclick="toggleColumnPanel('reports')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Columnas</button>
+                                <div id="colPanel_reports" class="hidden absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg p-3 z-20 w-44 text-xs space-y-1.5">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="site" onchange="toggleColumn('reports','site')" checked> Sitio</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="assigned" onchange="toggleColumn('reports','assigned')" checked> Asignado</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="returned" onchange="toggleColumn('reports','returned')" checked> Devuelto</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="status" onchange="toggleColumn('reports','status')" checked> Status</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="actions" onchange="toggleColumn('reports','actions')" checked> Acciones</label>
+                                </div>
+                            </div>
+                            <button onclick="exportVisibleCSV('reports')" class="text-[11px] bg-green-100 hover:bg-green-200 border border-green-300 px-2.5 py-1 rounded font-bold text-green-800 cursor-pointer">Exportar</button>
+                        </div>
+                    </div>
                     <div class="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <div class="mb-3">
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Empleado</label>
@@ -325,14 +500,15 @@
                                     <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Marca / Modelo</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Serie</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Categoria</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Sitio</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Asignado</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Devuelto</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Status</th>
+                                    <th data-col="site" class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Sitio</th>
+                                    <th data-col="assigned" class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Asignado</th>
+                                    <th data-col="returned" class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Devuelto</th>
+                                    <th data-col="status" class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Status</th>
+                                    <th data-col="actions" class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="reportResultsBody" class="bg-white divide-y divide-gray-200 text-xs text-gray-700">
-                                <tr><td colspan="9" class="px-3 py-4 text-center text-gray-400 italic">Seleccione un empleado y genere el reporte.</td></tr>
+                                <tr><td colspan="10" class="px-3 py-4 text-center text-gray-400 italic">Seleccione un empleado y genere el reporte.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -466,7 +642,7 @@
                             <label class="block text-[10px] font-bold text-gray-500 uppercase">Sitio / Edificio *</label>
                             <button type="button" onclick="openSiteModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nuevo</button>
                         </div>
-                        <select id="asset_site_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
+                        <select id="asset_site_id" class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">

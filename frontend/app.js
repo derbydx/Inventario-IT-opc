@@ -438,7 +438,8 @@ function setupMovementFormListener() {
 function setupFormListener() {
     document.getElementById("assetForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: parseInt(document.getElementById("asset_site_id").value), status: "Check in" };
+        const siteVal = document.getElementById("asset_site_id").value;
+        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: siteVal ? parseInt(siteVal) : null, status: "Check in" };
         try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { alert("Activo registrado con exito!"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
     });
 }

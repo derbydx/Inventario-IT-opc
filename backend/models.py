@@ -69,7 +69,7 @@ class Asset(Base):
     # Llaves Foráneas
     person_id = Column(Integer, ForeignKey("persons.id"), nullable=True)
     category = Column(String(100), index=True)
-    site_id = Column(Integer, ForeignKey("sites.id"))
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=True)
 
 # ==========================================
 # 4. TABLA DE AUDITORÍA: HISTORIAL

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime, date
 import traceback, os
 
 import models
@@ -244,15 +245,34 @@ def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), admi
 @app.get("/assets/", response_model=List[schemas.AssetResponse], tags=["Gestión de Activos"])
 def list_assets(
     search: str = None,
+    search_condition: str = "contains",
+    search_field: str = None,
     status: str = None,
     category: str = None,
     site_id: int = None,
+    department_id: int = None,
+    person_id: int = None,
+    purchased_from: str = None,
+    date_field: str = "purchase_date",
+    date_from: str = None,
+    date_to: str = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Asset)
-    if search:
+    if search and search_field:
+        column = getattr(models.Asset, search_field, None)
+        if column:
+            if search_condition == "exact":
+                query = query.filter(column == search)
+            elif search_condition == "startswith":
+                query = query.filter(column.like(f"{search}%"))
+            elif search_condition == "endswith":
+                query = query.filter(column.like(f"%{search}"))
+            else:
+                query = query.filter(column.like(f"%{search}%"))
+    elif search:
         like = f"%{search}%"
         query = query.filter(
             models.Asset.asset_tag_id.like(like) |
@@ -268,7 +288,36 @@ def list_assets(
         query = query.filter(models.Asset.category == category)
     if site_id:
         query = query.filter(models.Asset.site_id == site_id)
+    if department_id:
+        query = query.join(models.Person).filter(models.Person.department_id == department_id)
+    if person_id:
+        query = query.filter(models.Asset.person_id == person_id)
+    if purchased_from:
+        query = query.filter(models.Asset.purchased_from.like(f"%{purchased_from}%"))
+    if date_from and date_field == "purchase_date":
+        query = query.filter(models.Asset.purchase_date >= datetime.strptime(date_from, "%Y-%m-%d").date())
+    if date_to and date_field == "purchase_date":
+        query = query.filter(models.Asset.purchase_date <= datetime.strptime(date_to, "%Y-%m-%d").date())
+    if date_from and date_field == "assigned_date":
+        subq = db.query(models.History.asset_id).filter(
+            models.History.tipo_accion == "Checkout",
+            models.History.fecha_accion >= date_from
+        ).subquery()
+        query = query.filter(models.Asset.id.in_(subq))
+    if date_to and date_field == "assigned_date":
+        subq = db.query(models.History.asset_id).filter(
+            models.History.tipo_accion == "Checkout",
+            models.History.fecha_accion <= date_to
+        ).subquery()
+        query = query.filter(models.Asset.id.in_(subq))
     return query.offset(skip).limit(limit).all()
+
+@app.get("/assets/{asset_id}", tags=["Assets"])
+def get_asset(asset_id: int, db: Session = Depends(get_db)):
+    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(404, "Asset no encontrado")
+    return asset
 
 # ==========================================
 # 8. ACCIONES DE INVENTARIO: CHECKOUT Y CHECKIN
@@ -545,9 +594,10 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
     wb = openpyxl.load_workbook(file.file)
     ws = wb.active
     h = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
-    for col in ["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio"]:
+    for col in ["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria"]:
         if col not in h: raise HTTPException(400, f"Falta columna '{col}'")
-    i_tag, i_desc, i_brand, i_model, i_ser, i_cat, i_sit = (h.index(c) for c in ["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio"])
+    i_tag, i_desc, i_brand, i_model, i_ser, i_cat = (h.index(c) for c in ["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria"])
+    i_sit = h.index("Sitio") if "Sitio" in h else None
     i_asignado = h.index("AsignadoA") if "AsignadoA" in h else None
     ok = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
@@ -558,17 +608,17 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
         model = (row[i_model] or "").strip()
         ser = (row[i_ser] or "").strip()
         cat_name = (row[i_cat] or "").strip()
-        sit_name = (row[i_sit] or "").strip()
+        sit_name = (row[i_sit] or "").strip() if i_sit is not None else ""
         if not tag: raise HTTPException(400, f"Fila {ok+2}: AssetTag vacio")
         if not desc: raise HTTPException(400, f"Fila {ok+2}: Descripcion vacia")
         if not brand: raise HTTPException(400, f"Fila {ok+2}: Marca vacia")
         if not model: raise HTTPException(400, f"Fila {ok+2}: Modelo vacio")
         if not ser: raise HTTPException(400, f"Fila {ok+2}: Serie vacia")
         if not cat_name: raise HTTPException(400, f"Fila {ok+2}: Categoria vacia")
-        if not sit_name: raise HTTPException(400, f"Fila {ok+2}: Sitio vacio")
+        if sit_name and not db.query(models.Site).filter(models.Site.site_name == sit_name).first():
+            raise HTTPException(400, f"Fila {ok+2}: Sitio '{sit_name}' no existe")
         if db.query(models.Asset).filter(models.Asset.asset_tag_id == tag).first(): raise HTTPException(400, f"Fila {ok+2}: AssetTag '{tag}' ya existe")
-        site = db.query(models.Site).filter(models.Site.site_name == sit_name).first()
-        if not site: raise HTTPException(400, f"Fila {ok+2}: Sitio '{sit_name}' no existe")
+        site_id = db.query(models.Site.id).filter(models.Site.site_name == sit_name).scalar() if sit_name else None
 
         person_id = None
         status = "Check in"
@@ -583,7 +633,7 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
                 status = "Checkout"
                 notas_historial = f"Importado con asignacion a {person.full_name}"
 
-        asset = models.Asset(asset_tag_id=tag, asset_description=desc, brand=brand, model=model, serial_no=ser, category=cat_name, site_id=site.id, person_id=person_id, status=status)
+        asset = models.Asset(asset_tag_id=tag, asset_description=desc, brand=brand, model=model, serial_no=ser, category=cat_name, site_id=site_id, person_id=person_id, status=status)
         db.add(asset)
         db.flush()
 
@@ -615,6 +665,7 @@ def report_person_checkouts(person_id: int, mode: str = "current", db: Session =
         for a in assets:
             site = db.query(models.Site).filter(models.Site.id == a.site_id).first()
             results.append(schemas.PersonCheckoutReportItem(
+                asset_id=a.id,
                 asset_tag_id=a.asset_tag_id,
                 asset_description=a.asset_description,
                 brand=a.brand,
@@ -651,6 +702,7 @@ def report_person_checkouts(person_id: int, mode: str = "current", db: Session =
                 continue
             site = db.query(models.Site).filter(models.Site.id == a.site_id).first()
             results.append(schemas.PersonCheckoutReportItem(
+                asset_id=a.id,
                 asset_tag_id=a.asset_tag_id,
                 asset_description=a.asset_description,
                 brand=a.brand,

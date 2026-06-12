@@ -5,6 +5,7 @@ let globalSites = [];
 let globalPersons = [];
 let globalAdmins = [];
 let globalDepartments = [];
+let currentReportResults = [];
 let currentPage = 1;
 const pageSize = 15;
 
@@ -181,6 +182,8 @@ async function loadAssets() {
         document.getElementById("prevPage").disabled = currentPage <= 1;
         document.getElementById("nextPage").disabled = activeAssets.length < pageSize;
 
+        const siteName = sid => { const s = globalSites.find(x => x.id === sid); return s ? s.site_name : ''; };
+        const fmtDate = d => d ? new Date(d).toLocaleDateString('es-ES') : '';
         activeAssets.forEach(asset => {
             const row = document.createElement("tr");
             row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer group";
@@ -205,9 +208,16 @@ async function loadAssets() {
                     </span>
                 </td>
                 <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">${actionButton}</td>
+                <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${asset.serial_no}</td>
+                <td data-col="category" class="px-4 py-3 text-gray-500">${asset.category || ''}</td>
+                <td data-col="site" class="px-4 py-3 text-gray-500">${siteName(asset.site_id)}</td>
+                <td data-col="phone" class="px-4 py-3 text-gray-500">${asset.numero_telefono || ''}</td>
+                <td data-col="vendor" class="px-4 py-3 text-gray-500">${asset.purchased_from || ''}</td>
+                <td data-col="date" class="px-4 py-3 text-gray-500">${fmtDate(asset.purchase_date)}</td>
             `;
             tableBody.appendChild(row);
         });
+        applyColumnPreferences();
     } catch (e) { tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>`; }
 }
 
@@ -466,14 +476,17 @@ async function loadPersons() {
                 <td class="px-4 py-3 font-medium text-gray-800">${p.full_name}</td>
                 <td class="px-4 py-3 text-gray-500">${p.email}</td>
                 <td class="px-4 py-3 text-gray-600 font-mono">${p.employee_id}</td>
-                <td class="px-4 py-3 text-gray-600">${dept ? dept.department_name : '-'}</td>
-                <td class="px-4 py-3 text-gray-600">${site ? site.site_name : '-'}</td>
+                <td data-col="dept" class="px-4 py-3 text-gray-600">${dept ? dept.department_name : '-'}</td>
+                <td data-col="site" class="px-4 py-3 text-gray-600">${site ? site.site_name : '-'}</td>
+                <td data-col="phone" class="px-4 py-3 text-gray-500">${p.phone || '-'}</td>
+                <td data-col="notes" class="px-4 py-3 text-gray-500">${p.notes || '-'}</td>
                 <td class="px-4 py-3 text-center">
                     <button onclick="openEditPersonModal(${p.id})" class="bg-teal-100 hover:bg-teal-200 text-teal-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-teal-300 transition-colors cursor-pointer">Editar</button>
                 </td>`;
             tableBody.appendChild(row);
         });
-    } catch (e) { tableBody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-red-500 font-medium">Error al cargar empleados</td></tr>'; }
+        applyColumnPreferences();
+    } catch (e) { tableBody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-500 font-medium">Error al cargar empleados</td></tr>'; }
 }
 
 async function loadCatalogs() {
@@ -678,7 +691,8 @@ function setupMovementFormListener() {
 function setupFormListener() {
     document.getElementById("assetForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: parseInt(document.getElementById("asset_site_id").value), status: "Check in" };
+        const siteVal = document.getElementById("asset_site_id").value;
+        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: siteVal ? parseInt(siteVal) : null, status: "Check in" };
         try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { alert("Activo registrado con exito!"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
     });
 }
@@ -800,6 +814,8 @@ function toggleCollapse(id) {
 }
 
 function showSection(name) {
+    const panel = document.getElementById("advancedSearchPanel");
+    if (panel) panel.classList.add("hidden");
     const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
@@ -816,6 +832,159 @@ function showSection(name) {
     if (name === 'deliveryBoard') loadDeliveryBoard();
     if (name === 'deliveryEmployees') loadDeliveryEmployees();
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function showAdvancedSearch() {
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd'];
+    sections.forEach(s => {
+        const el = document.getElementById(s + 'Section');
+        if (el) el.classList.add('hidden');
+    });
+    document.getElementById("assetsSection").classList.remove("hidden");
+    document.getElementById("advancedSearchPanel").classList.remove("hidden");
+    populateAdvancedSearchDropdowns();
+    document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function populateAdvancedSearchDropdowns() {
+    const siteSel = document.getElementById("adv_site");
+    const catSel = document.getElementById("adv_category");
+    const deptSel = document.getElementById("adv_department");
+    const personSel = document.getElementById("adv_person");
+    siteSel.innerHTML = '<option value="">Todos los Sitios</option>';
+    globalSites.forEach(s => { siteSel.innerHTML += `<option value="${s.id}">${s.site_name}</option>`; });
+    catSel.innerHTML = '<option value="">Todas las Categorias</option>';
+    const cats = [...new Set(currentAssets.filter(a => a.category).map(a => a.category))];
+    cats.forEach(c => { catSel.innerHTML += `<option value="${c}">${c}</option>`; });
+    deptSel.innerHTML = '<option value="">Todos los Departamentos</option>';
+    globalDepartments.forEach(d => { deptSel.innerHTML += `<option value="${d.id}">${d.department_name}</option>`; });
+    personSel.innerHTML = '<option value="">Cualquier Persona</option>';
+    globalPersons.forEach(p => { personSel.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
+}
+
+function applyQuickDateRange() {
+    const val = document.getElementById("adv_quickdate").value;
+    if (!val) return;
+    const now = new Date();
+    const fmt = d => {
+        const dd = String(d.getDate()).padStart(2, "0");
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const yyyy = d.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+    };
+    let from, to;
+    to = now;
+    switch (val) {
+        case "today": from = now; break;
+        case "7days": from = new Date(now); from.setDate(from.getDate() - 7); break;
+        case "30days": from = new Date(now); from.setDate(from.getDate() - 30); break;
+        case "this_month": from = new Date(now.getFullYear(), now.getMonth(), 1); break;
+        case "last_month": from = new Date(now.getFullYear(), now.getMonth() - 1, 1); to = new Date(now.getFullYear(), now.getMonth(), 0); break;
+        case "this_year": from = new Date(now.getFullYear(), 0, 1); break;
+    }
+    document.getElementById("adv_daterange").value = `${fmt(from)} - ${fmt(to)}`;
+}
+
+async function executeAdvancedSearch() {
+    const params = new URLSearchParams();
+    const search = document.getElementById("adv_search").value;
+    const condition = document.getElementById("adv_condition").value;
+    const field = document.getElementById("adv_field").value;
+    const site = document.getElementById("adv_site").value;
+    const category = document.getElementById("adv_category").value;
+    const department = document.getElementById("adv_department").value;
+    const status = document.getElementById("adv_status").value;
+    const person = document.getElementById("adv_person").value;
+    const vendor = document.getElementById("adv_vendor").value;
+    const group = document.getElementById("adv_group").value;
+    const limit = document.getElementById("adv_limit").value;
+    const dateField = document.getElementById("adv_datefield").value;
+    const dateRange = document.getElementById("adv_daterange").value;
+    if (search) { params.set("search", search); params.set("search_condition", condition); params.set("search_field", field); }
+    if (site) params.set("site_id", site);
+    if (category) params.set("category", category);
+    if (department) params.set("department_id", department);
+    if (status) params.set("status", status);
+    if (person) params.set("person_id", person);
+    if (vendor) params.set("purchased_from", vendor);
+    if (group) params.set("group_by", group);
+    params.set("limit", limit);
+    if (dateField) params.set("date_field", dateField);
+    if (dateRange) {
+        const parts = dateRange.split(" - ");
+        if (parts.length === 2) {
+            const parseDate = s => { const p = s.split("/"); return `${p[2]}-${p[1]}-${p[0]}`; };
+            params.set("date_from", parseDate(parts[0]));
+            params.set("date_to", parseDate(parts[1]));
+        }
+    }
+    const tableBody = document.getElementById("assetsTableBody");
+    const countSpan = document.getElementById("assetCount");
+    tableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Buscando...</td></tr>';
+    try {
+        const response = await api(`/assets/?${params.toString()}`);
+        if (!response.ok) throw new Error("Error en el servidor");
+        currentAssets = await response.json();
+        currentPage = 1;
+        document.getElementById("pageInfo").innerText = "Pagina 1";
+        tableBody.innerHTML = "";
+        const activeAssets = currentAssets.filter(a => a.status !== "Archived");
+        if (activeAssets.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Sin resultados para esta busqueda.</td></tr>`;
+            countSpan.innerText = "0 Equipos";
+            return;
+        }
+        countSpan.innerText = `${activeAssets.length} ${activeAssets.length === 1 ? 'Equipo' : 'Equipos'}`;
+        const siteName = sid => { const s = globalSites.find(x => x.id === sid); return s ? s.site_name : ''; };
+        const fmtDate = d => d ? new Date(d).toLocaleDateString('es-ES') : '';
+        activeAssets.forEach(asset => {
+            const row = document.createElement("tr");
+            row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer group";
+            row.onclick = () => openDetailsModal(asset.id);
+            let badgeColor = "bg-green-100 text-green-800";
+            if (asset.status === "Checkout") { badgeColor = "bg-blue-100 text-blue-800"; }
+            else if (["Broken", "Lost/Missing", "Dispose"].includes(asset.status)) { badgeColor = "bg-red-100 text-red-800"; }
+            else if (asset.status === "Under repair") { badgeColor = "bg-amber-100 text-amber-800"; }
+            else if (["Reserved", "Lease"].includes(asset.status)) { badgeColor = "bg-purple-100 text-purple-800"; }
+            row.innerHTML = `
+                <td class="px-4 py-3 font-mono font-bold text-blue-600">${asset.asset_tag_id}</td>
+                <td class="px-4 py-3">${asset.asset_description}</td>
+                <td class="px-4 py-3">${asset.brand} - ${asset.model}</td>
+                <td class="px-4 py-3"><span class="px-2 py-1 inline-flex text-[11px] leading-5 font-semibold rounded-full ${badgeColor}">${asset.status}</span></td>
+                <td class="px-4 py-3 text-center">
+                    <button onclick="event.stopPropagation(); openDetailsModal(${asset.id})" class="text-[11px] font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-300 px-2.5 py-1 rounded transition-all cursor-pointer">Ver</button>
+                </td>
+                <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${asset.serial_no}</td>
+                <td data-col="category" class="px-4 py-3 text-gray-500">${asset.category || ''}</td>
+                <td data-col="site" class="px-4 py-3 text-gray-500">${siteName(asset.site_id)}</td>
+                <td data-col="phone" class="px-4 py-3 text-gray-500">${asset.numero_telefono || ''}</td>
+                <td data-col="vendor" class="px-4 py-3 text-gray-500">${asset.purchased_from || ''}</td>
+                <td data-col="date" class="px-4 py-3 text-gray-500">${fmtDate(asset.purchase_date)}</td>`;
+            tableBody.appendChild(row);
+        });
+        applyColumnPreferences();
+    } catch (e) {
+        tableBody.innerHTML = '<tr><td colspan="11" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion</td></tr>';
+    }
+}
+
+function cancelAdvancedSearch() {
+    document.getElementById("advancedSearchPanel").classList.add("hidden");
+    document.getElementById("adv_search").value = "";
+    document.getElementById("adv_condition").value = "contains";
+    document.getElementById("adv_field").value = "asset_tag_id";
+    document.getElementById("adv_site").value = "";
+    document.getElementById("adv_category").value = "";
+    document.getElementById("adv_department").value = "";
+    document.getElementById("adv_status").value = "";
+    document.getElementById("adv_person").value = "";
+    document.getElementById("adv_vendor").value = "";
+    document.getElementById("adv_group").value = "";
+    document.getElementById("adv_limit").value = "250";
+    document.getElementById("adv_datefield").value = "purchase_date";
+    document.getElementById("adv_quickdate").value = "";
+    document.getElementById("adv_daterange").value = "";
+    loadAssets();
 }
 
 async function updateDashboard() {
@@ -902,36 +1071,57 @@ async function loadCheckoutReport() {
     const personId = document.getElementById("report_person_id").value;
     const mode = document.getElementById("report_mode").value;
     const tbody = document.getElementById("reportResultsBody");
-    if (!personId) { tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-amber-600 font-medium">Seleccione un empleado primero.</td></tr>'; return; }
-    tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
+    if (!personId) { tbody.innerHTML = '<tr><td colspan="10" class="px-3 py-4 text-center text-amber-600 font-medium">Seleccione un empleado primero.</td></tr>'; return; }
+    tbody.innerHTML = '<tr><td colspan="10" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
     try {
         const res = await api(`/reports/person-checkouts/${personId}?mode=${mode}`);
         if (!res.ok) throw new Error("Error en el servidor");
         const data = await res.json();
         tbody.innerHTML = "";
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-gray-400 italic">Sin resultados para este empleado.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" class="px-3 py-4 text-center text-gray-400 italic">Sin resultados para este empleado.</td></tr>';
             return;
         }
+        currentReportResults = data;
         data.forEach(item => {
             const row = document.createElement("tr");
-            row.className = "hover:bg-blue-50/50 transition-colors";
+            row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer";
+            row.onclick = () => openAssetModalById(item.asset_id);
             let badge = "bg-green-100 text-green-800";
             if (item.status === "Checkout") badge = "bg-blue-100 text-blue-800";
             row.innerHTML = `
-                <td class="px-3 py-2 font-mono font-bold">${item.asset_tag_id}</td>
+                <td class="px-3 py-2 font-mono font-bold text-blue-600 hover:text-blue-800">${item.asset_tag_id}</td>
                 <td class="px-3 py-2">${item.asset_description}</td>
                 <td class="px-3 py-2">${item.brand} ${item.model}</td>
                 <td class="px-3 py-2 font-mono">${item.serial_no}</td>
                 <td class="px-3 py-2">${item.category}</td>
-                <td class="px-3 py-2">${item.site_name}</td>
-                <td class="px-3 py-2 text-gray-500 text-[10px]">${item.assigned_date ? new Date(item.assigned_date).toLocaleDateString('es-ES') : '-'}</td>
-                <td class="px-3 py-2 text-gray-500 text-[10px]">${item.returned_date ? new Date(item.returned_date).toLocaleDateString('es-ES') : '-'}</td>
-                <td class="px-3 py-2"><span class="px-2 py-0.5 inline-flex text-[10px] leading-5 font-semibold rounded-full ${badge}">${item.status}</span></td>`;
+                <td data-col="site" class="px-3 py-2">${item.site_name}</td>
+                <td data-col="assigned" class="px-3 py-2 text-gray-500 text-[10px]">${item.assigned_date ? new Date(item.assigned_date).toLocaleDateString('es-ES') : '-'}</td>
+                <td data-col="returned" class="px-3 py-2 text-gray-500 text-[10px]">${item.returned_date ? new Date(item.returned_date).toLocaleDateString('es-ES') : '-'}</td>
+                <td data-col="status" class="px-3 py-2"><span class="px-2 py-0.5 inline-flex text-[10px] leading-5 font-semibold rounded-full ${badge}">${item.status}</span></td>
+                <td data-col="actions" class="px-3 py-2"><button onclick="event.stopPropagation(); openAssetModalById(${item.asset_id})" class="text-[10px] font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-300 px-2 py-1 rounded transition-colors cursor-pointer">Ver</button></td>`;
             tbody.appendChild(row);
         });
+        applyColumnPreferences();
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="px-3 py-4 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>';
+    }
+}
+
+async function openAssetModalById(assetId) {
+    const existing = currentAssets.find(a => a.id === parseInt(assetId));
+    if (existing) {
+        openDetailsModal(assetId);
+        return;
+    }
+    try {
+        const res = await api(`/assets/${assetId}`);
+        if (!res.ok) return;
+        const asset = await res.json();
+        currentAssets.unshift(asset);
+        openDetailsModal(assetId);
+    } catch (e) {
+        console.error("Error cargando asset", e);
     }
 }
 
@@ -1123,4 +1313,114 @@ async function cancelPending(deliveryId) {
             alert("Error: " + (err.detail || "No se pudo cancelar"));
         }
     } catch (e) { alert("Error de conexion"); }
+}
+
+// ===================== COLUMN TOGGLE + CSV EXPORT =====================
+
+function toggleColumnPanel(section) {
+    const panel = document.getElementById(`colPanel_${section}`);
+    if (!panel) return;
+    const allPanels = document.querySelectorAll('[id^="colPanel_"]');
+    allPanels.forEach(p => { if (p.id !== panel.id) p.classList.add("hidden"); });
+    panel.classList.toggle("hidden");
+}
+
+document.addEventListener("click", function(e) {
+    if (!e.target.closest('[id^="colPanel_"]') && !e.target.closest('button[onclick*="toggleColumnPanel"]')) {
+        document.querySelectorAll('[id^="colPanel_"]').forEach(p => p.classList.add("hidden"));
+    }
+});
+
+function toggleColumn(section, colName) {
+    const key = `col_${section}_${colName}`;
+    const cb = document.querySelector(`#colPanel_${section} input[data-col="${colName}"]`);
+    const visible = cb ? cb.checked : true;
+    localStorage.setItem(key, visible ? "1" : "0");
+    document.querySelectorAll(`[data-col="${colName}"]`).forEach(el => el.classList.toggle("hidden", !visible));
+}
+
+function applyColumnPreferences() {
+    document.querySelectorAll('[id^="colPanel_"]').forEach(panel => {
+        const section = panel.id.replace("colPanel_", "");
+        panel.querySelectorAll("input[data-col]").forEach(cb => {
+            const col = cb.dataset.col;
+            const key = `col_${section}_${col}`;
+            const saved = localStorage.getItem(key);
+            if (saved === "0") {
+                cb.checked = false;
+                document.querySelectorAll(`[data-col="${col}"]`).forEach(el => el.classList.add("hidden"));
+            }
+        });
+    });
+}
+
+function csvEscape(val) {
+    if (val == null) return "";
+    const s = String(val);
+    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+        return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+}
+
+function exportVisibleCSV(section) {
+    let rows = [];
+    let headers = [];
+    let data = [];
+
+    if (section === "assets") {
+        data = currentAssets.filter(a => a.status !== "Archived");
+        const colMap = [
+            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_description", label: "Descripcion" },
+            { key: "brand", label: "Marca" },
+            { key: "serial_no", label: "Serie", col: "serie" },
+            { key: "category", label: "Categoria", col: "category" },
+            { key: "site_name", label: "Sitio", col: "site", fn: a => { const s = globalSites.find(x => x.id === a.site_id); return s ? s.site_name : ''; } },
+            { key: "status", label: "Estado" },
+            { key: "numero_telefono", label: "Telefono", col: "phone" },
+            { key: "purchased_from", label: "Vendor", col: "vendor" },
+            { key: "purchase_date", label: "Fecha Compra", col: "date", fn: a => a.purchase_date ? new Date(a.purchase_date).toLocaleDateString('es-ES') : '' }
+        ];
+        headers = colMap.filter(c => !c.col || localStorage.getItem(`col_assets_${c.col}`) !== "0").map(c => c.label);
+        rows = data.map(a => colMap.filter(c => !c.col || localStorage.getItem(`col_assets_${c.col}`) !== "0").map(c => csvEscape(c.fn ? c.fn(a) : a[c.key])));
+    } else if (section === "employees") {
+        data = globalPersons;
+        const colMap = [
+            { key: "full_name", label: "Nombre" },
+            { key: "email", label: "Email" },
+            { key: "employee_id", label: "Employee ID" },
+            { key: "dept", label: "Departamento", col: "dept", fn: p => { const d = globalDepartments.find(x => x.id === p.department_id); return d ? d.department_name : ''; } },
+            { key: "site", label: "Sitio", col: "site", fn: p => { const s = globalSites.find(x => x.id === p.site_id); return s ? s.site_name : ''; } },
+            { key: "phone", label: "Telefono", col: "phone" },
+            { key: "notes", label: "Notas", col: "notes" }
+        ];
+        headers = colMap.filter(c => !c.col || localStorage.getItem(`col_employees_${c.col}`) !== "0").map(c => c.label);
+        rows = data.map(p => colMap.filter(c => !c.col || localStorage.getItem(`col_employees_${c.col}`) !== "0").map(c => csvEscape(c.fn ? c.fn(p) : p[c.key])));
+    } else if (section === "reports") {
+        data = currentReportResults;
+        const colMap = [
+            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_description", label: "Descripcion" },
+            { key: "brand", label: "Marca" },
+            { key: "serial_no", label: "Serie" },
+            { key: "category", label: "Categoria" },
+            { key: "site_name", label: "Sitio", col: "site" },
+            { key: "assigned_date", label: "Asignado", col: "assigned", fn: r => r.assigned_date ? new Date(r.assigned_date).toLocaleDateString('es-ES') : '' },
+            { key: "returned_date", label: "Devuelto", col: "returned", fn: r => r.returned_date ? new Date(r.returned_date).toLocaleDateString('es-ES') : '' },
+            { key: "status", label: "Status", col: "status" }
+        ];
+        headers = colMap.filter(c => !c.col || localStorage.getItem(`col_reports_${c.col}`) !== "0").map(c => c.label);
+        rows = data.map(r => colMap.filter(c => !c.col || localStorage.getItem(`col_reports_${c.col}`) !== "0").map(c => csvEscape(c.fn ? c.fn(r) : r[c.key])));
+    }
+
+    if (rows.length === 0) { alert("No hay datos para exportar"); return; }
+    const csv = "\uFEFF" + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const names = { assets: "activos", employees: "empleados", reports: "reporte_checkout" };
+    a.download = `${names[section] || section}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
 }

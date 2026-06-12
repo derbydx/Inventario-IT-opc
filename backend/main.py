@@ -665,7 +665,131 @@ def report_person_checkouts(person_id: int, mode: str = "current", db: Session =
         return results
 
 # ==========================================
-# 13. ENDPOINT DE AUTENTICACIÓN (LOGIN CON JWT)
+# 13. ENDPOINTS DE ENTREGAS PENDIENTES
+# ==========================================
+AVAILABLE_STATUSES = ("Check in", "Available")
+
+@app.get("/deliveries/available-assets", response_model=List[schemas.AvailableAssetItem], tags=["Entregas Pendientes"])
+def list_available_assets(db: Session = Depends(get_db)):
+    assets = db.query(models.Asset).filter(
+        models.Asset.status.in_(AVAILABLE_STATUSES),
+        models.Asset.person_id == None
+    ).all()
+    return assets
+
+@app.post("/deliveries/pending", response_model=schemas.PendingDeliveryResponse, status_code=201, tags=["Entregas Pendientes"])
+def create_pending_delivery(delivery: schemas.PendingDeliveryCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+    person = db.query(models.Person).filter(models.Person.id == delivery.person_id).first()
+    if not person:
+        raise HTTPException(404, "Empleado no encontrado")
+    if delivery.quantity < 1:
+        raise HTTPException(400, "La cantidad debe ser al menos 1")
+    db_delivery = models.PendingDelivery(
+        person_id=delivery.person_id,
+        category=delivery.category,
+        quantity=delivery.quantity,
+        notes=delivery.notes
+    )
+    db.add(db_delivery)
+    db.commit()
+    db.refresh(db_delivery)
+    resp = schemas.PendingDeliveryResponse.model_validate(db_delivery)
+    resp.person_name = person.full_name
+    return resp
+
+@app.get("/deliveries/pending", response_model=List[schemas.PendingDeliveryResponse], tags=["Entregas Pendientes"])
+def list_pending_deliveries(status: str = None, person_id: int = None, db: Session = Depends(get_db)):
+    query = db.query(models.PendingDelivery)
+    if status:
+        query = query.filter(models.PendingDelivery.status == status)
+    if person_id:
+        query = query.filter(models.PendingDelivery.person_id == person_id)
+    results = query.order_by(models.PendingDelivery.created_at.desc()).all()
+    persons = {p.id: p.full_name for p in db.query(models.Person).all()}
+    out = []
+    for d in results:
+        item = schemas.PendingDeliveryResponse.model_validate(d)
+        item.person_name = persons.get(d.person_id, "")
+        out.append(item)
+    return out
+
+@app.delete("/deliveries/pending/{delivery_id}", tags=["Entregas Pendientes"])
+def cancel_pending_delivery(delivery_id: int, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+    d = db.query(models.PendingDelivery).filter(models.PendingDelivery.id == delivery_id).first()
+    if not d:
+        raise HTTPException(404, "Entrega pendiente no encontrada")
+    d.status = "Cancelled"
+    db.commit()
+    return {"message": "Entrega pendiente cancelada"}
+
+@app.post("/deliveries/pending/{delivery_id}/fulfill", tags=["Entregas Pendientes"])
+def fulfill_pending_delivery(delivery_id: int, body: schemas.PendingFulfillRequest, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+    d = db.query(models.PendingDelivery).filter(models.PendingDelivery.id == delivery_id).first()
+    if not d:
+        raise HTTPException(404, "Entrega pendiente no encontrada")
+    if d.status != "Active":
+        raise HTTPException(400, "Esta entrega ya no esta activa")
+    if d.fulfilled_count >= d.quantity:
+        raise HTTPException(400, "Todos los items ya fueron asignados")
+
+    asset = db.query(models.Asset).filter(models.Asset.id == body.asset_id).first()
+    if not asset:
+        raise HTTPException(404, "Activo no encontrado")
+    if asset.status not in AVAILABLE_STATUSES or asset.person_id is not None:
+        raise HTTPException(400, "El activo no esta disponible para asignacion")
+    if asset.category != d.category:
+        raise HTTPException(400, f"El activo no pertenece a la categoria '{d.category}'")
+
+    estado_anterior = asset.status
+    asset.status = "Checkout"
+    asset.person_id = d.person_id
+
+    person = db.query(models.Person).filter(models.Person.id == d.person_id).first()
+    person_name = person.full_name if person else ""
+    db.add(models.History(
+        asset_id=asset.id, asignado_a_id=d.person_id, realizado_por_id=admin.id,
+        tipo_accion="Checkout", estado_anterior=estado_anterior, estado_nuevo="Checkout",
+        notas_detalle=f"Entrega pendiente #{delivery_id}: {d.category} - {d.notes or person_name}"
+    ))
+
+    d.fulfilled_count += 1
+    if d.fulfilled_count >= d.quantity:
+        d.status = "Fulfilled"
+        d.fulfilled_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(asset)
+    return {"message": f"Asset {asset.asset_tag_id} asignado a la entrega pendiente #{delivery_id}", "asset_tag": asset.asset_tag_id, "fulfilled_count": d.fulfilled_count, "total": d.quantity}
+
+@app.get("/deliveries/summary", tags=["Entregas Pendientes"])
+def delivery_summary(db: Session = Depends(get_db)):
+    results = db.query(models.PendingDelivery).filter(models.PendingDelivery.status == "Active").all()
+    pending_assets = db.query(models.Asset).filter(
+        models.Asset.status.in_(AVAILABLE_STATUSES),
+        models.Asset.person_id == None
+    ).all()
+    available_map = {}
+    for a in pending_assets:
+        available_map[a.category] = available_map.get(a.category, 0) + 1
+    categories = {}
+    for d in results:
+        cat = d.category
+        if cat not in categories:
+            categories[cat] = {"category": cat, "total_pending": 0, "available": 0, "employees": []}
+        categories[cat]["total_pending"] += (d.quantity - d.fulfilled_count)
+        categories[cat]["available"] = available_map.get(cat, 0)
+        p = db.query(models.Person).filter(models.Person.id == d.person_id).first()
+        categories[cat]["employees"].append({
+            "delivery_id": d.id,
+            "person_id": d.person_id,
+            "person_name": p.full_name if p else "?",
+            "pending": d.quantity - d.fulfilled_count,
+            "notes": d.notes or ""
+        })
+    return list(categories.values())
+
+# ==========================================
+# 14. ENDPOINT DE AUTENTICACIÓN (LOGIN CON JWT)
 # ==========================================
 @app.post("/auth/login", response_model=schemas.TokenResponse, tags=["Autenticación"])
 def login_admin(credentials: schemas.LoginRequest, db: Session = Depends(get_db)):

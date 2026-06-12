@@ -159,3 +159,38 @@ class PersonCheckoutReportItem(BaseModel):
     assigned_date: Optional[str] = None
     returned_date: Optional[str] = None
     status: str
+
+# ==========================================
+# SCHEMAS DE ENTREGAS PENDIENTES
+# ==========================================
+class PendingDeliveryCreate(BaseModel):
+    person_id: int
+    category: str
+    quantity: int = 1
+    notes: Optional[str] = None
+
+class PendingDeliveryResponse(BaseModel):
+    id: int
+    person_id: int
+    person_name: str = ""
+    category: str
+    quantity: int
+    fulfilled_count: int
+    status: str
+    notes: Optional[str] = None
+    created_at: datetime
+    fulfilled_at: Optional[datetime] = None
+    class Config:
+        from_attributes = True
+
+class PendingFulfillRequest(BaseModel):
+    asset_id: int
+
+class AvailableAssetItem(BaseModel):
+    id: int
+    asset_tag_id: str
+    asset_description: str
+    brand: str
+    model: str
+    serial_no: str
+    category: str

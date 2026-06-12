@@ -107,6 +107,18 @@
 
                     <div class="border-t border-blue-800 mx-3 my-1"></div>
 
+                    <!-- Entregas Pendientes -->
+                    <button onclick="toggleCollapse('deliverySubmenu')" class="w-full text-left px-4 py-1 text-xs text-blue-300 font-bold uppercase hover:text-blue-200 cursor-pointer">
+                        <span id="deliveryArrow">&#9660;</span> Entregas
+                    </button>
+                    <div id="deliverySubmenu" class="hidden">
+                        <button onclick="showSection('deliveryAdd')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">+ Agregar Pendiente</button>
+                        <button onclick="showSection('deliveryBoard')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">Tablero</button>
+                        <button onclick="showSection('deliveryEmployees')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">Por Empleado</button>
+                    </div>
+
+                    <div class="border-t border-blue-800 mx-3 my-1"></div>
+
                     <!-- Auditoria y Papelera -->
                     <button onclick="showSection('history')" class="w-full text-left px-4 py-2 hover:bg-blue-800 cursor-pointer">
                         Historial Auditoria
@@ -325,7 +337,93 @@
                         </table>
                     </div>
                 </section>
+
+                <!-- SECTION: ENTREGAS: AGREGAR PENDIENTE -->
+                <section id="deliveryAddSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">Agregar Entrega Pendiente</h2>
+                    <form id="deliveryForm" class="max-w-md space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Empleado</label>
+                            <select id="delivery_person_id" class="w-full p-2 border border-gray-300 rounded text-sm bg-white"></select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categoria</label>
+                            <select id="delivery_category" class="w-full p-2 border border-gray-300 rounded text-sm bg-white"></select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Cantidad</label>
+                            <input type="number" id="delivery_quantity" value="1" min="1" class="w-full p-2 border border-gray-300 rounded text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Notas</label>
+                            <textarea id="delivery_notes" rows="2" class="w-full p-2 border border-gray-300 rounded text-sm"></textarea>
+                        </div>
+                        <div>
+                            <button type="button" onclick="submitNewPending()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded shadow transition-colors cursor-pointer">Agregar Pendiente</button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- SECTION: ENTREGAS: TABLERO -->
+                <section id="deliveryBoardSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">Tablero de Entregas Pendientes</h2>
+                    <div id="deliveryBoardContainer" class="min-h-[200px]">
+                        <p class="text-center text-gray-400 italic py-8">Cargando tablero...</p>
+                    </div>
+                </section>
+
+                <!-- SECTION: ENTREGAS: POR EMPLEADO -->
+                <section id="deliveryEmployeesSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">Entregas Pendientes por Empleado</h2>
+                    <p class="text-xs text-gray-500 mb-3">Total items pendientes: <span id="deliveryTotalPending" class="font-bold text-blue-600">0</span></p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Empleado</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Items Pendientes</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categorias</th>
+                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deliveryEmployeesBody" class="bg-white divide-y divide-gray-200 text-sm">
+                                <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </main>
+    </div>
+
+    <!-- FULFILL MODAL -->
+    <div id="fulfillModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-6 max-w-lg w-full shadow-xl border border-gray-200">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
+                <h3 id="fulfillInfo" class="text-lg font-bold text-gray-800">Asignar Activo</h3>
+                <button onclick="closeFulfillModal()" class="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">&times;</button>
+            </div>
+            <input type="hidden" id="fulfillDeliveryId">
+            <p class="text-xs text-gray-500 mb-3">Seleccione el activo disponible para asignar:</p>
+            <div class="overflow-x-auto max-h-[300px] overflow-y-auto border border-gray-200 rounded">
+                <table class="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead class="bg-gray-50 text-gray-500 sticky top-0">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-bold uppercase w-8"></th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Asset Tag</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Descripcion</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Marca/Modelo</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Serie</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fulfillAssetsBody" class="bg-white divide-y divide-gray-200 text-gray-700"></tbody>
+                </table>
+            </div>
+            <div class="flex justify-end gap-2 pt-4 mt-4 border-t border-gray-100">
+                <button onclick="closeFulfillModal()" class="px-4 py-2 bg-gray-200 rounded text-xs font-bold">Cancelar</button>
+                <button onclick="submitFulfill()" class="px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold cursor-pointer">Asignar y Checkout</button>
+            </div>
+        </div>
     </div>
 
     <!-- MODALS (sin cambios estructurales) -->

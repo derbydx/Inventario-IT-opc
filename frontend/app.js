@@ -547,3 +547,184 @@ function closeSiteModal() { document.getElementById("siteModal").classList.add("
 
 function openDepartmentModal() { document.getElementById("departmentModal").classList.remove("hidden"); }
 function closeDepartmentModal() { document.getElementById("departmentModal").classList.add("hidden"); document.getElementById("form_add_department").reset(); }
+
+// ===================== ENTREGAS PENDIENTES =====================
+
+async function submitNewPending() {
+    const personId = document.getElementById("delivery_person_id").value;
+    const category = document.getElementById("delivery_category").value;
+    const quantity = parseInt(document.getElementById("delivery_quantity").value) || 1;
+    const notes = document.getElementById("delivery_notes").value;
+    if (!personId) { alert("Seleccione un empleado"); return; }
+    if (!category) { alert("Seleccione una categoria"); return; }
+    try {
+        const res = await api("/deliveries/pending", {
+            method: "POST",
+            body: JSON.stringify({ person_id: parseInt(personId), category, quantity, notes: notes || null })
+        });
+        if (res.ok) {
+            alert("Entrega pendiente agregada correctamente!");
+            document.getElementById("deliveryForm").reset();
+        } else {
+            const err = await res.json().catch(()=>({detail:"Error"}));
+            alert("Error: " + (err.detail || "No se pudo crear"));
+        }
+    } catch (e) { alert("Error de conexion"); }
+}
+
+async function loadDeliveryBoard() {
+    const container = document.getElementById("deliveryBoardContainer");
+    container.innerHTML = '<p class="text-center text-gray-400 italic py-8">Cargando tablero...</p>';
+    try {
+        const res = await api("/deliveries/summary");
+        if (!res.ok) throw new Error("Error");
+        const data = await res.json();
+        container.innerHTML = "";
+        if (data.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-400 italic py-8">No hay entregas pendientes activas.</p>';
+            return;
+        }
+        const wrapper = document.createElement("div");
+        wrapper.className = "flex gap-4 overflow-x-auto pb-4";
+        data.forEach(cat => {
+            const col = document.createElement("div");
+            col.className = "min-w-[280px] max-w-[300px] flex-shrink-0";
+            const pendingCount = cat.total_pending;
+            const availCount = cat.available;
+            col.innerHTML = `
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-sm font-bold text-gray-700">${cat.category}</h3>
+                        <span class="text-xs font-bold text-gray-500">${pendingCount} pendiente${pendingCount !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="text-xs text-gray-400 mb-2">${availCount} disponible${availCount !== 1 ? 's' : ''} en almacen</div>
+                    <div class="space-y-2 max-h-[400px] overflow-y-auto">`;
+            cat.employees.forEach(emp => {
+                col.innerHTML += `
+                        <div class="bg-white rounded p-2 border border-gray-200 shadow-sm">
+                            <div class="font-bold text-xs text-gray-700">${emp.person_name}</div>
+                            <div class="text-[10px] text-gray-400">${emp.pending} pendiente${emp.pending !== 1 ? 's' : ''}</div>
+                            ${emp.notes ? `<div class="text-[10px] text-gray-400 italic mt-1">${emp.notes}</div>` : ''}
+                            <button onclick="openFulfillModal(${emp.delivery_id}, '${cat.category}', '${emp.person_name}')" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors cursor-pointer" ${availCount === 0 ? 'disabled' : ''}>Asignar</button>
+                        </div>`;
+            });
+            col.innerHTML += `</div></div>`;
+            wrapper.appendChild(col);
+        });
+        container.appendChild(wrapper);
+    } catch (e) {
+        container.innerHTML = '<p class="text-center text-red-500 font-medium py-8">Error de conexion con el servidor backend</p>';
+    }
+}
+
+async function loadDeliveryEmployees() {
+    const tbody = document.getElementById("deliveryEmployeesBody");
+    tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        const res = await api("/deliveries/pending?status=Active");
+        if (!res.ok) throw new Error("Error");
+        const data = await res.json();
+        tbody.innerHTML = "";
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">No hay entregas pendientes activas.</td></tr>';
+            return;
+        }
+        const grouped = {};
+        data.forEach(d => {
+            if (!grouped[d.person_id]) grouped[d.person_id] = { person_name: d.person_name, items: [] };
+            grouped[d.person_id].items.push(d);
+        });
+        Object.values(grouped).forEach(g => {
+            const pendingCount = g.items.reduce((sum, i) => sum + (i.quantity - i.fulfilled_count), 0);
+            const cats = [...new Set(g.items.map(i => i.category))].join(", ");
+            const row = document.createElement("tr");
+            row.className = "hover:bg-blue-50/50 transition-colors";
+            row.innerHTML = `
+                <td class="px-4 py-3 font-medium text-gray-800">${g.person_name}</td>
+                <td class="px-4 py-3 font-mono text-gray-500">${g.items[0].person_id}</td>
+                <td class="px-4 py-3 text-gray-600">${pendingCount}</td>
+                <td class="px-4 py-3 text-gray-500">${cats}</td>
+                <td class="px-4 py-3 text-center">
+                    <button onclick="showSection('deliveryBoard')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-blue-300 transition-colors cursor-pointer">Ver en Tablero</button>
+                </td>`;
+            tbody.appendChild(row);
+        });
+        const el = document.getElementById("deliveryTotalPending");
+        if (el) el.textContent = data.reduce((s, d) => s + (d.quantity - d.fulfilled_count), 0);
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion</td></tr>';
+    }
+}
+
+async function openFulfillModal(deliveryId, category, personName) {
+    document.getElementById("fulfillDeliveryId").value = deliveryId;
+    document.getElementById("fulfillInfo").textContent = `Asignar ${category} a ${personName}`;
+    const tbody = document.getElementById("fulfillAssetsBody");
+    tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">Cargando activos disponibles...</td></tr>';
+    document.getElementById("fulfillModal").classList.remove("hidden");
+    try {
+        const res = await api("/deliveries/available-assets");
+        if (!res.ok) throw new Error("Error");
+        const assets = await res.json();
+        const filtered = assets.filter(a => a.category === category);
+        tbody.innerHTML = "";
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-amber-600 font-medium">No hay activos disponibles de esta categoria.</td></tr>';
+            return;
+        }
+        filtered.forEach(a => {
+            const row = document.createElement("tr");
+            row.className = "hover:bg-blue-50/50 transition-colors";
+            row.innerHTML = `
+                <td class="px-3 py-2"><input type="radio" name="fulfill_asset" value="${a.id}" class="cursor-pointer"></td>
+                <td class="px-3 py-2 font-mono font-bold">${a.asset_tag_id}</td>
+                <td class="px-3 py-2 text-gray-600">${a.asset_description}</td>
+                <td class="px-3 py-2 text-gray-500">${a.brand} ${a.model}</td>
+                <td class="px-3 py-2 font-mono text-gray-400">${a.serial_no}</td>`;
+            tbody.appendChild(row);
+        });
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-red-500 font-medium">Error de conexion</td></tr>';
+    }
+}
+
+function closeFulfillModal() {
+    document.getElementById("fulfillModal").classList.add("hidden");
+}
+
+async function submitFulfill() {
+    const deliveryId = document.getElementById("fulfillDeliveryId").value;
+    const selected = document.querySelector('input[name="fulfill_asset"]:checked');
+    if (!selected) { alert("Seleccione un activo para asignar"); return; }
+    const assetId = parseInt(selected.value);
+    try {
+        const res = await api(`/deliveries/pending/${deliveryId}/fulfill`, {
+            method: "POST",
+            body: JSON.stringify({ asset_id: assetId })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            alert(`Activo ${data.asset_tag} asignado exitosamente! (${data.fulfilled_count}/${data.total})`);
+            closeFulfillModal();
+            loadDeliveryBoard();
+        } else {
+            const err = await res.json().catch(()=>({detail:"Error"}));
+            alert("Error: " + (err.detail || "No se pudo asignar"));
+        }
+    } catch (e) { alert("Error de conexion"); }
+}
+
+async function cancelPending(deliveryId) {
+    if (!confirm("Cancelar esta entrega pendiente?")) return;
+    try {
+        const res = await api(`/deliveries/pending/${deliveryId}`, { method: "DELETE" });
+        if (res.ok) {
+            alert("Entrega cancelada");
+            loadDeliveryBoard();
+            loadDeliveryEmployees();
+        } else {
+            const err = await res.json().catch(()=>({detail:"Error"}));
+            alert("Error: " + (err.detail || "No se pudo cancelar"));
+        }
+    } catch (e) { alert("Error de conexion"); }
+}

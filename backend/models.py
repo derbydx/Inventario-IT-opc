@@ -87,3 +87,18 @@ class History(Base):
     asset_id = Column(Integer, ForeignKey("assets.id"))
     asignado_a_id = Column(Integer, ForeignKey("persons.id"), nullable=True)  # Quién recibe
     realizado_por_id = Column(Integer, ForeignKey("admins.id"))  # Qué administrador operó
+
+# ==========================================
+# 5. TABLA DE ENTREGAS PENDIENTES
+# ==========================================
+class PendingDelivery(Base):
+    __tablename__ = "pending_deliveries"
+    id = Column(Integer, primary_key=True, index=True)
+    person_id = Column(Integer, ForeignKey("persons.id"), nullable=False)
+    category = Column(String(100), nullable=False)
+    quantity = Column(Integer, default=1)
+    fulfilled_count = Column(Integer, default=0)
+    status = Column(String(20), default="Active")  # Active, Fulfilled, Cancelled
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    fulfilled_at = Column(DateTime, nullable=True)

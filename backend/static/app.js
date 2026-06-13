@@ -450,10 +450,35 @@ async function loadHistory() {
             const assetObj = currentAssets.find(a => a.id === item.asset_id);
             const employeeObj = globalPersons.find(p => p.id === item.asignado_a_id);
             
-            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge}">${item.tipo_accion}</td><td class="px-4 py-2 font-bold text-gray-700">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="px-4 py-2 text-gray-600">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600">Admin_${item.realizado_por_id}</td><td class="px-4 py-2 text-gray-500 italic max-w-xs truncate">${item.notas_detalle || '-'}</td>`;
+            const detail = (item.notas_detalle || '-');
+            const detailCell = document.createElement('td');
+            detailCell.className = 'px-4 py-2 text-gray-500 italic align-top break-words';
+            const detailSpan = document.createElement('span');
+            detailSpan.className = 'cursor-pointer text-blue-600 underline decoration-dotted hover:text-blue-800';
+            detailSpan.title = detail;
+            detailSpan.textContent = detail;
+            detailSpan.onclick = function() { showDetailModal(detail); };
+            detailCell.appendChild(detailSpan);
+            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${item.tipo_accion}</td><td class="px-4 py-2 font-bold text-gray-700 align-top">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="px-4 py-2 text-gray-600 align-top">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
+            row.appendChild(detailCell);
             historyBody.appendChild(row);
         });
     } catch (e) { console.error(e); }
+}
+
+function showDetailModal(text) {
+    document.getElementById("detailModalBody").textContent = text;
+    document.getElementById("detailModal").classList.remove("hidden");
+    document.addEventListener("keydown", detailModalKeydown);
+}
+
+function closeDetailModal() {
+    document.getElementById("detailModal").classList.add("hidden");
+    document.removeEventListener("keydown", detailModalKeydown);
+}
+
+function detailModalKeydown(e) {
+    if (e.key === "Escape") closeDetailModal();
 }
 
 async function loadPersons() {
@@ -806,10 +831,11 @@ function closeDepartmentModal() { document.getElementById("departmentModal").cla
 
 function toggleCollapse(id) {
     const el = document.getElementById(id);
-    const arrow = document.getElementById(id.replace("Submenu", "Arrow"));
+    const chevronId = id.replace("Submenu", "Chevron");
+    const chevron = document.getElementById(chevronId);
     if (el) {
         el.classList.toggle("hidden");
-        if (arrow) arrow.innerHTML = el.classList.contains("hidden") ? "&#9654;" : "&#9660;";
+        if (chevron) chevron.classList.toggle("open");
     }
 }
 
@@ -832,6 +858,10 @@ function showSection(name) {
     if (name === 'deliveryBoard') loadDeliveryBoard();
     if (name === 'deliveryEmployees') loadDeliveryEmployees();
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
+    // highlight active sidebar item
+    document.querySelectorAll('.sidebar-item[data-section]').forEach(el => el.classList.remove('active'));
+    const active = document.querySelector(`.sidebar-item[data-section="${name}"]`);
+    if (active) active.classList.add('active');
 }
 
 function showAdvancedSearch() {

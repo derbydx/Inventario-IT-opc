@@ -37,102 +37,187 @@
 
             <!-- SIDEBAR -->
             <aside id="sidebar" class="w-56 bg-blue-900 text-white flex flex-col shrink-0">
-                <div class="p-4 border-b border-blue-800">
+                <div class="p-4 border-b border-white/10">
                     <h1 class="text-base font-bold tracking-wide">IT Asset Manager</h1>
                 </div>
-                <nav class="flex-1 overflow-y-auto text-sm py-2 space-y-1">
+                <nav class="flex-1 overflow-y-auto text-sm py-2">
 
                     <!-- Dashboard -->
-                    <button onclick="showSection('dashboard')" class="w-full text-left px-4 py-2 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                        <span>Dashboard</span>
+                    <button data-section="dashboard" onclick="showSection('dashboard')" class="sidebar-item w-full flex items-center justify-between px-4 py-3 cursor-pointer">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <svg class="w-4 h-4 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/></svg>
+                            <span class="truncate">Dashboard</span>
+                        </span>
+                        <svg class="w-3 h-3 shrink-0 text-blue-400/60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
 
-                    <div class="border-t border-blue-800 mx-3 my-1"></div>
+                    <div class="border-t border-white/10 mx-3 my-1"></div>
 
                     <!-- Activos -->
-                    <div class="px-4 py-1 text-xs text-blue-300 font-bold uppercase">Activos</div>
-                    <button onclick="showSection('assets')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                        <span>Listado Activos</span>
+                    <button onclick="toggleCollapse('activosSubmenu')" class="sidebar-item w-full flex items-center justify-between px-4 py-3 cursor-pointer">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <svg class="w-4 h-4 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25"/></svg>
+                            <span class="truncate">Activos</span>
+                        </span>
+                        <svg id="activosChevron" class="sidebar-chevron w-3 h-3 shrink-0 text-blue-400/60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
-                    <button onclick="showAdvancedSearch()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                        <span>Busqueda Avanzada</span>
-                    </button>
-                    <button onclick="openAssetModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                        <span>+ Nuevo Activo</span>
-                    </button>
+                    <div id="activosSubmenu" class="hidden">
+                        <button data-section="assets" onclick="showSection('assets')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/></svg>
+                            <span>Listado</span>
+                        </button>
+                        <button onclick="showAdvancedSearch()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
+                            <span>Busqueda Avanzada</span>
+                        </button>
+                        <button onclick="openAssetModal()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                            <span>Nuevo Activo</span>
+                        </button>
+                    </div>
 
-                    <div class="border-t border-blue-800 mx-3 my-1"></div>
+                    <div class="border-t border-white/10 mx-3 my-1"></div>
 
                     <!-- Empleados -->
-                    <div class="px-4 py-1 text-xs text-blue-300 font-bold uppercase">Empleados</div>
-                    <button onclick="showSection('employees')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                        <span>Listado Empleados</span>
+                    <button onclick="toggleCollapse('empleadosSubmenu')" class="sidebar-item w-full flex items-center justify-between px-4 py-3 cursor-pointer">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <svg class="w-4 h-4 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+                            <span class="truncate">Empleados</span>
+                        </span>
+                        <svg id="empleadosChevron" class="sidebar-chevron w-3 h-3 shrink-0 text-blue-400/60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
-                    <button onclick="openPersonModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                        <span>+ Nuevo Empleado</span>
-                    </button>
+                    <div id="empleadosSubmenu" class="hidden">
+                        <button data-section="employees" onclick="showSection('employees')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/></svg>
+                            <span>Listado</span>
+                        </button>
+                        <button onclick="openPersonModal()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                            <span>Nuevo Empleado</span>
+                        </button>
+                    </div>
 
-                    <div class="border-t border-blue-800 mx-3 my-1"></div>
+                    <div class="border-t border-white/10 mx-3 my-1"></div>
 
                     <!-- Catalogos -->
-                    <button onclick="toggleCollapse('catalogSubmenu')" class="w-full text-left px-4 py-1 text-xs text-blue-300 font-bold uppercase hover:text-blue-200 cursor-pointer">
-                        <span id="catalogArrow">&#9660;</span> Catalogos
+                    <button onclick="toggleCollapse('catalogSubmenu')" class="sidebar-item w-full flex items-center justify-between px-4 py-3 cursor-pointer">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <svg class="w-4 h-4 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/></svg>
+                            <span class="truncate">Catalogos</span>
+                        </span>
+                        <svg id="catalogChevron" class="sidebar-chevron w-3 h-3 shrink-0 text-blue-400/60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
                     <div id="catalogSubmenu">
-                        <button onclick="showSection('catalogs')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">Listado Catalogos</button>
-                        <button onclick="openSiteModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">+ Sitio</button>
-                        <button onclick="openDepartmentModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">+ Departamento</button>
+                        <button data-section="catalogs" onclick="showSection('catalogs')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/></svg>
+                            <span>Listado</span>
+                        </button>
+                        <button onclick="openSiteModal()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                            <span>Nuevo Sitio</span>
+                        </button>
+                        <button onclick="openDepartmentModal()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                            <span>Nuevo Departamento</span>
+                        </button>
                     </div>
 
-                    <div class="border-t border-blue-800 mx-3 my-1"></div>
+                    <div class="border-t border-white/10 mx-3 my-1"></div>
 
                     <!-- Ajustes: Importar / Exportar -->
-                    <div class="px-4 py-1 text-xs text-blue-300 font-bold uppercase">Ajustes</div>
-                    <button onclick="openImportModal()" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                        <span>Importar Excel</span>
+                    <button onclick="toggleCollapse('ajustesSubmenu')" class="sidebar-item w-full flex items-center justify-between px-4 py-3 cursor-pointer">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <svg class="w-4 h-4 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.034.015.068.03.102.046.398.175.85.114 1.136-.215l.632-.713c.298-.336.746-.394 1.122-.175l.545.328c.376.22.527.672.365 1.065l-.36.874c-.166.404-.045.868.31 1.127.026.02.053.039.08.058.358.257.493.736.34 1.168l-.336.95c-.149.423.011.893.393 1.134l.764.482c.384.242.492.727.254 1.094l-.435.672c-.25.386-.144.876.245 1.119l.77.482c.394.246.507.73.262 1.11l-.481.75c-.262.408-.12.94.328 1.19l.545.303c.394.22.558.704.380 1.095l-.351.772c-.179.392-.608.573-1.007.466l-.915-.244c-.4-.107-.81.09-.976.465-.015.035-.03.07-.045.104-.169.396-.032.856.336 1.081l.698.427c.364.223.457.697.218 1.058l-.334.507c-.242.368-.072.867.395 1.096l.546.268c.408.2.574.685.398 1.078l-.241.541c-.175.393-.601.576-1.002.473l-.732-.189c-.405-.105-.821.077-1.001.449-.013.026-.026.052-.038.078-.194.398-.046.871.369 1.102l.62.346c.402.224.506.718.249 1.095l-.325.477c-.299.44-.91.457-1.24.066l-.44-.52c-.276-.326-.744-.424-1.127-.241-.023.011-.046.023-.069.034-.39.203-.555.682-.388 1.118l.237.622c.175.46-.101.964-.566 1.067l-.762.169c-.419.093-.721.486-.695.92l.026.607c.027.472-.31.888-.778.972l-.48.086c-.386.069-.735-.148-.844-.527l-.163-.574c-.154-.543-.66-.885-1.204-.798-.072.012-.144.027-.215.044-.49.113-.822.581-.754 1.076l.11.804c.074.544-.28 1.061-.818 1.15l-.379.063c-.398.066-.757-.147-.87-.527l-.244-.837c-.166-.568-.698-.912-1.267-.803-.06.011-.119.024-.179.037-.506.119-.856.609-.777 1.133l.069.489"/></svg>
+                            <span class="truncate">Ajustes</span>
+                        </span>
+                        <svg id="ajustesChevron" class="sidebar-chevron w-3 h-3 shrink-0 text-blue-400/60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
-                    <div class="ml-4 text-xs">
-                        <div class="px-2 py-1 text-blue-400">Exportar:</div>
-                        <button onclick="exportEntity('assets')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Activos</button>
-                        <button onclick="exportEntity('persons')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Empleados</button>
-                        <button onclick="exportEntity('sites')" class="w-full text-left px-4 py-1 hover:bg-blue-800/50 cursor-pointer">- Sitios</button>
+                    <div id="ajustesSubmenu" class="hidden">
+                        <button onclick="openImportModal()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
+                            <span>Importar Excel</span>
+                        </button>
+                        <div class="ml-1 mt-1 mb-1">
+                            <div class="px-4 py-1.5 pl-10 text-[10px] text-blue-400/60 font-bold uppercase tracking-widest">Exportar</div>
+                            <button onclick="exportEntity('assets')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2 pl-14 cursor-pointer">
+                                <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                                <span>Activos</span>
+                            </button>
+                            <button onclick="exportEntity('persons')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2 pl-14 cursor-pointer">
+                                <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                                <span>Empleados</span>
+                            </button>
+                            <button onclick="exportEntity('sites')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2 pl-14 cursor-pointer">
+                                <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                                <span>Sitios</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="border-t border-blue-800 mx-3 my-1"></div>
+                    <div class="border-t border-white/10 mx-3 my-1"></div>
 
                     <!-- Reportes -->
-                    <button onclick="toggleCollapse('reportsSubmenu')" class="w-full text-left px-4 py-1 text-xs text-blue-300 font-bold uppercase hover:text-blue-200 cursor-pointer">
-                        <span id="reportsArrow">&#9660;</span> Reportes
+                    <button onclick="toggleCollapse('reportsSubmenu')" class="sidebar-item w-full flex items-center justify-between px-4 py-3 cursor-pointer">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <svg class="w-4 h-4 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+                            <span class="truncate">Reportes</span>
+                        </span>
+                        <svg id="reportsChevron" class="sidebar-chevron w-3 h-3 shrink-0 text-blue-400/60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
                     <div id="reportsSubmenu">
-                        <button onclick="showSection('reports')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">Checkout by Person</button>
+                        <button data-section="reports" onclick="showSection('reports')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m2.25-6.75 3 3-3 3m-10.5-3H18"/></svg>
+                            <span>Checkout by Person</span>
+                        </button>
                     </div>
 
-                    <div class="border-t border-blue-800 mx-3 my-1"></div>
+                    <div class="border-t border-white/10 mx-3 my-1"></div>
 
                     <!-- Entregas Pendientes -->
-                    <button onclick="toggleCollapse('deliverySubmenu')" class="w-full text-left px-4 py-1 text-xs text-blue-300 font-bold uppercase hover:text-blue-200 cursor-pointer">
-                        <span id="deliveryArrow">&#9660;</span> Entregas
+                    <button onclick="toggleCollapse('deliverySubmenu')" class="sidebar-item w-full flex items-center justify-between px-4 py-3 cursor-pointer">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <svg class="w-4 h-4 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0-3-3m3 3 3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z"/></svg>
+                            <span class="truncate">Entregas</span>
+                        </span>
+                        <svg id="deliveryChevron" class="sidebar-chevron w-3 h-3 shrink-0 text-blue-400/60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
                     <div id="deliverySubmenu" class="hidden">
-                        <button onclick="showSection('deliveryAdd')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">+ Agregar Pendiente</button>
-                        <button onclick="showSection('deliveryBoard')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">Tablero</button>
-                        <button onclick="showSection('deliveryEmployees')" class="w-full text-left px-4 py-1.5 hover:bg-blue-800 cursor-pointer">Por Empleado</button>
+                        <button data-section="deliveryAdd" onclick="showSection('deliveryAdd')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                            <span>Agregar Pendiente</span>
+                        </button>
+                        <button data-section="deliveryBoard" onclick="showSection('deliveryBoard')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15a2.25 2.25 0 0 1 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z"/></svg>
+                            <span>Tablero</span>
+                        </button>
+                        <button data-section="deliveryEmployees" onclick="showSection('deliveryEmployees')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/></svg>
+                            <span>Por Empleado</span>
+                        </button>
                     </div>
 
-                    <div class="border-t border-blue-800 mx-3 my-1"></div>
+                    <div class="border-t border-white/10 mx-3 my-1"></div>
 
                     <!-- Auditoria y Papelera -->
-                    <button onclick="showSection('history')" class="w-full text-left px-4 py-2 hover:bg-blue-800 cursor-pointer">
-                        Historial Auditoria
+                    <button data-section="history" onclick="showSection('history')" class="sidebar-item w-full flex items-center justify-between px-4 py-3 cursor-pointer">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <svg class="w-4 h-4 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                            <span class="truncate">Historial Auditoria</span>
+                        </span>
+                        <svg class="w-3 h-3 shrink-0 text-blue-400/60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
-                    <button onclick="openDeletedAssetsModal()" class="w-full text-left px-4 py-2 hover:bg-blue-800 flex items-center gap-2 cursor-pointer">
-                        <span>Papelera</span>
+
+                    <button onclick="openDeletedAssetsModal()" class="sidebar-item w-full flex items-center justify-between px-4 py-3 cursor-pointer">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <svg class="w-4 h-4 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+                            <span class="truncate">Papelera</span>
+                        </span>
+                        <svg class="w-3 h-3 shrink-0 text-blue-400/60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
 
                 </nav>
-                <div class="p-4 border-t border-blue-800">
-                    <button onclick="logout()" class="w-full text-xs bg-blue-800 hover:bg-blue-700 border border-blue-600 px-3 py-1.5 rounded font-bold transition-colors cursor-pointer">
+                <div class="p-4 border-t border-white/10">
+                    <button onclick="logout()" class="w-full text-xs bg-blue-800/50 hover:bg-blue-700/80 border border-blue-600/40 px-3 py-2 rounded font-bold transition-colors cursor-pointer">
                         Cerrar Sesion
                     </button>
                 </div>
@@ -1058,6 +1143,20 @@
                     <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- DETAIL MODAL -->
+    <div id="detailModal" onclick="if(event.target===this)closeDetailModal()" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-5 max-w-lg w-full shadow-xl border border-gray-200 border-t-4 border-t-blue-500">
+            <div class="flex justify-between items-center mb-3">
+                <h4 class="font-bold text-sm text-gray-800">Detalle completo</h4>
+                <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-600 text-lg leading-none cursor-pointer">&times;</button>
+            </div>
+            <div id="detailModalBody" class="text-sm text-gray-700 bg-gray-50 rounded p-3 max-h-80 overflow-y-auto whitespace-pre-wrap break-words"></div>
+            <div class="flex justify-end mt-3">
+                <button onclick="closeDetailModal()" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded text-xs font-bold cursor-pointer">Cerrar</button>
+            </div>
         </div>
     </div>
 

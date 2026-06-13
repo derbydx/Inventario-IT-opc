@@ -3,6 +3,37 @@
 #sidebar nav::-webkit-scrollbar-track { background: transparent; }
 #sidebar nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
 
+/* Sidebar items */
+.sidebar-item {
+    transition: background 0.15s, color 0.15s;
+    border-right: 3px solid transparent;
+}
+.sidebar-item:hover {
+    background: rgba(59, 130, 246, 0.12);
+}
+.sidebar-item.active {
+    background: rgba(59, 130, 246, 0.18);
+    font-weight: 700;
+    border-right-color: #60a5fa;
+}
+
+/* Submenu items (no border indicator) */
+.sidebar-sub-item {
+    transition: background 0.15s;
+    border-right: 3px solid transparent;
+}
+.sidebar-sub-item:hover {
+    background: rgba(59, 130, 246, 0.12);
+}
+
+/* Collapse chevron rotation */
+.sidebar-chevron {
+    transition: transform 0.2s;
+}
+.sidebar-chevron.open {
+    transform: rotate(90deg);
+}
+
 /* Modal scroll */
 .modal-content { max-height: 90vh; overflow-y: auto; }
 

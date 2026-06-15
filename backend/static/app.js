@@ -1402,7 +1402,7 @@ async function updateDashboard() {
         const resDeliveries = await api("/deliveries/pending/");
         if (resAssets.ok) {
             const assets = await resAssets.json();
-            const active = assets.filter(a => a.status !== "Archived");
+            const active = assets.filter(a => !["Archived","Broken","Lost","Disposed","Donate","Sold"].includes(a.status));
             document.getElementById("dashAssetCount").textContent = active.length;
             document.getElementById("dashCheckoutCount").textContent = active.filter(a => a.status === "Checkout").length;
             document.getElementById("dashCheckinCount").textContent = active.filter(a => a.status === "Available").length;

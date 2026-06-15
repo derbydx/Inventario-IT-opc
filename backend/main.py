@@ -510,6 +510,9 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
     for key, value in datos_nuevos.items():
         setattr(db_asset, key, value)
 
+    if db_asset.status not in ("Checkout", "Reserved"):
+        db_asset.person_id = None
+
     if lista_cambios:
         nota_auditoria = "Edicion de propiedades: " + " | ".join(lista_cambios)
     else:

@@ -315,7 +315,7 @@ async function openDetailsModal(assetId) {
                 <span class="text-[10px] bg-blue-600 text-white font-bold py-0.5 px-1.5 rounded uppercase tracking-wide">Ver Asignados </span>
             </button>`;
     } else if (asset.status !== "Checkout") {
-        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded">Status: ${asset.status}</p>`;
+        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded mb-2">Status: ${asset.status}</p><button onclick="closeDetailsModal();openModal('${asset.id}','${asset.asset_tag_id}','checkout')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow transition-colors cursor-pointer">Realizar Check-out</button>`;
     } else {
         containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded">Disponible en Almacen</p>`;
     }

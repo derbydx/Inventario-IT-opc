@@ -1399,7 +1399,7 @@ async function updateDashboard() {
         const resAssets = await api("/assets/?limit=9999");
         const resPersons = await api("/persons/");
         const resHistory = await api("/history/");
-        const resDeliveries = await api("/deliveries/pending/");
+        const resDeliveries = await api("/deliveries/pending");
         if (resAssets.ok) {
             const assets = await resAssets.json();
             const active = assets.filter(a => !["Archived","Broken","Lost","Disposed","Donate","Sold"].includes(a.status));

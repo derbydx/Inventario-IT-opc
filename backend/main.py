@@ -975,6 +975,7 @@ def create_pending_delivery(delivery: schemas.PendingDeliveryCreate, db: Session
     resp.person_name = person.full_name
     return resp
 
+@app.get("/deliveries/pending/", response_model=List[schemas.PendingDeliveryResponse], tags=["Entregas Pendientes"], include_in_schema=False)
 @app.get("/deliveries/pending", response_model=List[schemas.PendingDeliveryResponse], tags=["Entregas Pendientes"])
 def list_pending_deliveries(status: str = None, person_id: int = None, db: Session = Depends(get_db)):
     query = db.query(models.PendingDelivery)

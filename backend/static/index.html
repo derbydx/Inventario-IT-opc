@@ -74,6 +74,10 @@
                             <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
                             <span>Nuevo Activo</span>
                         </button>
+                        <button data-section="enReparacion" onclick="showSection('enReparacion')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75a4.5 4.5 0 0 1-4.884 4.484c-1.076-.091-2.264.071-2.95.904l-7.152 8.684a2.548 2.548 0 1 1-3.586-3.586l8.684-7.152c.833-.686.995-1.874.904-2.95a4.5 4.5 0 0 1 6.336-4.486l-3.276 3.276a3.004 3.004 0 0 0 2.25 2.25l3.276-3.276c.256.565.398 1.192.398 1.852Z"/></svg>
+                            <span>En Reparacion</span>
+                        </button>
                     </div>
 
                     <div class="border-t border-white/10 mx-3 my-1"></div>
@@ -996,6 +1000,29 @@
                                 <th class="px-4 py-3 text-center font-bold uppercase">Accion</th>
                             </tr></thead>
                             <tbody id="soldAssetsBody" class="bg-white divide-y divide-gray-200 text-gray-700"><tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- SECTION: EN REPARACION -->
+                <section id="enReparacionSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-amber-700">Equipos en Reparacion</h2>
+                        <span class="text-xs text-amber-500 font-medium">Muestra activos en estado "Under repair" y "GarantiaSD"</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-xs">
+                            <thead class="bg-amber-50 text-amber-800"><tr>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Asset Tag</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Descripcion</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Marca / Modelo</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Serie</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Status</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Motivo</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Dejado por</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Tecnico</th>
+                            </tr></thead>
+                            <tbody id="enReparacionBody" class="bg-white divide-y divide-gray-200 text-gray-700"><tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr></tbody>
                         </table>
                     </div>
                 </section>

@@ -275,14 +275,12 @@ async function loadAssets() {
 }
 
 async function openDetailsModal(assetId) {
-    let asset = currentAssets.find(a => a.id === parseInt(assetId));
-    if (!asset) {
-        try {
-            const res = await api(`/assets/${assetId}`);
-            if (res.ok) asset = await res.json();
-        } catch (e) {}
-        if (!asset) return;
-    }
+    let asset;
+    try {
+        const res = await api(`/assets/${assetId}`);
+        if (res.ok) asset = await res.json();
+    } catch (e) {}
+    if (!asset) return;
 
     document.getElementById("assetSpecificHistoryWrapper").classList.add("hidden");
     document.getElementById("historyToggleIcon").innerText = "Mostrar";
@@ -451,8 +449,12 @@ function toggleEditRepairFields() {
     }
 }
 
-function openEditAssetModal(assetId) {
-    const asset = currentAssets.find(a => a.id === parseInt(assetId));
+async function openEditAssetModal(assetId) {
+    let asset;
+    try {
+        const res = await api(`/assets/${assetId}`);
+        if (res.ok) asset = await res.json();
+    } catch (e) {}
     if (!asset) return;
     document.getElementById("edit_asset_id").value = asset.id;
     document.getElementById("edit_asset_tag_id").value = asset.asset_tag_id;
@@ -1182,6 +1184,7 @@ function showSection(name) {
     if (name === 'donateAssets') loadAssetsByStatus('Donate');
     if (name === 'soldAssets') loadAssetsByStatus('Sold');
     if (name === 'listadoInactivos') loadListadoInactivos();
+    if (name === 'enReparacion') loadRepairAssets();
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
     // highlight active sidebar item
     document.querySelectorAll('.sidebar-item[data-section], .sidebar-sub-item[data-section]').forEach(el => el.classList.remove('active'));
@@ -1190,7 +1193,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -2197,6 +2200,36 @@ async function loadAssetsByStatus(status) {
             </tr>
         `).join("");
     } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
+}
+
+async function loadRepairAssets() {
+    const tbody = document.getElementById("enReparacionBody");
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        const statuses = ["Under repair", "GarantiaSD"];
+        const results = await Promise.all(statuses.map(s => api(`/assets/?status=${encodeURIComponent(s)}&limit=1000`).then(r => r.ok ? r.json() : [])));
+        const all = results.flat().sort((a, b) => a.asset_tag_id.localeCompare(b.asset_tag_id));
+        if (all.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 italic">No hay equipos en reparacion.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = all.map(a => {
+            var leftPerson = globalPersons.find(function (p) { return p.id === a.repair_left_by_id; });
+            var tech = globalAdmins.find(function (ad) { return ad.id === a.repair_technician_id; });
+            var badgeColor = a.status === "GarantiaSD" ? "bg-amber-100 text-amber-800" : "bg-orange-100 text-orange-800";
+            return '<tr class="hover:bg-amber-50/30 transition-colors cursor-pointer" onclick="openDetailsModal(' + a.id + ')">' +
+                '<td class="px-4 py-3 font-bold text-amber-700">' + a.asset_tag_id + '</td>' +
+                '<td class="px-4 py-3 text-gray-600">' + (a.asset_description || '') + '</td>' +
+                '<td class="px-4 py-3 text-gray-500">' + (a.brand || '') + ' ' + (a.model || '') + '</td>' +
+                '<td class="px-4 py-3 font-mono text-gray-400">' + (a.serial_no || '') + '</td>' +
+                '<td class="px-4 py-3"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ' + badgeColor + '">' + a.status + '</span></td>' +
+                '<td class="px-4 py-3 text-gray-600 max-w-[200px] truncate">' + (a.repair_reason || '-') + '</td>' +
+                '<td class="px-4 py-3 text-gray-600">' + (leftPerson ? leftPerson.full_name : '-') + '</td>' +
+                '<td class="px-4 py-3 text-gray-600">' + (tech ? tech.username : '-') + '</td>' +
+            '</tr>';
+        }).join("");
+    } catch (e) { tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
 }
 
 async function loadListadoInactivos() {

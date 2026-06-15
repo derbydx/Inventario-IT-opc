@@ -1973,7 +1973,6 @@ async function loadListadoInactivos() {
         }).join("");
     } catch (e) { tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
 }
-}
 
 async function restoreOneAsset(assetId, assetTag) {
     if (!confirm(`Restaurar ${assetTag} a "Check in"?`)) return;

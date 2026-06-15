@@ -714,7 +714,11 @@
                         <div class="flex flex-wrap items-end gap-3">
                             <div class="shrink-0">
                                 <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Empleado</label>
-                                <select id="report_person_id" onchange="updatePersonInfo(); loadCheckoutReport();" class="w-72 p-2 border border-gray-300 rounded text-sm bg-white"></select>
+                                <div class="relative">
+                                    <input type="text" id="report_person_search" autocomplete="off" placeholder="Buscar por nombre, apellido, email o ID..." class="w-72 p-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <input type="hidden" id="report_person_id" value="">
+                                    <div id="report_person_results" class="hidden absolute z-50 top-full left-0 right-0 bg-white border border-gray-200 rounded mt-1 shadow-lg max-h-48 overflow-y-auto"></div>
+                                </div>
                             </div>
                             <div id="reportPersonInfo" class="hidden flex items-center gap-2 text-[11px] text-gray-600 bg-white px-3 py-2 border border-gray-200 rounded flex-1 min-w-0"></div>
                             <div>

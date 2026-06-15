@@ -138,6 +138,11 @@ async function loadDropdownData() {
     } catch (e) { console.error(e); }
     initAutocomplete("modal_person_search", "modal_person_id", "modal_person_results");
     initAutocomplete("delivery_person_search", "delivery_person_id", "delivery_person_results");
+    initAutocomplete("report_person_search", "report_person_id", "report_person_results");
+    document.getElementById("report_person_id").addEventListener("change", function () {
+        updatePersonInfo();
+        loadCheckoutReport();
+    });
 }
 
 function buildAssetQuery() {
@@ -825,6 +830,7 @@ function initAutocomplete(inputId, hiddenId, resultsId) {
             input.value = item.dataset.name + " (" + item.dataset.eid + ")";
             hidden.value = item.dataset.id;
             results.classList.add("hidden");
+            hidden.dispatchEvent(new Event("change"));
         }
     });
 }
@@ -1090,7 +1096,7 @@ function showSection(name) {
     if (name === 'history' && typeof loadHistory === 'function') loadHistory();
     if (name === 'assets' && typeof loadAssets === 'function') loadAssets();
     if (name === 'dashboard') updateDashboard();
-    if (name === 'reports') populateReportPersonSelect();
+    if (name === 'reports') { document.getElementById("report_person_search").value = ""; document.getElementById("report_person_id").value = ""; document.getElementById("reportPersonInfo").classList.add("hidden"); document.getElementById("reportCount").textContent = "0 Resultados"; document.getElementById("reportResultsBody").innerHTML = '<tr><td colspan="10" class="px-3 py-4 text-center text-gray-400 italic">Seleccione un empleado y genere el reporte.</td></tr>'; }
     if (name === 'checkoutTimeframe') { var d = new Date(); document.getElementById("ctf_end").value = d.toISOString().split("T")[0]; d.setDate(d.getDate() - 30); document.getElementById("ctf_start").value = d.toISOString().split("T")[0]; }
     if (name === 'deliveryBoard') loadDeliveryBoard();
     if (name === 'deliveryEmployees') loadDeliveryEmployees();
@@ -1397,14 +1403,6 @@ function setupImportFormListener() {
             resultDiv.textContent = "Error de conexion: " + e.message;
             resultDiv.classList.remove("hidden");
         }
-    });
-}
-
-function populateReportPersonSelect() {
-    const sel = document.getElementById("report_person_id");
-    sel.innerHTML = '<option value="">-- Seleccione un Empleado --</option>';
-    globalPersons.forEach(p => {
-        sel.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`;
     });
 }
 

@@ -705,6 +705,8 @@ def template_persons(): return StreamingResponse(_make_excel(["Nombre", "Email",
 def template_sites(): return StreamingResponse(_make_excel(["Sitio", "Ciudad", "Pais"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_sitios.xlsx"})
 
 # ---------- IMPORTAR ----------
+def _cell(val): return str(val).strip() if val is not None else ""
+
 @app.post("/import/sites/", tags=["Import/Export"])
 def import_sites(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
     wb = openpyxl.load_workbook(file.file)
@@ -716,10 +718,10 @@ def import_sites(file: UploadFile = File(...), db: Session = Depends(get_db), ad
     ok = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
         if all(c is None for c in row): continue
-        name = (row[i_sitio] or "").strip()
+        name = _cell(row[i_sitio])
         if not name: raise HTTPException(400, f"Fila {ok+2}: Sitio vacio")
         if db.query(models.Site).filter(models.Site.site_name == name).first(): raise HTTPException(400, f"Fila {ok+2}: El sitio '{name}' ya existe")
-        db.add(models.Site(site_name=name, city=(row[i_ciudad] or "").strip() if i_ciudad is not None else None, country=(row[i_pais] or "").strip() if i_pais is not None else None))
+        db.add(models.Site(site_name=name, city=_cell(row[i_ciudad]) if i_ciudad is not None else None, country=_cell(row[i_pais]) if i_pais is not None else None))
         ok += 1
     db.commit()
     return {"importados": ok}
@@ -737,24 +739,24 @@ def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), 
     ok = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
         if all(c is None for c in row): continue
-        full_name = (row[i_fn] or "").strip()
-        email = (row[i_em] or "").strip()
-        eid = (row[i_eid] or "").strip()
+        full_name = _cell(row[i_fn])
+        email = _cell(row[i_em])
+        eid = _cell(row[i_eid])
         if not full_name: raise HTTPException(400, f"Fila {ok+2}: Nombre completo vacio")
         if not email: raise HTTPException(400, f"Fila {ok+2}: Email vacio")
         if not eid: raise HTTPException(400, f"Fila {ok+2}: EmployeeID vacio")
         if db.query(models.Person).filter(models.Person.email == email).first(): raise HTTPException(400, f"Fila {ok+2}: Email '{email}' ya existe")
         if db.query(models.Person).filter(models.Person.employee_id == eid).first(): raise HTTPException(400, f"Fila {ok+2}: EmployeeID '{eid}' ya existe")
         dept_id, site_id = None, None
-        if i_dept is not None and (row[i_dept] or "").strip():
-            dept_name = (row[i_dept] or "").strip()
+        if i_dept is not None and _cell(row[i_dept]):
+            dept_name = _cell(row[i_dept])
             d = db.query(models.Department).filter(models.Department.department_name == dept_name).first()
             if not d:
                 d = models.Department(department_name=dept_name)
                 db.add(d); db.flush()
             dept_id = d.id
-        if i_sit is not None and (row[i_sit] or "").strip():
-            sit_name = (row[i_sit] or "").strip()
+        if i_sit is not None and _cell(row[i_sit]):
+            sit_name = _cell(row[i_sit])
             s = db.query(models.Site).filter(models.Site.site_name == sit_name).first()
             if not s:
                 s = models.Site(site_name=sit_name)
@@ -762,7 +764,7 @@ def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), 
             site_id = s.id
         if dept_id is None: raise HTTPException(400, f"Fila {ok+2}: Departamento requerido")
         if site_id is None: raise HTTPException(400, f"Fila {ok+2}: Sitio requerido")
-        db.add(models.Person(full_name=full_name, email=email, employee_id=eid, title=(row[i_tit] or "").strip() if i_tit is not None else None, phone=(row[i_tel] or "").strip() if i_tel is not None else None, notes=(row[i_not] or "").strip() if i_not is not None else None, department_id=dept_id, site_id=site_id))
+        db.add(models.Person(full_name=full_name, email=email, employee_id=eid, title=_cell(row[i_tit]) if i_tit is not None else None, phone=_cell(row[i_tel]) if i_tel is not None else None, notes=_cell(row[i_not]) if i_not is not None else None, department_id=dept_id, site_id=site_id))
         ok += 1
     db.commit()
     return {"importados": ok}
@@ -780,13 +782,13 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
     ok = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
         if all(c is None for c in row): continue
-        tag = (row[i_tag] or "").strip()
-        desc = (row[i_desc] or "").strip()
-        brand = (row[i_brand] or "").strip()
-        model = (row[i_model] or "").strip()
-        ser = (row[i_ser] or "").strip()
-        cat_name = (row[i_cat] or "").strip()
-        sit_name = (row[i_sit] or "").strip() if i_sit is not None else ""
+        tag = _cell(row[i_tag])
+        desc = _cell(row[i_desc])
+        brand = _cell(row[i_brand])
+        model = _cell(row[i_model])
+        ser = _cell(row[i_ser])
+        cat_name = _cell(row[i_cat])
+        sit_name = _cell(row[i_sit]) if i_sit is not None else ""
         if not tag: raise HTTPException(400, f"Fila {ok+2}: AssetTag vacio")
         if not desc: raise HTTPException(400, f"Fila {ok+2}: Descripcion vacia")
         if not brand: raise HTTPException(400, f"Fila {ok+2}: Marca vacia")
@@ -802,7 +804,7 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
         status = "Available"
         notas_historial = None
         if i_asignado is not None:
-            asignado = (row[i_asignado] or "").strip()
+            asignado = _cell(row[i_asignado])
             if asignado:
                 person = db.query(models.Person).filter(models.Person.email == asignado).first()
                 if not person:

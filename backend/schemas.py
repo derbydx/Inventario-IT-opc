@@ -79,17 +79,67 @@ class PersonResponse(PersonBase):
     class Config:
         from_attributes = True
 
+class GroupResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    can_view: bool = True
+    can_create: bool = False
+    can_edit: bool = False
+    can_delete: bool = False
+    can_checkout: bool = False
+    can_import_export: bool = False
+    can_manage_users: bool = False
+    is_default: bool = False
+    class Config:
+        from_attributes = True
+
+class GroupCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    can_view: bool = True
+    can_create: bool = False
+    can_edit: bool = False
+    can_delete: bool = False
+    can_checkout: bool = False
+    can_import_export: bool = False
+    can_manage_users: bool = False
+
+class GroupUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    can_view: Optional[bool] = None
+    can_create: Optional[bool] = None
+    can_edit: Optional[bool] = None
+    can_delete: Optional[bool] = None
+    can_checkout: Optional[bool] = None
+    can_import_export: Optional[bool] = None
+    can_manage_users: Optional[bool] = None
+
 class AdminCreate(BaseModel):
     username: str
     email: EmailStr
-    password: str  # Contraseña en texto plano temporal que viene del formulario
-    role: Optional[str] = "Administrator"
+    password: str
+    role: Optional[str] = "User"
+    group_id: Optional[int] = None
+    is_active: bool = True
+
+class AdminUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    group_id: Optional[int] = None
+    is_active: Optional[bool] = None
 
 class AdminResponse(BaseModel):
     id: int
     username: str
     email: EmailStr
     role: str
+    group_id: Optional[int] = None
+    is_active: bool = True
+    group: Optional[GroupResponse] = None
     class Config:
         from_attributes = True
 
@@ -101,6 +151,10 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     admin: AdminResponse
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 # ==========================================
 # SCHEMA DE ACTIVOS (ASSETS)

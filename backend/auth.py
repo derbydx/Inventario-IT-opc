@@ -53,4 +53,15 @@ def get_current_admin(
     admin = db.query(models.Admin).filter(models.Admin.id == admin_id).first()
     if admin is None:
         raise credentials_exception
+    if not admin.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Cuenta desactivada")
     return admin
+
+def require_permission(permission: str):
+    def checker(admin: models.Admin = Depends(get_current_admin)):
+        if admin.group is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario sin grupo asignado")
+        if not getattr(admin.group, permission, False):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Permiso denegado: {permission}")
+        return admin
+    return checker

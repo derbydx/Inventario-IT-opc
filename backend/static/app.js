@@ -44,6 +44,8 @@ async function api(url, options = {}) {
 document.addEventListener("DOMContentLoaded", () => {
     checkSession();
     if (getToken()) {
+        updateSidebarUserInfo();
+        applyPermissionVisibility();
         loadAssets();
         loadDropdownData();
         loadHistory();
@@ -60,6 +62,9 @@ document.addEventListener("DOMContentLoaded", () => {
     setupEditPersonFormListener();
     setupEditSiteFormListener();
     setupEditDepartmentFormListener();
+    setupPasswordFormListener();
+    setupUserFormListener();
+    setupGroupFormListener();
 });
 
 async function loadDropdownData() {
@@ -866,10 +871,13 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
             const data = await response.json();
             localStorage.setItem("adminSession", JSON.stringify({
                 access_token: data.access_token,
-                admin: data.admin
+                admin: data.admin,
+                group: data.admin.group
             }));
             document.getElementById("loginOverlay").classList.add("hidden");
             document.getElementById("loginForm").reset();
+            updateSidebarUserInfo();
+            applyPermissionVisibility();
             loadAssets();
             loadDropdownData();
             loadHistory();
@@ -890,6 +898,39 @@ function logout() {
         localStorage.removeItem("adminSession");
         window.location.reload();
     }
+}
+
+function getGroup() {
+    const session = localStorage.getItem("adminSession");
+    if (!session) return null;
+    return JSON.parse(session).group || null;
+}
+
+function hasPermission(perm) {
+    const group = getGroup();
+    if (!group) return false;
+    return group[perm] === true;
+}
+
+function updateSidebarUserInfo() {
+    const admin = getAdmin();
+    const group = getGroup();
+    if (admin) {
+        document.getElementById("sidebarUserName").textContent = admin.username;
+    }
+    if (group) {
+        document.getElementById("sidebarUserGroup").textContent = group.name;
+    }
+}
+
+function openChangePasswordModal() { document.getElementById("changePasswordModal").classList.remove("hidden"); document.getElementById("cpError").classList.add("hidden"); }
+function closeChangePasswordModal() { document.getElementById("changePasswordModal").classList.add("hidden"); document.getElementById("changePasswordForm").reset(); document.getElementById("cpError").classList.add("hidden"); }
+
+function applyPermissionVisibility() {
+    document.querySelectorAll("[data-perm]").forEach(el => {
+        const perm = el.getAttribute("data-perm");
+        el.classList.toggle("hidden", !hasPermission(perm));
+    });
 }
 
 function openAssetModal() { document.getElementById("assetModal").classList.remove("hidden"); }
@@ -917,7 +958,7 @@ function toggleCollapse(id) {
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -932,10 +973,11 @@ function showSection(name) {
     if (name === 'reports') populateReportPersonSelect();
     if (name === 'deliveryBoard') loadDeliveryBoard();
     if (name === 'deliveryEmployees') loadDeliveryEmployees();
+    if (name === 'users') { loadUsers(); loadGroups(); }
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
     // highlight active sidebar item
-    document.querySelectorAll('.sidebar-item[data-section]').forEach(el => el.classList.remove('active'));
-    const active = document.querySelector(`.sidebar-item[data-section="${name}"]`);
+    document.querySelectorAll('.sidebar-item[data-section], .sidebar-sub-item[data-section]').forEach(el => el.classList.remove('active'));
+    const active = document.querySelector(`.sidebar-item[data-section="${name}"]`) || document.querySelector(`.sidebar-sub-item[data-section="${name}"]`);
     if (active) active.classList.add('active');
 }
 
@@ -1619,4 +1661,231 @@ function exportVisibleCSV(section) {
     a.download = `${names[section] || section}_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
+}
+
+// --- CHANGE PASSWORD ---
+function setupPasswordFormListener() {
+    document.getElementById("changePasswordForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errEl = document.getElementById("cpError");
+        const current = document.getElementById("cp_current_password").value;
+        const newPass = document.getElementById("cp_new_password").value;
+        const confirm = document.getElementById("cp_confirm_password").value;
+        if (newPass !== confirm) {
+            errEl.textContent = "Las contrasenas no coinciden";
+            errEl.classList.remove("hidden");
+            return;
+        }
+        errEl.classList.add("hidden");
+        try {
+            const res = await api("/auth/change-password", {
+                method: "POST",
+                body: JSON.stringify({ current_password: current, new_password: newPass })
+            });
+            if (res.ok) {
+                alert("Contrasena cambiada exitosamente");
+                closeChangePasswordModal();
+            } else {
+                const err = await res.json().catch(() => ({ detail: "Error" }));
+                errEl.textContent = err.detail || "Error al cambiar contrasena";
+                errEl.classList.remove("hidden");
+            }
+        } catch (e) {
+            errEl.textContent = "Error de conexion";
+            errEl.classList.remove("hidden");
+        }
+    });
+}
+
+// --- USERS ---
+async function loadUsers() {
+    const tbody = document.getElementById("usersTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        const res = await api("/users/");
+        if (!res.ok) { tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-500">Error al cargar usuarios</td></tr>'; return; }
+        const users = await res.json();
+        const canManage = hasPermission("can_manage_users");
+        tbody.innerHTML = users.map(u => `
+            <tr>
+                <td class="px-4 py-3 font-medium">${u.username}</td>
+                <td class="px-4 py-3">${u.email || '-'}</td>
+                <td class="px-4 py-3">${u.group ? u.group.name : '-'}</td>
+                <td class="px-4 py-3">${u.is_active ? '<span class="text-green-600 font-bold">Si</span>' : '<span class="text-red-500 font-bold">No</span>'}</td>
+                <td class="px-4 py-3 text-center">${canManage ? `<button onclick="editUser(${u.id})" class="text-blue-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Editar</button>` : '-'}</td>
+            </tr>
+        `).join("");
+    } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
+}
+
+function openUserModal(data) {
+    document.getElementById("userForm").reset();
+    document.getElementById("userFormError").classList.add("hidden");
+    document.getElementById("userModalTitle").textContent = data ? "Editar Usuario" : "Nuevo Usuario";
+    document.getElementById("user_id").value = data ? data.id : "";
+    document.getElementById("user_username").value = data ? data.username : "";
+    document.getElementById("user_username").readOnly = !!data;
+    document.getElementById("user_email").value = data ? data.email : "";
+    document.getElementById("user_email").readOnly = !!data;
+    document.getElementById("user_password").required = !data;
+    document.getElementById("user_password").placeholder = data ? "Dejar vacio para no cambiar" : "";
+    document.getElementById("userPasswordLabel").textContent = data ? "(opcional)" : "*";
+    document.getElementById("user_is_active").checked = data ? data.is_active : true;
+    document.getElementById("userModal").classList.remove("hidden");
+    loadGroupSelect(data ? data.group_id : null);
+}
+function closeUserModal() { document.getElementById("userModal").classList.add("hidden"); document.getElementById("userForm").reset(); document.getElementById("userFormError").classList.add("hidden"); }
+
+async function editUser(id) {
+    try {
+        const res = await api(`/users/`);
+        if (!res.ok) return;
+        const users = await res.json();
+        const u = users.find(x => x.id === id);
+        if (u) openUserModal(u);
+    } catch (e) {}
+}
+
+async function loadGroupSelect(selectedId) {
+    const sel = document.getElementById("user_group_id");
+    sel.innerHTML = '<option value="">Cargando...</option>';
+    try {
+        const res = await api("/groups/");
+        if (!res.ok) return;
+        const groups = await res.json();
+        sel.innerHTML = groups.map(g => `<option value="${g.id}" ${g.id === selectedId ? 'selected' : ''}>${g.name}</option>`).join("");
+    } catch (e) { sel.innerHTML = '<option value="">Error</option>'; }
+}
+
+function setupUserFormListener() {
+    document.getElementById("userForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errEl = document.getElementById("userFormError");
+        errEl.classList.add("hidden");
+        const id = document.getElementById("user_id").value;
+        const body = {
+            username: document.getElementById("user_username").value,
+            email: document.getElementById("user_email").value,
+            group_id: parseInt(document.getElementById("user_group_id").value),
+            is_active: document.getElementById("user_is_active").checked
+        };
+        const password = document.getElementById("user_password").value;
+        if (password) body.password = password;
+        try {
+            const url = id ? `/users/${id}` : "/users/";
+            const method = id ? "PUT" : "POST";
+            const res = await api(url, { method, body: JSON.stringify(body) });
+            if (res.ok) {
+                closeUserModal();
+                loadUsers();
+            } else {
+                const err = await res.json().catch(() => ({ detail: "Error" }));
+                errEl.textContent = err.detail || "Error al guardar usuario";
+                errEl.classList.remove("hidden");
+            }
+        } catch (e) {
+            errEl.textContent = "Error de conexion";
+            errEl.classList.remove("hidden");
+        }
+    });
+}
+
+// --- GROUPS ---
+async function loadGroups() {
+    const tbody = document.getElementById("groupsTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        const res = await api("/groups/");
+        if (!res.ok) { tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-red-500">Error</td></tr>'; return; }
+        const groups = await res.json();
+        const canManage = hasPermission("can_manage_users");
+        tbody.innerHTML = groups.map(g => {
+            const perms = [];
+            if (g.can_view) perms.push("Ver");
+            if (g.can_create) perms.push("Crear");
+            if (g.can_edit) perms.push("Editar");
+            if (g.can_delete) perms.push("Eliminar");
+            if (g.can_checkout) perms.push("Checkout");
+            if (g.can_import_export) perms.push("Imp/Exp");
+            if (g.can_manage_users) perms.push("Usuarios");
+            return `<tr>
+                <td class="px-4 py-3 font-medium">${g.name}</td>
+                <td class="px-4 py-3 text-xs text-gray-500">${perms.join(", ")}</td>
+                <td class="px-4 py-3 text-center">${canManage ? `<button onclick="editGroup(${g.id})" class="text-blue-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Editar</button><button onclick="deleteGroup(${g.id})" class="text-red-600 hover:underline text-xs font-bold cursor-pointer">Eliminar</button>` : '-'}</td>
+            </tr>`;
+        }).join("");
+    } catch (e) { tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
+}
+
+function openGroupModal(data) {
+    document.getElementById("groupForm").reset();
+    document.getElementById("groupFormError").classList.add("hidden");
+    document.getElementById("groupModalTitle").textContent = data ? "Editar Grupo" : "Nuevo Grupo";
+    document.getElementById("group_id").value = data ? data.id : "";
+    document.getElementById("group_name").value = data ? data.name : "";
+    document.getElementById("group_name").readOnly = !!data;
+    document.getElementById("perm_can_view").checked = data ? data.can_view : true;
+    document.getElementById("perm_can_create").checked = data ? data.can_create : false;
+    document.getElementById("perm_can_edit").checked = data ? data.can_edit : false;
+    document.getElementById("perm_can_delete").checked = data ? data.can_delete : false;
+    document.getElementById("perm_can_checkout").checked = data ? data.can_checkout : false;
+    document.getElementById("perm_can_import_export").checked = data ? data.can_import_export : false;
+    document.getElementById("perm_can_manage_users").checked = data ? data.can_manage_users : false;
+    document.getElementById("groupModal").classList.remove("hidden");
+}
+function closeGroupModal() { document.getElementById("groupModal").classList.add("hidden"); document.getElementById("groupForm").reset(); document.getElementById("groupFormError").classList.add("hidden"); }
+
+async function editGroup(id) {
+    try {
+        const res = await api(`/groups/`);
+        if (!res.ok) return;
+        const groups = await res.json();
+        const g = groups.find(x => x.id === id);
+        if (g) openGroupModal(g);
+    } catch (e) {}
+}
+
+async function deleteGroup(id) {
+    if (!confirm("Eliminar este grupo? Los usuarios asignados quedaran sin grupo.")) return;
+    try {
+        const res = await api(`/groups/${id}`, { method: "DELETE" });
+        if (res.ok) { loadGroups(); } else { const err = await res.json().catch(() => ({ detail: "Error" })); alert(err.detail || "Error"); }
+    } catch (e) { alert("Error de conexion"); }
+}
+
+function setupGroupFormListener() {
+    document.getElementById("groupForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errEl = document.getElementById("groupFormError");
+        errEl.classList.add("hidden");
+        const id = document.getElementById("group_id").value;
+        const body = {
+            name: document.getElementById("group_name").value,
+            can_view: document.getElementById("perm_can_view").checked,
+            can_create: document.getElementById("perm_can_create").checked,
+            can_edit: document.getElementById("perm_can_edit").checked,
+            can_delete: document.getElementById("perm_can_delete").checked,
+            can_checkout: document.getElementById("perm_can_checkout").checked,
+            can_import_export: document.getElementById("perm_can_import_export").checked,
+            can_manage_users: document.getElementById("perm_can_manage_users").checked
+        };
+        try {
+            const url = id ? `/groups/${id}` : "/groups/";
+            const method = id ? "PUT" : "POST";
+            const res = await api(url, { method, body: JSON.stringify(body) });
+            if (res.ok) {
+                closeGroupModal();
+                loadGroups();
+            } else {
+                const err = await res.json().catch(() => ({ detail: "Error" }));
+                errEl.textContent = err.detail || "Error al guardar grupo";
+                errEl.classList.remove("hidden");
+            }
+        } catch (e) {
+            errEl.textContent = "Error de conexion";
+            errEl.classList.remove("hidden");
+        }
+    });
 }

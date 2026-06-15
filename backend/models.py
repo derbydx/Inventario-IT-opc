@@ -1,7 +1,24 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Date, DateTime, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, Date, DateTime, Text
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 from database import Base  # Importamos la Base que creamos en database.py
+
+# ==========================================
+# 0. GRUPOS Y PERMISOS DE USUARIO
+# ==========================================
+class Group(Base):
+    __tablename__ = "groups"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True, index=True)
+    description = Column(String(255))
+    can_view = Column(Boolean, default=True)
+    can_create = Column(Boolean, default=False)
+    can_edit = Column(Boolean, default=False)
+    can_delete = Column(Boolean, default=False)
+    can_checkout = Column(Boolean, default=False)
+    can_import_export = Column(Boolean, default=False)
+    can_manage_users = Column(Boolean, default=False)
+    is_default = Column(Boolean, default=False)
 
 # ==========================================
 # 1. TABLAS DE CATÁLOGOS Base
@@ -47,6 +64,10 @@ class Admin(Base):
     email = Column(String(150), unique=True)
     password_hash = Column(String(255))  # Seguridad para la contraseña
     role = Column(String(50), default="Administrator")
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    is_active = Column(Boolean, default=True)
+
+    group = relationship("Group")
 
 # ==========================================
 # 3. TABLA PRINCIPAL: ACTIVOS (ASSETS)

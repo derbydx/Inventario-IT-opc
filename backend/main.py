@@ -9,7 +9,7 @@ import traceback, os
 import models
 import schemas
 from database import engine, get_db
-from auth import hash_password, verify_password, create_access_token, get_current_admin
+from auth import hash_password, verify_password, create_access_token, get_current_admin, require_permission
 
 # Inicializar la base de datos SQLite
 models.Base.metadata.create_all(bind=engine)
@@ -20,11 +20,36 @@ models.Base.metadata.create_all(bind=engine)
 # ==========================================
 # SEEDER AUTOMÁTICO REFORZADO (REPARA CONTRASEÑAS)
 # ==========================================
-def crear_admin_por_defecto():
+def seed_groups_and_admin():
     db = get_db().__next__()
     try:
-        # Buscamos específicamente si ya existe el usuario 'derby_admin'
+        # Migrar esquema: agregar columnas group_id e is_active a admins si no existen
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.bind)
+        admins_cols = [c["name"] for c in inspector.get_columns("admins")]
+        if "group_id" not in admins_cols:
+            db.execute(text("ALTER TABLE admins ADD COLUMN group_id INTEGER REFERENCES groups(id)"))
+        if "is_active" not in admins_cols:
+            db.execute(text("ALTER TABLE admins ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+        db.commit()
+        
+        # Crear grupos por defecto si no existen
+        default_groups = [
+            {"name": "Administrador", "description": "Acceso total al sistema", "can_view": True, "can_create": True, "can_edit": True, "can_delete": True, "can_checkout": True, "can_import_export": True, "can_manage_users": True, "is_default": False},
+            {"name": "Nivel 2", "description": "Puede crear, editar y eliminar activos, hacer transacciones", "can_view": True, "can_create": True, "can_edit": True, "can_delete": True, "can_checkout": True, "can_import_export": False, "can_manage_users": False, "is_default": False},
+            {"name": "Tecnico", "description": "Puede registrar y editar activos, hacer transacciones", "can_view": True, "can_create": True, "can_edit": True, "can_delete": False, "can_checkout": True, "can_import_export": False, "can_manage_users": False, "is_default": False},
+            {"name": "Almacen", "description": "Solo checkout/checkin de activos existentes", "can_view": True, "can_create": False, "can_edit": False, "can_delete": False, "can_checkout": True, "can_import_export": False, "can_manage_users": False, "is_default": False},
+            {"name": "Solo Lectura", "description": "Puede ver el sistema sin realizar cambios", "can_view": True, "can_create": False, "can_edit": False, "can_delete": False, "can_checkout": False, "can_import_export": False, "can_manage_users": False, "is_default": True},
+        ]
+        for g in default_groups:
+            existing = db.query(models.Group).filter(models.Group.name == g["name"]).first()
+            if not existing:
+                db.add(models.Group(**g))
+        db.commit()
+        
+        # Asignar grupo Administrador a derby_admin
         admin = db.query(models.Admin).filter(models.Admin.username == "derby_admin").first()
+        admin_group = db.query(models.Group).filter(models.Group.name == "Administrador").first()
         
         if not admin:
             print("Sembrando cuenta de administrador inicial...")
@@ -32,23 +57,31 @@ def crear_admin_por_defecto():
                 username="derby_admin",
                 email="derby@empresa.com",
                 password_hash=hash_password("admin123"),
-                role="Administrator"
+                role="Administrator",
+                group_id=admin_group.id if admin_group else None,
+                is_active=True
             )
             db.add(nuevo_admin)
             db.commit()
             print("Usuario 'derby_admin' creado con exito. Contrasena: admin123")
         else:
             admin.password_hash = hash_password("admin123")
+            if not admin.group_id and admin_group:
+                admin.group_id = admin_group.id
+            if admin.is_active is None:
+                admin.is_active = True
             db.commit()
             print("Usuario 'derby_admin' detectado. Contrasena restablecida en: admin123")
             
     except Exception as e:
-        print(f"No se pudo verificar/crear el admin inicial: {e}")
+        print(f"No se pudo ejecutar el seed: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         db.close()
 
 # Ejecutamos el Seeder al arrancar el backend
-crear_admin_por_defecto()
+seed_groups_and_admin()
 
 app = FastAPI(
     title="IT Asset Manager API",
@@ -111,7 +144,7 @@ app.add_middleware(SPAStaticFiles)
 # 1. ENDPOINTS: SITIOS (SITES)
 # ==========================================
 @app.post("/sites/", response_model=schemas.SiteResponse, status_code=status.HTTP_201_CREATED, tags=["Sitios y Ubicaciones"])
-def create_site(site: schemas.SiteBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def create_site(site: schemas.SiteBase, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_create"))):
     db_site = db.query(models.Site).filter(models.Site.site_name == site.site_name).first()
     if db_site:
         raise HTTPException(status_code=400, detail="El sitio ya existe")
@@ -126,7 +159,7 @@ def list_sites(db: Session = Depends(get_db)):
     return db.query(models.Site).all()
 
 @app.put("/sites/{site_id}", response_model=schemas.SiteResponse, tags=["Sitios y Ubicaciones"])
-def update_site(site_id: int, site: schemas.SiteBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def update_site(site_id: int, site: schemas.SiteBase, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_edit"))):
     db_site = db.query(models.Site).filter(models.Site.id == site_id).first()
     if not db_site: raise HTTPException(404, "Sitio no encontrado")
     for k, v in site.model_dump().items():
@@ -138,7 +171,7 @@ def update_site(site_id: int, site: schemas.SiteBase, db: Session = Depends(get_
 # 2. ENDPOINTS: DEPARTAMENTOS
 # ==========================================
 @app.post("/departments/", response_model=schemas.DepartmentResponse, status_code=status.HTTP_201_CREATED, tags=["Catálogos"])
-def create_department(dept: schemas.DepartmentBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def create_department(dept: schemas.DepartmentBase, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_create"))):
     db_dept = db.query(models.Department).filter(models.Department.department_name == dept.department_name).first()
     if db_dept:
         raise HTTPException(status_code=400, detail="El departamento ya existe")
@@ -153,7 +186,7 @@ def list_departments(db: Session = Depends(get_db)):
     return db.query(models.Department).all()
 
 @app.put("/departments/{dept_id}", response_model=schemas.DepartmentResponse, tags=["Catálogos"])
-def update_department(dept_id: int, dept: schemas.DepartmentBase, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def update_department(dept_id: int, dept: schemas.DepartmentBase, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_edit"))):
     db_dept = db.query(models.Department).filter(models.Department.id == dept_id).first()
     if not db_dept: raise HTTPException(404, "Departamento no encontrado")
     for k, v in dept.model_dump().items():
@@ -172,23 +205,6 @@ def list_categories_distinct(db: Session = Depends(get_db)):
 # ==========================================
 # 5. ENDPOINTS: ADMINISTRADORES (ADMINS)
 # ==========================================
-@app.post("/admins/", response_model=schemas.AdminResponse, status_code=status.HTTP_201_CREATED, tags=["Seguridad y Administradores"])
-def create_admin(admin: schemas.AdminCreate, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
-    db_admin = db.query(models.Admin).filter((models.Admin.username == admin.username) | (models.Admin.email == admin.email)).first()
-    if db_admin:
-        raise HTTPException(status_code=400, detail="El nombre de usuario o email ya están registrados")
-    
-    nuevo_admin = models.Admin(
-        username=admin.username,
-        email=admin.email,
-        password_hash=hash_password(admin.password),
-        role=admin.role
-    )
-    db.add(nuevo_admin)
-    db.commit()
-    db.refresh(nuevo_admin)
-    return nuevo_admin
-
 @app.get("/admins/", response_model=List[schemas.AdminResponse], tags=["Seguridad y Administradores"])
 def list_admins(db: Session = Depends(get_db)):
     return db.query(models.Admin).all()
@@ -197,7 +213,7 @@ def list_admins(db: Session = Depends(get_db)):
 # 6. ENDPOINTS: EMPLEADOS / PERSONAS (PERSONS)
 # ==========================================
 @app.post("/persons/", response_model=schemas.PersonResponse, status_code=status.HTTP_201_CREATED, tags=["Directorio de Personal"])
-def create_person(person: schemas.PersonCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def create_person(person: schemas.PersonCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_create"))):
     db_person = db.query(models.Person).filter((models.Person.email == person.email) | (models.Person.employee_id == person.employee_id)).first()
     if db_person:
         raise HTTPException(status_code=400, detail="El Employee ID o Correo ya existen en el directorio")
@@ -213,7 +229,7 @@ def list_persons(db: Session = Depends(get_db)):
     return db.query(models.Person).all()
 
 @app.put("/persons/{person_id}", response_model=schemas.PersonResponse, tags=["Directorio de Personal"])
-def update_person(person_id: int, person: schemas.PersonUpdate, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def update_person(person_id: int, person: schemas.PersonUpdate, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_edit"))):
     db_person = db.query(models.Person).filter(models.Person.id == person_id).first()
     if not db_person: raise HTTPException(404, "Empleado no encontrado")
     if person.email:
@@ -231,7 +247,7 @@ def update_person(person_id: int, person: schemas.PersonUpdate, db: Session = De
 # 7. ENDPOINTS: ACTIVOS (ASSETS)
 # ==========================================
 @app.post("/assets/", response_model=schemas.AssetResponse, status_code=status.HTTP_201_CREATED, tags=["Gestión de Activos"])
-def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_create"))):
     db_asset = db.query(models.Asset).filter(models.Asset.asset_tag_id == asset.asset_tag_id).first()
     if db_asset:
         raise HTTPException(status_code=400, detail="El Asset Tag ID ya está registrado")
@@ -391,7 +407,7 @@ def get_asset(asset_id: int, db: Session = Depends(get_db)):
 # 8. ACCIONES DE INVENTARIO: CHECKOUT Y CHECKIN
 # ==========================================
 @app.post("/assets/{asset_id}/checkout", tags=["Acciones de Inventario"])
-def asset_checkout(asset_id: int, person_id: int, notas: str = None, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
+def asset_checkout(asset_id: int, person_id: int, notas: str = None, db: Session = Depends(get_db), current_admin: models.Admin = Depends(require_permission("can_checkout"))):
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
@@ -423,7 +439,7 @@ def asset_checkout(asset_id: int, person_id: int, notas: str = None, db: Session
     return {"message": f"Asset {asset.asset_tag_id} asignado exitosamente", "asset_status": asset.status}
 
 @app.post("/assets/{asset_id}/checkin", tags=["Acciones de Inventario"])
-def asset_checkin(asset_id: int, nuevo_estado: str = "Check in", notas: str = None, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
+def asset_checkin(asset_id: int, nuevo_estado: str = "Check in", notas: str = None, db: Session = Depends(get_db), current_admin: models.Admin = Depends(require_permission("can_checkout"))):
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
@@ -465,7 +481,7 @@ def count_history(db: Session = Depends(get_db)):
 # 9. EDICIÓN Y ELIMINACIÓN (SOFT DELETE)
 # ==========================================
 @app.put("/assets/{asset_id}", response_model=schemas.AssetResponse, tags=["Gestión de Activos"])
-def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
+def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session = Depends(get_db), current_admin: models.Admin = Depends(require_permission("can_edit"))):
     db_asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not db_asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
@@ -515,7 +531,7 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
     return db_asset
 
 @app.delete("/assets/{asset_id}", tags=["Gestión de Activos"])
-def delete_asset(asset_id: int, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
+def delete_asset(asset_id: int, db: Session = Depends(get_db), current_admin: models.Admin = Depends(require_permission("can_delete"))):
     db_asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not db_asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
@@ -561,7 +577,7 @@ def _make_excel(headers, rows):
 
 # ---------- EXPORTAR ----------
 @app.get("/export/assets/", tags=["Import/Export"])
-def export_assets(db: Session = Depends(get_db)):
+def export_assets(db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
     q = db.query(models.Asset).all()
     rows = []
     for a in q:
@@ -571,7 +587,7 @@ def export_assets(db: Session = Depends(get_db)):
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=activos.xlsx"})
 
 @app.get("/export/persons/", tags=["Import/Export"])
-def export_persons(db: Session = Depends(get_db)):
+def export_persons(db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
     q = db.query(models.Person).all()
     rows = []
     for p in q:
@@ -582,7 +598,7 @@ def export_persons(db: Session = Depends(get_db)):
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=empleados.xlsx"})
 
 @app.get("/export/sites/", tags=["Import/Export"])
-def export_sites(db: Session = Depends(get_db)):
+def export_sites(db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
     q = db.query(models.Site).all()
     rows = [(s.site_name, s.city or "", s.country or "") for s in q]
     buf = _make_excel(["Sitio", "Ciudad", "Pais"], rows)
@@ -600,7 +616,7 @@ def template_sites(): return StreamingResponse(_make_excel(["Sitio", "Ciudad", "
 
 # ---------- IMPORTAR ----------
 @app.post("/import/sites/", tags=["Import/Export"])
-def import_sites(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def import_sites(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
     wb = openpyxl.load_workbook(file.file)
     ws = wb.active
     h = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
@@ -619,7 +635,7 @@ def import_sites(file: UploadFile = File(...), db: Session = Depends(get_db), ad
     return {"importados": ok}
 
 @app.post("/import/persons/", tags=["Import/Export"])
-def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
     wb = openpyxl.load_workbook(file.file)
     ws = wb.active
     h = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
@@ -662,7 +678,7 @@ def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), 
     return {"importados": ok}
 
 @app.post("/import/assets/", tags=["Import/Export"])
-def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
     wb = openpyxl.load_workbook(file.file)
     ws = wb.active
     h = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
@@ -802,7 +818,7 @@ def list_available_assets(db: Session = Depends(get_db)):
     return assets
 
 @app.post("/deliveries/pending", response_model=schemas.PendingDeliveryResponse, status_code=201, tags=["Entregas Pendientes"])
-def create_pending_delivery(delivery: schemas.PendingDeliveryCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def create_pending_delivery(delivery: schemas.PendingDeliveryCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_create"))):
     person = db.query(models.Person).filter(models.Person.id == delivery.person_id).first()
     if not person:
         raise HTTPException(404, "Empleado no encontrado")
@@ -838,7 +854,7 @@ def list_pending_deliveries(status: str = None, person_id: int = None, db: Sessi
     return out
 
 @app.delete("/deliveries/pending/{delivery_id}", tags=["Entregas Pendientes"])
-def cancel_pending_delivery(delivery_id: int, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def cancel_pending_delivery(delivery_id: int, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_delete"))):
     d = db.query(models.PendingDelivery).filter(models.PendingDelivery.id == delivery_id).first()
     if not d:
         raise HTTPException(404, "Entrega pendiente no encontrada")
@@ -847,7 +863,7 @@ def cancel_pending_delivery(delivery_id: int, db: Session = Depends(get_db), adm
     return {"message": "Entrega pendiente cancelada"}
 
 @app.post("/deliveries/pending/{delivery_id}/fulfill", tags=["Entregas Pendientes"])
-def fulfill_pending_delivery(delivery_id: int, body: schemas.PendingFulfillRequest, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+def fulfill_pending_delivery(delivery_id: int, body: schemas.PendingFulfillRequest, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_checkout"))):
     d = db.query(models.PendingDelivery).filter(models.PendingDelivery.id == delivery_id).first()
     if not d:
         raise HTTPException(404, "Entrega pendiente no encontrada")
@@ -921,11 +937,112 @@ def login_admin(credentials: schemas.LoginRequest, db: Session = Depends(get_db)
 
     if not admin or not verify_password(credentials.password, admin.password_hash):
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+    
+    if not admin.is_active:
+        raise HTTPException(status_code=401, detail="Cuenta desactivada")
 
     token = create_access_token({"id": admin.id, "username": admin.username})
+    
+    group_resp = None
+    if admin.group:
+        group_resp = schemas.GroupResponse.model_validate(admin.group)
+    
     return schemas.TokenResponse(
         access_token=token,
         admin=schemas.AdminResponse(
-            id=admin.id, username=admin.username, email=admin.email, role=admin.role
+            id=admin.id, username=admin.username, email=admin.email,
+            role=admin.role, group_id=admin.group_id, is_active=admin.is_active,
+            group=group_resp
         )
     )
+
+# ==========================================
+# 15. ENDPOINTS DE GRUPOS Y USUARIOS
+# ==========================================
+@app.get("/groups/", response_model=List[schemas.GroupResponse], tags=["Grupos y Usuarios"])
+def list_groups(db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_manage_users"))):
+    return db.query(models.Group).all()
+
+@app.post("/groups/", response_model=schemas.GroupResponse, status_code=201, tags=["Grupos y Usuarios"])
+def create_group(group: schemas.GroupCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_manage_users"))):
+    existing = db.query(models.Group).filter(models.Group.name == group.name).first()
+    if existing:
+        raise HTTPException(400, "El grupo ya existe")
+    db_group = models.Group(**group.model_dump())
+    db.add(db_group)
+    db.commit()
+    db.refresh(db_group)
+    return db_group
+
+@app.put("/groups/{group_id}", response_model=schemas.GroupResponse, tags=["Grupos y Usuarios"])
+def update_group(group_id: int, group: schemas.GroupUpdate, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_manage_users"))):
+    db_group = db.query(models.Group).filter(models.Group.id == group_id).first()
+    if not db_group:
+        raise HTTPException(404, "Grupo no encontrado")
+    for k, v in group.model_dump(exclude_unset=True).items():
+        setattr(db_group, k, v)
+    db.commit()
+    db.refresh(db_group)
+    return db_group
+
+@app.delete("/groups/{group_id}", tags=["Grupos y Usuarios"])
+def delete_group(group_id: int, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_manage_users"))):
+    db_group = db.query(models.Group).filter(models.Group.id == group_id).first()
+    if not db_group:
+        raise HTTPException(404, "Grupo no encontrado")
+    if db_group.is_default:
+        raise HTTPException(400, "No se puede eliminar un grupo por defecto")
+    users_in_group = db.query(models.Admin).filter(models.Admin.group_id == group_id).count()
+    if users_in_group > 0:
+        raise HTTPException(400, f"Hay {users_in_group} usuario(s) en este grupo. Reasignelos antes de eliminar.")
+    db.delete(db_group)
+    db.commit()
+    return {"message": "Grupo eliminado"}
+
+@app.get("/users/", response_model=List[schemas.AdminResponse], tags=["Grupos y Usuarios"])
+def list_users(db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_manage_users"))):
+    return db.query(models.Admin).all()
+
+@app.post("/users/", response_model=schemas.AdminResponse, status_code=201, tags=["Grupos y Usuarios"])
+def create_user(user: schemas.AdminCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_manage_users"))):
+    existing = db.query(models.Admin).filter((models.Admin.username == user.username) | (models.Admin.email == user.email)).first()
+    if existing:
+        raise HTTPException(400, "El nombre de usuario o email ya existe")
+    db_user = models.Admin(
+        username=user.username,
+        email=user.email,
+        password_hash=hash_password(user.password),
+        role=user.role or "User",
+        group_id=user.group_id,
+        is_active=user.is_active
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+@app.put("/users/{user_id}", response_model=schemas.AdminResponse, tags=["Grupos y Usuarios"])
+def update_user(user_id: int, user: schemas.AdminUpdate, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_manage_users"))):
+    db_user = db.query(models.Admin).filter(models.Admin.id == user_id).first()
+    if not db_user:
+        raise HTTPException(404, "Usuario no encontrado")
+    update_data = user.model_dump(exclude_unset=True)
+    if "password" in update_data and update_data["password"]:
+        update_data["password_hash"] = hash_password(update_data.pop("password"))
+    elif "password" in update_data:
+        update_data.pop("password")
+    for k, v in update_data.items():
+        setattr(db_user, k, v)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+@app.post("/auth/change-password", tags=["Autenticación"])
+def change_password(body: schemas.ChangePasswordRequest, db: Session = Depends(get_db), admin: models.Admin = Depends(get_current_admin)):
+    if not verify_password(body.current_password, admin.password_hash):
+        raise HTTPException(400, "La contrasena actual no es correcta")
+    if len(body.new_password) < 4:
+        raise HTTPException(400, "La nueva contrasena debe tener al menos 4 caracteres")
+    admin.password_hash = hash_password(body.new_password)
+    db.commit()
+    return {"message": "Contrasena actualizada exitosamente"}

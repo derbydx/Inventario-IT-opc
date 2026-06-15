@@ -70,7 +70,7 @@
                             <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
                             <span>Busqueda Avanzada</span>
                         </button>
-                        <button onclick="openAssetModal()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                        <button data-perm="can_create" onclick="openAssetModal()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
                             <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
                             <span>Nuevo Activo</span>
                         </button>
@@ -91,7 +91,7 @@
                             <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/></svg>
                             <span>Listado</span>
                         </button>
-                        <button onclick="openPersonModal()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                        <button data-perm="can_create" onclick="openPersonModal()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
                             <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
                             <span>Nuevo Empleado</span>
                         </button>
@@ -133,11 +133,15 @@
                         <svg id="ajustesChevron" class="sidebar-chevron w-3 h-3 shrink-0 text-blue-400/60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
                     <div id="ajustesSubmenu" class="hidden">
-                        <button onclick="openImportModal()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                        <button data-perm="can_manage_users" data-section="users" onclick="showSection('users')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm7.125 0a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/></svg>
+                            <span>Usuarios</span>
+                        </button>
+                        <button data-perm="can_import_export" onclick="openImportModal()" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
                             <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
                             <span>Importar Excel</span>
                         </button>
-                        <div class="ml-1 mt-1 mb-1">
+                        <div data-perm="can_import_export" class="ml-1 mt-1 mb-1">
                             <div class="px-4 py-1.5 pl-10 text-[10px] text-blue-400/60 font-bold uppercase tracking-widest">Exportar</div>
                             <button onclick="exportEntity('assets')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2 pl-14 cursor-pointer">
                                 <svg class="w-3.5 h-3.5 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
@@ -216,7 +220,12 @@
                     </button>
 
                 </nav>
-                <div class="p-4 border-t border-white/10">
+                <div class="border-t border-white/10 p-3 space-y-1">
+                    <div id="sidebarUserInfo" class="text-xs text-blue-200">
+                        <div class="font-bold truncate" id="sidebarUserName">-</div>
+                        <div class="text-[10px] text-blue-300/70 truncate" id="sidebarUserGroup">-</div>
+                    </div>
+                    <button onclick="openChangePasswordModal()" class="text-[10px] text-blue-300/80 hover:text-blue-100 transition-colors cursor-pointer">Cambiar contrasena</button>
                     <button onclick="logout()" class="w-full text-xs bg-blue-800/50 hover:bg-blue-700/80 border border-blue-600/40 px-3 py-2 rounded font-bold transition-colors cursor-pointer">
                         Cerrar Sesion
                     </button>
@@ -735,6 +744,50 @@
                         </table>
                     </div>
                 </section>
+
+                <!-- SECTION: USUARIOS -->
+                <section id="usersSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800">Usuarios</h2>
+                        <div class="flex gap-2">
+                            <button id="newGroupBtn" onclick="openGroupModal()" class="hidden px-3 py-1.5 bg-purple-600 text-white text-xs font-bold rounded cursor-pointer">+ Grupo</button>
+                            <button id="newUserBtn" onclick="openUserModal()" class="hidden px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded cursor-pointer">+ Usuario</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-xs">
+                            <thead class="bg-gray-50 text-gray-500">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-bold uppercase">Usuario</th>
+                                    <th class="px-4 py-3 text-left font-bold uppercase">Email</th>
+                                    <th class="px-4 py-3 text-left font-bold uppercase">Grupo</th>
+                                    <th class="px-4 py-3 text-left font-bold uppercase">Activo</th>
+                                    <th class="px-4 py-3 text-center font-bold uppercase">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200 text-gray-700">
+                                <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-8">
+                        <h3 class="text-md font-bold text-gray-800 mb-3">Grupos</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50 text-gray-500">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-bold uppercase">Nombre</th>
+                                        <th class="px-4 py-3 text-left font-bold uppercase">Permisos</th>
+                                        <th class="px-4 py-3 text-center font-bold uppercase">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="groupsTableBody" class="bg-white divide-y divide-gray-200 text-gray-700">
+                                    <tr><td colspan="3" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
             </main>
     </div>
 
@@ -1238,6 +1291,107 @@
             <div class="flex justify-end mt-3">
                 <button onclick="closeDetailModal()" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded text-xs font-bold cursor-pointer">Cerrar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- CHANGE PASSWORD MODAL -->
+    <div id="changePasswordModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-xl border border-gray-200 border-t-4 border-t-blue-500">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-3">
+                <h4 class="font-bold text-sm text-gray-800">Cambiar Contrasena</h4>
+                <button onclick="closeChangePasswordModal()" class="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">&times;</button>
+            </div>
+            <form id="changePasswordForm" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Contrasena Actual *</label>
+                    <input type="password" id="cp_current_password" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Nueva Contrasena *</label>
+                    <input type="password" id="cp_new_password" required minlength="6" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Confirmar *</label>
+                    <input type="password" id="cp_confirm_password" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div id="cpError" class="hidden text-red-600 text-xs font-bold"></div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeChangePasswordModal()" class="px-3 py-1.5 bg-gray-200 rounded text-xs font-bold">Cancelar</button>
+                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded text-xs cursor-pointer">Cambiar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- GROUP MODAL -->
+    <div id="groupModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-5 max-w-md w-full shadow-xl border border-gray-200 border-t-4 border-t-purple-500">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-3">
+                <h4 id="groupModalTitle" class="font-bold text-sm text-gray-800">Nuevo Grupo</h4>
+                <button onclick="closeGroupModal()" class="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">&times;</button>
+            </div>
+            <form id="groupForm" class="space-y-3">
+                <input type="hidden" id="group_id">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Nombre del Grupo *</label>
+                    <input type="text" id="group_name" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-2">Permisos</label>
+                    <div class="grid grid-cols-2 gap-2" id="groupPermissions">
+                        <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_view" checked class="cursor-pointer"><span>Ver</span></label>
+                        <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_create" class="cursor-pointer"><span>Crear</span></label>
+                        <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_edit" class="cursor-pointer"><span>Editar</span></label>
+                        <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_delete" class="cursor-pointer"><span>Eliminar</span></label>
+                        <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_checkout" class="cursor-pointer"><span>Checkout</span></label>
+                        <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_import_export" class="cursor-pointer"><span>Importar/Exportar</span></label>
+                        <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border col-span-2 border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_manage_users" class="cursor-pointer"><span>Gestionar Usuarios</span></label>
+                    </div>
+                </div>
+                <div id="groupFormError" class="hidden text-red-600 text-xs font-bold"></div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeGroupModal()" class="px-3 py-1.5 bg-gray-200 rounded text-xs font-bold">Cancelar</button>
+                    <button type="submit" class="px-3 py-1.5 bg-purple-600 text-white font-bold rounded text-xs cursor-pointer">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- USER MODAL -->
+    <div id="userModal" class="hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-xl border border-gray-200 border-t-4 border-t-blue-500">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-3">
+                <h4 id="userModalTitle" class="font-bold text-sm text-gray-800">Nuevo Usuario</h4>
+                <button onclick="closeUserModal()" class="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">&times;</button>
+            </div>
+            <form id="userForm" class="space-y-3">
+                <input type="hidden" id="user_id">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Usuario *</label>
+                    <input type="text" id="user_username" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Email *</label>
+                    <input type="email" id="user_email" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div id="userPasswordField">
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Contrasena <span id="userPasswordLabel">*</span></label>
+                    <input type="password" id="user_password" minlength="6" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Grupo *</label>
+                    <select id="user_group_id" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm bg-white"></select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="user_is_active" checked class="cursor-pointer">
+                    <label for="user_is_active" class="text-xs font-bold text-gray-600 cursor-pointer">Activo</label>
+                </div>
+                <div id="userFormError" class="hidden text-red-600 text-xs font-bold"></div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeUserModal()" class="px-3 py-1.5 bg-gray-200 rounded text-xs font-bold">Cancelar</button>
+                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded text-xs cursor-pointer">Guardar</button>
+                </div>
+            </form>
         </div>
     </div>
 

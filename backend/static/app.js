@@ -1020,17 +1020,79 @@ async function updateDashboard() {
     try {
         const resAssets = await api("/assets/");
         const resPersons = await api("/persons/");
+        const resHistory = await api("/history/");
+        const resDeliveries = await api("/deliveries/pending/");
         if (resAssets.ok) {
             const assets = await resAssets.json();
             const active = assets.filter(a => a.status !== "Archived");
             document.getElementById("dashAssetCount").textContent = active.length;
             document.getElementById("dashCheckoutCount").textContent = active.filter(a => a.status === "Checkout").length;
+            document.getElementById("dashCheckinCount").textContent = active.filter(a => a.status === "Check in").length;
+            const cats = {};
+            active.forEach(a => { if (a.category) { cats[a.category] = (cats[a.category] || 0) + 1; } });
+            const catKeys = Object.keys(cats);
+            document.getElementById("dashCategoryCount").textContent = catKeys.length;
+            const catBody = document.getElementById("dashCategoryBody");
+            catBody.innerHTML = "";
+            catKeys.sort().forEach(c => {
+                const row = document.createElement("tr");
+                row.className = "border-b border-gray-100 hover:bg-gray-100 cursor-pointer";
+                row.onclick = () => goToAssetsFiltered("category", c);
+                row.innerHTML = `<td class="py-1.5 px-2 text-gray-700">${c}</td><td class="py-1.5 px-2 text-gray-700 text-right font-bold">${cats[c]}</td>`;
+                catBody.appendChild(row);
+            });
         }
         if (resPersons.ok) {
             const persons = await resPersons.json();
             document.getElementById("dashPersonCount").textContent = persons.length;
         }
+        if (resHistory.ok) {
+            const history = await resHistory.json();
+            const recent = history.slice(-5).reverse();
+            const tbody = document.getElementById("dashRecentActivity");
+            tbody.innerHTML = "";
+            if (recent.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-center text-gray-400 italic">Sin actividad.</td></tr>';
+            } else {
+                recent.forEach(item => {
+                    const row = document.createElement("tr");
+                    row.className = "hover:bg-gray-50 cursor-pointer";
+                    row.onclick = () => { showSection("history"); };
+                    const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
+                    const assetObj = (typeof currentAssets !== 'undefined' ? currentAssets : []).find(a => a.id === item.asset_id);
+                    const employeeObj = (typeof globalPersons !== 'undefined' ? globalPersons : []).find(p => p.id === item.asignado_a_id);
+                    let badge = "text-blue-600 font-bold";
+                    if (item.tipo_accion === "Check in") badge = "text-amber-600 font-bold";
+                    if (item.tipo_accion === "Archived") badge = "text-red-600 font-bold";
+                    row.innerHTML = `<td class="py-2 px-3 text-gray-500 whitespace-nowrap">${fecha}</td><td class="py-2 px-3 uppercase ${badge}">${item.tipo_accion}</td><td class="py-2 px-3 font-bold text-gray-700">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="py-2 px-3 text-gray-600">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td>`;
+                    tbody.appendChild(row);
+                });
+            }
+        }
+        if (resDeliveries.ok) {
+            const deliveries = await resDeliveries.json();
+            const activePendings = deliveries.filter(d => d.status === "Active");
+            document.getElementById("dashPendingCount").textContent = activePendings.length;
+        }
     } catch (e) { console.error(e); }
+}
+
+function goToAssetsFiltered(filterKey, filterValue) {
+    showSection('assets');
+    currentPage = 1;
+    const statusSel = document.getElementById("filterStatus");
+    const catSel = document.getElementById("filterCategory");
+    if (filterKey === 'status' && statusSel) {
+        statusSel.value = filterValue;
+    }
+    if (filterKey === 'category' && catSel) {
+        catSel.value = filterValue;
+    }
+    loadAssets();
+}
+
+function toggleDashCategoryBreakdown() {
+    document.getElementById("dashCategoryBreakdown").classList.toggle("hidden");
 }
 
 function openImportModal() { document.getElementById("importModal").classList.remove("hidden"); document.getElementById("importResult").classList.add("hidden"); document.getElementById("importForm").reset(); }

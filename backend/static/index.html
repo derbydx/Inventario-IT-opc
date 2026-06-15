@@ -228,20 +228,59 @@
 
                 <!-- SECTION: DASHBOARD -->
                 <section id="dashboardSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h2 class="text-lg font-bold text-gray-800 mb-4">Dashboard del Inventario</h2>
-                    <p class="text-sm text-gray-500">Seleccione una seccion en el menu lateral para comenzar.</p>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800">Dashboard del Inventario</h2>
+                        <button onclick="updateDashboard()" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Actualizar</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div onclick="showSection('assets')" class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center hover:bg-blue-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
                             <p class="text-3xl font-black text-blue-700" id="dashAssetCount">0</p>
                             <p class="text-xs text-blue-600 font-bold uppercase mt-1">Total Activos</p>
                         </div>
-                        <div class="bg-teal-50 border border-teal-200 rounded-lg p-4 text-center">
+                        <div onclick="showSection('employees')" class="bg-teal-50 border border-teal-200 rounded-lg p-4 text-center hover:bg-teal-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
                             <p class="text-3xl font-black text-teal-700" id="dashPersonCount">0</p>
                             <p class="text-xs text-teal-600 font-bold uppercase mt-1">Total Empleados</p>
                         </div>
-                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                        <div onclick="goToAssetsFiltered('status','Checkout')" class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center hover:bg-amber-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
                             <p class="text-3xl font-black text-amber-700" id="dashCheckoutCount">0</p>
                             <p class="text-xs text-amber-600 font-bold uppercase mt-1">Equipos Asignados</p>
+                        </div>
+                        <div onclick="goToAssetsFiltered('status','Check in')" class="bg-green-50 border border-green-200 rounded-lg p-4 text-center hover:bg-green-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
+                            <p class="text-3xl font-black text-green-700" id="dashCheckinCount">0</p>
+                            <p class="text-xs text-green-600 font-bold uppercase mt-1">En Almacen</p>
+                        </div>
+                        <div onclick="toggleDashCategoryBreakdown()" class="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center hover:bg-purple-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
+                            <p class="text-3xl font-black text-purple-700" id="dashCategoryCount">0</p>
+                            <p class="text-xs text-purple-600 font-bold uppercase mt-1">Categorias</p>
+                        </div>
+                        <div onclick="showSection('deliveryBoard')" class="bg-red-50 border border-red-200 rounded-lg p-4 text-center hover:bg-red-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
+                            <p class="text-3xl font-black text-red-700" id="dashPendingCount">0</p>
+                            <p class="text-xs text-red-600 font-bold uppercase mt-1">Entregas Pendientes</p>
+                        </div>
+                    </div>
+
+                    <!-- Desglose por Categoria -->
+                    <div id="dashCategoryBreakdown" class="hidden mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-xs font-bold text-gray-600 uppercase">Activos por Categoria</h3>
+                            <button onclick="toggleDashCategoryBreakdown()" class="text-gray-400 hover:text-gray-600 text-sm cursor-pointer">&times;</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs">
+                                <thead><tr class="border-b border-gray-200"><th class="text-left py-1.5 px-2 text-gray-500 font-bold uppercase">Categoria</th><th class="text-right py-1.5 px-2 text-gray-500 font-bold uppercase">Cantidad</th></tr></thead>
+                                <tbody id="dashCategoryBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Actividad Reciente -->
+                    <div class="mt-6">
+                        <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Actividad Reciente</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs">
+                                <thead class="bg-gray-50"><tr><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Fecha</th><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Accion</th><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Equipo</th><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Persona</th></tr></thead>
+                                <tbody id="dashRecentActivity" class="divide-y divide-gray-100"></tbody>
+                            </table>
                         </div>
                     </div>
                 </section>

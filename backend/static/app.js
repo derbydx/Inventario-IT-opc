@@ -68,26 +68,18 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function loadDropdownData() {
-    const personSelect = document.getElementById("modal_person_id");
     const assetCatSelect = document.getElementById("asset_category");
     const assetSiteSelect = document.getElementById("asset_site_id");
     const personDeptSelect = document.getElementById("person_department_id");
     const personSiteSelect = document.getElementById("person_site_id");
     const editCatSelect = document.getElementById("edit_asset_category");
     const editSiteSelect = document.getElementById("edit_asset_site_id");
-    const deliveryPersonSelect = document.getElementById("delivery_person_id");
     const deliveryCatSelect = document.getElementById("delivery_category");
 
     try {
         const resPersons = await api("/persons/");
         if (resPersons.ok) {
             globalPersons = await resPersons.json();
-            personSelect.innerHTML = '<option value="">-- Seleccione un Empleado --</option>';
-            globalPersons.forEach(p => { personSelect.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
-            if (deliveryPersonSelect) {
-                deliveryPersonSelect.innerHTML = '<option value="">-- Seleccione Empleado --</option>';
-                globalPersons.forEach(p => { deliveryPersonSelect.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
-            }
         }
         const resCats = await api("/categories/distinct/");
         if (resCats.ok) {
@@ -142,6 +134,8 @@ async function loadDropdownData() {
             globalDepartments.forEach(d => { personDeptSelect.innerHTML += `<option value="${d.id}">${d.department_name}</option>`; });
         }
     } catch (e) { console.error(e); }
+    initAutocomplete("modal_person_search", "modal_person_id", "modal_person_results");
+    initAutocomplete("delivery_person_search", "delivery_person_id", "delivery_person_results");
 }
 
 function buildAssetQuery() {
@@ -768,15 +762,67 @@ function setupEditDepartmentFormListener() {
     });
 }
 
+function initAutocomplete(inputId, hiddenId, resultsId) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const results = document.getElementById(resultsId);
+    if (!input) return;
+
+    input.addEventListener("input", function () {
+        const query = this.value.toLowerCase().trim();
+        if (query.length === 0) {
+            results.classList.add("hidden");
+            hidden.value = "";
+            return;
+        }
+        const filtered = globalPersons.filter(p =>
+            p.full_name.toLowerCase().includes(query) ||
+            (p.employee_id && p.employee_id.toLowerCase().includes(query)) ||
+            (p.email && p.email.toLowerCase().includes(query))
+        );
+        if (filtered.length === 0) {
+            results.innerHTML = '<div class="p-2 text-gray-400 text-sm">Sin resultados</div>';
+            results.classList.remove("hidden");
+            return;
+        }
+        results.innerHTML = filtered.map(p =>
+            `<div class="p-2 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100" data-id="${p.id}" data-name="${p.full_name}" data-eid="${p.employee_id}">
+                <span class="font-medium">${p.full_name}</span>
+                <span class="text-gray-400 text-xs ml-1">(${p.employee_id})</span>
+                ${p.email ? `<span class="text-gray-400 text-xs ml-2">${p.email}</span>` : ''}
+            </div>`
+        ).join('');
+        results.classList.remove("hidden");
+    });
+
+    results.addEventListener("click", function (e) {
+        const item = e.target.closest("[data-id]");
+        if (item) {
+            input.value = item.dataset.name + " (" + item.dataset.eid + ")";
+            hidden.value = item.dataset.id;
+            results.classList.add("hidden");
+        }
+    });
+}
+
+document.addEventListener("click", function (e) {
+    document.querySelectorAll('[id$="_results"]').forEach(function (el) {
+        var container = el.closest(".relative");
+        if (container && !container.contains(e.target)) {
+            el.classList.add("hidden");
+        }
+    });
+});
+
 function openModal(assetId, assetTag, actionType) {
     document.getElementById("modal_asset_id").value = assetId; document.getElementById("modal_action_type").value = actionType;
     document.getElementById("modalAssetInfo").innerText = `Activo Seleccionado: ${assetTag}`;
     const divAsignadoA = document.getElementById("div_asignado_a"); const modalTitle = document.getElementById("modalTitle"); const submitBtn = document.getElementById("modalSubmitBtn");
-    if (actionType === "checkout") { modalTitle.innerText = "Registrar Asignacion (Check-out)"; submitBtn.innerText = "Asignar Equipo"; submitBtn.className = "px-4 py-2 bg-blue-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.remove("hidden"); } 
+    if (actionType === "checkout") { modalTitle.innerText = "Registrar Asignacion (Check-out)"; submitBtn.innerText = "Asignar Equipo"; submitBtn.className = "px-4 py-2 bg-blue-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.remove("hidden"); document.getElementById("modal_person_search").value = ""; document.getElementById("modal_person_id").value = ""; document.getElementById("modal_person_results").classList.add("hidden"); } 
     else { modalTitle.innerText = "Registrar Devolucion (Check-in)"; submitBtn.innerText = "Recibir en Almacen"; submitBtn.className = "px-4 py-2 bg-amber-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.add("hidden"); }
     document.getElementById("movementModal").classList.remove("hidden");
 }
-function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); }
+function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); document.getElementById("modal_person_results")?.classList.add("hidden"); }
 
 function setupMovementFormListener() {
     document.getElementById("movementForm").addEventListener("submit", async (e) => {
@@ -985,6 +1031,7 @@ function showSection(name) {
     if (name === 'reports') populateReportPersonSelect();
     if (name === 'deliveryBoard') loadDeliveryBoard();
     if (name === 'deliveryEmployees') loadDeliveryEmployees();
+    if (name === 'deliveryAdd') { document.getElementById("delivery_person_search").value = ""; document.getElementById("delivery_person_id").value = ""; document.getElementById("delivery_person_results").classList.add("hidden"); }
     if (name === 'users') { loadUsers(); loadGroups(); }
     if (name === 'brokenAssets') loadAssetsByStatus('Broken');
     if (name === 'lostAssets') loadAssetsByStatus('Lost');
@@ -1381,13 +1428,7 @@ async function openAssetModalById(assetId) {
 
 // ===================== ENTREGAS PENDIENTES =====================
 
-function populateDeliveryPersonSelect() {
-    const sel = document.getElementById("delivery_person_id");
-    sel.innerHTML = '<option value="">-- Seleccione Empleado --</option>';
-    globalPersons.forEach(p => {
-        sel.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`;
-    });
-}
+
 
 async function submitNewPending() {
     const personId = document.getElementById("delivery_person_id").value;

@@ -792,7 +792,6 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
                 access_token: data.access_token,
                 admin: data.admin
             }));
-            alert(`Autenticacion exitosa! Bienvenido ${data.admin.username}`);
             document.getElementById("loginOverlay").classList.add("hidden");
             document.getElementById("loginForm").reset();
             loadAssets();
@@ -1095,6 +1094,28 @@ function populateReportPersonSelect() {
     globalPersons.forEach(p => {
         sel.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`;
     });
+}
+
+function updatePersonInfo() {
+    const personId = document.getElementById("report_person_id").value;
+    const info = document.getElementById("reportPersonInfo");
+    if (!personId) { info.classList.add("hidden"); info.innerHTML = ""; return; }
+    const p = globalPersons.find(x => x.id === parseInt(personId));
+    if (!p) { info.classList.add("hidden"); return; }
+    const dept = globalDepartments.find(d => d.id === p.department_id);
+    const site = globalSites.find(s => s.id === p.site_id);
+    info.innerHTML = `
+        <span class="font-bold text-gray-800 truncate">${p.full_name}</span>
+        <span class="text-gray-300 shrink-0">|</span>
+        <span class="text-gray-500 shrink-0">${dept ? dept.department_name : '-'}</span>
+        <span class="text-gray-300 shrink-0">|</span>
+        <span class="text-gray-500 shrink-0">${site ? site.site_name : '-'}</span>
+        <span class="text-gray-300 shrink-0">|</span>
+        <span class="text-blue-600 truncate">${p.email || ''}</span>
+        <span class="text-gray-300 shrink-0">|</span>
+        <span class="text-gray-500 shrink-0">${p.phone || '-'}</span>
+    `;
+    info.classList.remove("hidden");
 }
 
 async function loadCheckoutReport() {

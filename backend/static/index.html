@@ -750,8 +750,8 @@
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-gray-800">Usuarios</h2>
                         <div class="flex gap-2">
-                            <button id="newGroupBtn" onclick="openGroupModal()" class="hidden px-3 py-1.5 bg-purple-600 text-white text-xs font-bold rounded cursor-pointer">+ Grupo</button>
-                            <button id="newUserBtn" onclick="openUserModal()" class="hidden px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded cursor-pointer">+ Usuario</button>
+                            <button id="newGroupBtn" data-perm="can_manage_users" onclick="openGroupModal()" class="hidden px-3 py-1.5 bg-purple-600 text-white text-xs font-bold rounded cursor-pointer">+ Grupo</button>
+                            <button id="newUserBtn" data-perm="can_manage_users" onclick="openUserModal()" class="hidden px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded cursor-pointer">+ Usuario</button>
                         </div>
                     </div>
                     <div class="overflow-x-auto">

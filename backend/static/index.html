@@ -477,6 +477,7 @@
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-semibold text-gray-800">Directorio de Empleados</h2>
                         <div class="flex items-center gap-2">
+                            <span id="employeeCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Empleados</span>
                             <button onclick="loadPersons()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded border border-gray-300 transition-colors cursor-pointer">Actualizar</button>
                             <div class="relative">
                                 <button onclick="toggleColumnPanel('employees')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Columnas</button>
@@ -518,7 +519,10 @@
                     <div class="mb-6">
                         <div class="flex justify-between items-center mb-2">
                             <h3 class="text-sm font-bold text-gray-700 uppercase">Sitios / Edificios</h3>
-                            <button onclick="openSiteModal()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-3 rounded border border-blue-300 transition-colors cursor-pointer">+ Nuevo Sitio</button>
+                            <div class="flex items-center gap-2">
+                                <span id="siteCount" class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold">0</span>
+                                <button onclick="openSiteModal()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-3 rounded border border-blue-300 transition-colors cursor-pointer">+ Nuevo Sitio</button>
+                            </div>
                         </div>
                         <div class="overflow-x-auto rounded border border-gray-200">
                             <table class="min-w-full divide-y divide-gray-200 text-xs">
@@ -538,7 +542,10 @@
                     <div>
                         <div class="flex justify-between items-center mb-2">
                             <h3 class="text-sm font-bold text-gray-700 uppercase">Departamentos</h3>
-                            <button onclick="openDepartmentModal()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-3 rounded border border-blue-300 transition-colors cursor-pointer">+ Nuevo Departamento</button>
+                            <div class="flex items-center gap-2">
+                                <span id="deptCount" class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold">0</span>
+                                <button onclick="openDepartmentModal()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-3 rounded border border-blue-300 transition-colors cursor-pointer">+ Nuevo Departamento</button>
+                            </div>
                         </div>
                         <div class="overflow-x-auto rounded border border-gray-200">
                             <table class="min-w-full divide-y divide-gray-200 text-xs">
@@ -558,7 +565,10 @@
                 <section id="historySection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-semibold text-gray-800 flex items-center gap-2">Historial de Auditoria Reciente</h2>
-                        <button onclick="loadHistory()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded border border-gray-300 transition-colors cursor-pointer">Actualizar</button>
+                        <div class="flex items-center gap-2">
+                            <span id="historyCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Movimientos</span>
+                            <button onclick="loadHistory()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded border border-gray-300 transition-colors cursor-pointer">Actualizar</button>
+                        </div>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
@@ -584,6 +594,7 @@
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-gray-800">Checkout by Person</h2>
                         <div class="flex items-center gap-2">
+                            <span id="reportCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Resultados</span>
                             <div class="relative">
                                 <button onclick="toggleColumnPanel('reports')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Columnas</button>
                                 <div id="colPanel_reports" class="hidden absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg p-3 z-20 w-44 text-xs space-y-1.5">
@@ -664,7 +675,10 @@
 
                 <!-- SECTION: ENTREGAS: TABLERO -->
                 <section id="deliveryBoardSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
-                    <h2 class="text-lg font-bold text-gray-800 mb-4">Tablero de Entregas Pendientes</h2>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800">Tablero de Entregas Pendientes</h2>
+                        <span id="deliveryBoardCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Items</span>
+                    </div>
                     <div id="deliveryBoardContainer" class="min-h-[200px]">
                         <p class="text-center text-gray-400 italic py-8">Cargando tablero...</p>
                     </div>

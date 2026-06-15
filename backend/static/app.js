@@ -438,6 +438,7 @@ async function loadHistory() {
         const response = await api("/history/");
         if (!response.ok) throw new Error("Error");
         const historyData = await response.json();
+        document.getElementById("historyCount").textContent = historyData.length + " Movimientos";
         historyBody.innerHTML = "";
         if (historyData.length === 0) { historyBody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-gray-400 italic">Sin movimientos.</td></tr>`; return; }
         historyData.reverse();
@@ -487,6 +488,7 @@ async function loadPersons() {
         const res = await api("/persons/");
         if (!res.ok) throw new Error("Error");
         const persons = await res.json();
+        document.getElementById("employeeCount").textContent = persons.length + " Empleados";
         tableBody.innerHTML = "";
         if (persons.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados registrados.</td></tr>';
@@ -521,6 +523,7 @@ async function loadCatalogs() {
         const resSites = await api("/sites/");
         if (resSites.ok) {
             const sites = await resSites.json();
+            document.getElementById("siteCount").textContent = sites.length;
             sitesBody.innerHTML = "";
             if (sites.length === 0) {
                 sitesBody.innerHTML = '<tr><td colspan="4" class="px-3 py-3 text-center text-gray-400 italic">Sin sitios registrados.</td></tr>';
@@ -536,6 +539,7 @@ async function loadCatalogs() {
         const resDepts = await api("/departments/");
         if (resDepts.ok) {
             const depts = await resDepts.json();
+            document.getElementById("deptCount").textContent = depts.length;
             deptsBody.innerHTML = "";
             if (depts.length === 0) {
                 deptsBody.innerHTML = '<tr><td colspan="2" class="px-3 py-3 text-center text-gray-400 italic">Sin departamentos registrados.</td></tr>';
@@ -1190,6 +1194,7 @@ async function loadCheckoutReport() {
         const res = await api(`/reports/person-checkouts/${personId}?mode=${mode}`);
         if (!res.ok) throw new Error("Error en el servidor");
         const data = await res.json();
+        document.getElementById("reportCount").textContent = data.length + " Resultados";
         tbody.innerHTML = "";
         if (data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="10" class="px-3 py-4 text-center text-gray-400 italic">Sin resultados para este empleado.</td></tr>';
@@ -1277,6 +1282,8 @@ async function loadDeliveryBoard() {
         const res = await api("/deliveries/summary");
         if (!res.ok) throw new Error("Error");
         const data = await res.json();
+        const totalItems = data.reduce((sum, cat) => sum + cat.total_pending, 0);
+        document.getElementById("deliveryBoardCount").textContent = totalItems + " Items";
         container.innerHTML = "";
         if (data.length === 0) {
             container.innerHTML = '<p class="text-center text-gray-400 italic py-8">No hay entregas pendientes activas.</p>';

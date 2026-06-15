@@ -1227,6 +1227,11 @@
                     <span class="block text-[10px] font-bold text-gray-400 uppercase">Asignado Actualmente A (Haz clic para ver sus equipos)</span>
                     <div id="det_assigned_container" class="mt-1"></div>
                 </div>
+                <div id="det_repair_block" class="hidden md:col-span-2 bg-amber-50 border border-amber-200 rounded p-3 text-xs space-y-1">
+                    <div><span class="font-bold text-amber-800">Motivo de reparacion:</span> <span id="det_repair_reason" class="text-gray-700">-</span></div>
+                    <div><span class="font-bold text-amber-800">Dejado por:</span> <span id="det_repair_left_by" class="text-gray-700">-</span></div>
+                    <div><span class="font-bold text-amber-800">Tecnico encargado:</span> <span id="det_repair_technician" class="text-gray-700">-</span></div>
+                </div>
             </div>
             <div class="border border-gray-200 rounded-lg mb-6 overflow-hidden">
                 <button onclick="toggleSpecificHistory()" class="w-full bg-gray-50 p-3 text-left text-sm font-bold text-gray-700 hover:bg-gray-100 flex justify-between items-center transition-colors cursor-pointer">
@@ -1304,7 +1309,7 @@
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-gray-500 uppercase">Estado (Status) *</label>
-                        <select id="edit_asset_status" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white">
+                        <select id="edit_asset_status" onchange="toggleEditRepairFields()" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white">
                             <option value="Available">Available</option>
                             <option value="Checkout">Checkout</option>
                             <option value="Broken">Broken</option>
@@ -1317,6 +1322,28 @@
                             <option value="Donate">Donate</option>
                             <option value="Sold">Sold</option>
                         </select>
+                    </div>
+                </div>
+                <div id="editRepairFields" class="hidden space-y-3 bg-amber-50 p-3 rounded border border-amber-200">
+                    <div>
+                        <label class="block text-[10px] font-bold text-amber-800 uppercase">Motivo de la reparacion *</label>
+                        <textarea id="edit_repair_reason" rows="2" class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-amber-800 uppercase">Usuario que dejo el equipo *</label>
+                        <div class="relative">
+                            <input type="text" id="edit_repair_left_search" autocomplete="off" placeholder="Buscar empleado..." class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                            <input type="hidden" id="edit_repair_left_by_id" value="">
+                            <div id="edit_repair_left_results" class="hidden absolute z-50 top-full left-0 right-0 bg-white border border-gray-200 rounded mt-1 shadow-lg max-h-40 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-amber-800 uppercase">Tecnico encargado *</label>
+                        <div class="relative">
+                            <input type="text" id="edit_repair_tech_search" autocomplete="off" placeholder="Buscar tecnico..." class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                            <input type="hidden" id="edit_repair_tech_id" value="">
+                            <div id="edit_repair_tech_results" class="hidden absolute z-50 top-full left-0 right-0 bg-white border border-gray-200 rounded mt-1 shadow-lg max-h-40 overflow-y-auto"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">

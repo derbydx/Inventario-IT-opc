@@ -135,10 +135,16 @@ async function loadDropdownData() {
             personDeptSelect.innerHTML = '<option value="">-- Seleccione Departamento --</option>';
             globalDepartments.forEach(d => { personDeptSelect.innerHTML += `<option value="${d.id}">${d.department_name}</option>`; });
         }
+        const resAdmins = await api("/admins/");
+        if (resAdmins.ok) {
+            globalAdmins = await resAdmins.json();
+        }
     } catch (e) { console.error(e); }
     initAutocomplete("modal_person_search", "modal_person_id", "modal_person_results");
     initAutocomplete("delivery_person_search", "delivery_person_id", "delivery_person_results");
     initAutocomplete("report_person_search", "report_person_id", "report_person_results");
+    initAutocomplete("edit_repair_left_search", "edit_repair_left_by_id", "edit_repair_left_results");
+    initAutocomplete("edit_repair_tech_search", "edit_repair_tech_id", "edit_repair_tech_results", globalAdmins);
     document.getElementById("report_person_id").addEventListener("change", function () {
         updatePersonInfo();
         loadCheckoutReport();
@@ -321,6 +327,18 @@ async function openDetailsModal(assetId) {
         containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded">Disponible en Almacen</p>`;
     }
 
+    var repairBlock = document.getElementById("det_repair_block");
+    if (asset.status === "Under repair" || asset.status === "GarantiaSD") {
+        repairBlock.classList.remove("hidden");
+        document.getElementById("det_repair_reason").innerText = asset.repair_reason || "-";
+        var leftPerson = globalPersons.find(function (p) { return p.id === asset.repair_left_by_id; });
+        document.getElementById("det_repair_left_by").innerText = leftPerson ? leftPerson.full_name + " (" + leftPerson.employee_id + ")" : "-";
+        var tech = globalAdmins.find(function (a) { return a.id === asset.repair_technician_id; });
+        document.getElementById("det_repair_technician").innerText = tech ? tech.username : "-";
+    } else {
+        repairBlock.classList.add("hidden");
+    }
+
     document.getElementById("btn_delete_asset").onclick = () => triggerDeleteAsset(asset.id, asset.asset_tag_id);
     document.getElementById("btn_edit_asset").onclick = () => openEditAssetModal(asset.id);
 
@@ -418,6 +436,21 @@ async function restoreAsset(assetId, assetTag) {
     } catch (e) { alert("Error."); }
 }
 
+function toggleEditRepairFields() {
+    var status = document.getElementById("edit_asset_status").value;
+    var block = document.getElementById("editRepairFields");
+    if (status === "Under repair" || status === "GarantiaSD") {
+        block.classList.remove("hidden");
+    } else {
+        block.classList.add("hidden");
+        document.getElementById("edit_repair_reason").value = "";
+        document.getElementById("edit_repair_left_search").value = "";
+        document.getElementById("edit_repair_left_by_id").value = "";
+        document.getElementById("edit_repair_tech_search").value = "";
+        document.getElementById("edit_repair_tech_id").value = "";
+    }
+}
+
 function openEditAssetModal(assetId) {
     const asset = currentAssets.find(a => a.id === parseInt(assetId));
     if (!asset) return;
@@ -432,9 +465,41 @@ function openEditAssetModal(assetId) {
     
     document.getElementById("edit_asset_status").value = asset.status;
 
+    var isRepair = asset.status === "Under repair" || asset.status === "GarantiaSD";
+    var block = document.getElementById("editRepairFields");
+    if (isRepair) {
+        block.classList.remove("hidden");
+        document.getElementById("edit_repair_reason").value = asset.repair_reason || "";
+        var leftPerson = globalPersons.find(function (p) { return p.id === asset.repair_left_by_id; });
+        if (leftPerson) {
+            document.getElementById("edit_repair_left_search").value = leftPerson.full_name + " (" + leftPerson.employee_id + ")";
+            document.getElementById("edit_repair_left_by_id").value = leftPerson.id;
+        }
+        var tech = globalAdmins.find(function (a) { return a.id === asset.repair_technician_id; });
+        if (tech) {
+            document.getElementById("edit_repair_tech_search").value = tech.username;
+            document.getElementById("edit_repair_tech_id").value = tech.id;
+        }
+    } else {
+        block.classList.add("hidden");
+        document.getElementById("edit_repair_reason").value = "";
+        document.getElementById("edit_repair_left_search").value = "";
+        document.getElementById("edit_repair_left_by_id").value = "";
+        document.getElementById("edit_repair_tech_search").value = "";
+        document.getElementById("edit_repair_tech_id").value = "";
+    }
+
     document.getElementById("editAssetModal").classList.remove("hidden");
 }
-function closeEditAssetModal() { document.getElementById("editAssetModal").classList.add("hidden"); }
+function closeEditAssetModal() {
+    document.getElementById("editAssetModal").classList.add("hidden");
+    document.getElementById("editRepairFields").classList.add("hidden");
+    document.getElementById("edit_repair_reason").value = "";
+    document.getElementById("edit_repair_left_search").value = "";
+    document.getElementById("edit_repair_left_by_id").value = "";
+    document.getElementById("edit_repair_tech_search").value = "";
+    document.getElementById("edit_repair_tech_id").value = "";
+}
 
 function setupEditAssetFormListener() {
     const form = document.getElementById("editAssetForm");
@@ -444,6 +509,8 @@ function setupEditAssetFormListener() {
         e.preventDefault();
         const assetId = document.getElementById("edit_asset_id").value;
 
+        var repairStatus = document.getElementById("edit_asset_status").value;
+        var isRepair = repairStatus === "Under repair" || repairStatus === "GarantiaSD";
         const updatedData = {
             asset_tag_id: document.getElementById("edit_asset_tag_id").value,
             asset_description: document.getElementById("edit_asset_description").value,
@@ -452,7 +519,10 @@ function setupEditAssetFormListener() {
             serial_no: document.getElementById("edit_serial_no").value,
             category: document.getElementById("edit_asset_category").value,
             site_id: parseInt(document.getElementById("edit_asset_site_id").value),
-            status: document.getElementById("edit_asset_status").value 
+            status: repairStatus,
+            repair_reason: isRepair ? document.getElementById("edit_repair_reason").value : null,
+            repair_left_by_id: isRepair ? parseInt(document.getElementById("edit_repair_left_by_id").value) || null : null,
+            repair_technician_id: isRepair ? parseInt(document.getElementById("edit_repair_tech_id").value) || null : null
         };
 
         try {
@@ -791,11 +861,12 @@ function setupEditDepartmentFormListener() {
     });
 }
 
-function initAutocomplete(inputId, hiddenId, resultsId) {
+function initAutocomplete(inputId, hiddenId, resultsId, dataSource) {
     const input = document.getElementById(inputId);
     const hidden = document.getElementById(hiddenId);
     const results = document.getElementById(resultsId);
     if (!input) return;
+    var source = dataSource || globalPersons;
 
     input.addEventListener("input", function () {
         const query = this.value.toLowerCase().trim();
@@ -804,23 +875,26 @@ function initAutocomplete(inputId, hiddenId, resultsId) {
             hidden.value = "";
             return;
         }
-        const filtered = globalPersons.filter(p =>
-            p.full_name.toLowerCase().includes(query) ||
-            (p.employee_id && p.employee_id.toLowerCase().includes(query)) ||
-            (p.email && p.email.toLowerCase().includes(query))
-        );
+        var filtered = source.filter(function (p) {
+            return (p.full_name && p.full_name.toLowerCase().includes(query)) ||
+                   (p.employee_id && p.employee_id.toLowerCase().includes(query)) ||
+                   (p.username && p.username.toLowerCase().includes(query)) ||
+                   (p.email && p.email.toLowerCase().includes(query));
+        });
         if (filtered.length === 0) {
             results.innerHTML = '<div class="p-2 text-gray-400 text-sm">Sin resultados</div>';
             results.classList.remove("hidden");
             return;
         }
-        results.innerHTML = filtered.map(p =>
-            `<div class="p-2 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100" data-id="${p.id}" data-name="${p.full_name}" data-eid="${p.employee_id}">
-                <span class="font-medium">${p.full_name}</span>
-                <span class="text-gray-400 text-xs ml-1">(${p.employee_id})</span>
-                ${p.email ? `<span class="text-gray-400 text-xs ml-2">${p.email}</span>` : ''}
-            </div>`
-        ).join('');
+        results.innerHTML = filtered.map(function (p) {
+            var label = p.full_name || p.username;
+            var sub = p.employee_id || p.username;
+            return '<div class="p-2 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100" data-id="' + p.id + '" data-name="' + label + '" data-eid="' + sub + '">' +
+                '<span class="font-medium">' + label + '</span>' +
+                '<span class="text-gray-400 text-xs ml-1">(' + sub + ')</span>' +
+                (p.email ? '<span class="text-gray-400 text-xs ml-2">' + p.email + '</span>' : '') +
+            '</div>';
+        }).join('');
         results.classList.remove("hidden");
     });
 

@@ -31,6 +31,14 @@ def seed_groups_and_admin():
             db.execute(text("ALTER TABLE admins ADD COLUMN group_id INTEGER REFERENCES groups(id)"))
         if "is_active" not in admins_cols:
             db.execute(text("ALTER TABLE admins ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+
+        assets_cols = [c["name"] for c in inspector.get_columns("assets")]
+        if "repair_reason" not in assets_cols:
+            db.execute(text("ALTER TABLE assets ADD COLUMN repair_reason TEXT"))
+        if "repair_left_by_id" not in assets_cols:
+            db.execute(text("ALTER TABLE assets ADD COLUMN repair_left_by_id INTEGER REFERENCES persons(id)"))
+        if "repair_technician_id" not in assets_cols:
+            db.execute(text("ALTER TABLE assets ADD COLUMN repair_technician_id INTEGER REFERENCES admins(id)"))
         db.commit()
         
         # Crear grupos por defecto si no existen
@@ -566,7 +574,22 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
             nombre_limpio = etiquetas.get(campo, campo)
             lista_cambios.append(f"{nombre_limpio} cambiado de '{viejo_valor}' a '{nuevo_valor}'")
             
+    repair_statuses = ("Under repair", "GarantiaSD")
+
+    if asset_update.status in repair_statuses:
+        db_asset.repair_reason = asset_update.repair_reason
+        db_asset.repair_left_by_id = asset_update.repair_left_by_id
+        db_asset.repair_technician_id = asset_update.repair_technician_id
+    elif db_asset.status not in repair_statuses and asset_update.status not in repair_statuses:
+        pass
+    else:
+        db_asset.repair_reason = None
+        db_asset.repair_left_by_id = None
+        db_asset.repair_technician_id = None
+
     for key, value in datos_nuevos.items():
+        if key in ("repair_reason", "repair_left_by_id", "repair_technician_id"):
+            continue
         setattr(db_asset, key, value)
 
     if db_asset.status not in ("Checkout", "Reserved"):
@@ -577,11 +600,15 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
     else:
         nota_auditoria = "Formulario de edicion guardado sin cambios en los valores."
     
+    tipo_accion = "Modified"
+    if db_asset.status in repair_statuses:
+        tipo_accion = db_asset.status
+    
     registro_historial = models.History(
         asset_id=db_asset.id,
         asignado_a_id=db_asset.person_id,
         realizado_por_id=current_admin.id,
-        tipo_accion="Modified",
+        tipo_accion=tipo_accion,
         estado_anterior=db_asset.status,
         estado_nuevo=db_asset.status,
         notas_detalle=nota_auditoria

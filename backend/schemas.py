@@ -171,13 +171,16 @@ class AssetBase(BaseModel):
     status: str = "Available"
     category: str = None
     site_id: Optional[int] = None
+    repair_reason: Optional[str] = None
+    repair_left_by_id: Optional[int] = None
+    repair_technician_id: Optional[int] = None
 
 class AssetCreate(AssetBase):
     pass
 
 class AssetResponse(AssetBase):
     id: int
-    person_id: Optional[int] = None  # Puede ser None si el equipo está en almacén
+    person_id: Optional[int] = None
     class Config:
         from_attributes = True
 

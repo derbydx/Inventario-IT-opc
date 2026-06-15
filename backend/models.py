@@ -92,6 +92,11 @@ class Asset(Base):
     category = Column(String(100), index=True)
     site_id = Column(Integer, ForeignKey("sites.id"), nullable=True)
 
+    # Campos de reparacion
+    repair_reason = Column(Text, nullable=True)
+    repair_left_by_id = Column(Integer, ForeignKey("persons.id"), nullable=True)
+    repair_technician_id = Column(Integer, ForeignKey("admins.id"), nullable=True)
+
 # ==========================================
 # 4. TABLA DE AUDITORÍA: HISTORIAL
 # ==========================================

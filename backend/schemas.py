@@ -10,17 +10,15 @@ class AssetStatus(str, Enum):
     AVAILABLE = "Available"
     BROKEN = "Broken"
     CHECK_OUT = "Checkout"
-    CHECK_IN = "Check in"
     DISPOSE = "Dispose"
     DONATE = "Donate"
-    LEASE = "Lease"
-    LEASE_RETURN = "Lease return"
+    GARANTIASD = "GarantiaSD"
     LOST_MISSING = "Lost/Missing"
     FOUND = "Found"
     RESERVED = "Reserved"
     SOLD = "Sold"
     UNDER_REPAIR = "Under repair"
-    ARCHIVED = "Archived"  # Conservado para nuestra papelera de reciclaje lógica
+    ARCHIVED = "Archived"
 
 # ==========================================
 # SCHEMAS DE CATÁLOGOS
@@ -170,7 +168,7 @@ class AssetBase(BaseModel):
     serial_no: str
     notas_adicionales: Optional[str] = None
     numero_telefono: Optional[str] = None
-    status: str = "Check in"  # Alineación impecable
+    status: str = "Available"
     category: str = None
     site_id: Optional[int] = None
 

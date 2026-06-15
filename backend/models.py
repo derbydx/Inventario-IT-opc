@@ -85,7 +85,7 @@ class Asset(Base):
     serial_no = Column(String(100), index=True)
     notas_adicionales = Column(Text)
     numero_telefono = Column(String(50))
-    status = Column(String(50), default="Check in")  # Check in, Checkout, Broken, etc.
+    status = Column(String(50), default="Available")  # Check in, Checkout, Broken, etc.
     
     # Llaves Foráneas
     person_id = Column(Integer, ForeignKey("persons.id"), nullable=True)

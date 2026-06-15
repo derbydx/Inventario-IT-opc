@@ -439,7 +439,7 @@ def asset_checkout(asset_id: int, person_id: int, notas: str = None, db: Session
     return {"message": f"Asset {asset.asset_tag_id} asignado exitosamente", "asset_status": asset.status}
 
 @app.post("/assets/{asset_id}/checkin", tags=["Acciones de Inventario"])
-def asset_checkin(asset_id: int, nuevo_estado: str = "Check in", notas: str = None, db: Session = Depends(get_db), current_admin: models.Admin = Depends(require_permission("can_checkout"))):
+def asset_checkin(asset_id: int, nuevo_estado: str = "Available", notas: str = None, db: Session = Depends(get_db), current_admin: models.Admin = Depends(require_permission("can_checkout"))):
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
@@ -709,7 +709,7 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
         site_id = db.query(models.Site.id).filter(models.Site.site_name == sit_name).scalar() if sit_name else None
 
         person_id = None
-        status = "Check in"
+        status = "Available"
         notas_historial = None
         if i_asignado is not None:
             asignado = (row[i_asignado] or "").strip()
@@ -728,7 +728,7 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
         if notas_historial:
             db.add(models.History(
                 asset_id=asset.id, asignado_a_id=person_id, realizado_por_id=admin.id,
-                tipo_accion="Checkout", estado_anterior="Check in", estado_nuevo="Checkout",
+                tipo_accion="Checkout", estado_anterior="Available", estado_nuevo="Checkout",
                 notas_detalle=notas_historial
             ))
         ok += 1
@@ -807,7 +807,7 @@ def report_person_checkouts(person_id: int, mode: str = "current", db: Session =
 # ==========================================
 # 13. ENDPOINTS DE ENTREGAS PENDIENTES
 # ==========================================
-AVAILABLE_STATUSES = ("Check in", "Available")
+AVAILABLE_STATUSES = ("Available",)
 
 @app.get("/deliveries/available-assets", response_model=List[schemas.AvailableAssetItem], tags=["Entregas Pendientes"])
 def list_available_assets(db: Session = Depends(get_db)):

@@ -182,15 +182,15 @@ async function openDetailsModal(assetId) {
     const statusElement = document.getElementById("det_status");
     let badgeColor = "bg-gray-100 text-gray-800"; 
 
-    if (asset.status === "Check in" || asset.status === "Available" || asset.status === "Found") {
+    if (asset.status === "Available" || asset.status === "Found") {
         badgeColor = "bg-green-100 text-green-800";
     } else if (asset.status === "Checkout") {
         badgeColor = "bg-blue-100 text-blue-800"; 
     } else if (asset.status === "Broken" || asset.status === "Lost/Missing" || asset.status === "Dispose") {
         badgeColor = "bg-red-100 text-red-800"; 
-    } else if (asset.status === "Under repair") {
+    } else if (asset.status === "Under repair" || asset.status === "GarantiaSD") {
         badgeColor = "bg-amber-100 text-amber-800"; 
-    } else if (asset.status === "Reserved" || asset.status === "Lease") {
+    } else if (asset.status === "Reserved") {
         badgeColor = "bg-purple-100 text-purple-800";
     }
 
@@ -297,7 +297,7 @@ function closeDeletedAssetsModal() { document.getElementById("deletedAssetsModal
 async function restoreAsset(assetId, assetTag) {
     const asset = currentAssets.find(a => a.id === parseInt(assetId));
     if (!asset) return;
-    const restoredData = { ...asset, status: "Check in" };
+    const restoredData = { ...asset, status: "Available" };
     try {
         const response = await api(`/assets/${assetId}`, { method: "PUT", body: JSON.stringify(restoredData) });
         if (response.ok) { alert(`El activo ${assetTag} ha sido restaurado exitosamente al almacen.`); closeDeletedAssetsModal(); loadAssets(); loadHistory(); }
@@ -439,7 +439,7 @@ function setupFormListener() {
     document.getElementById("assetForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const siteVal = document.getElementById("asset_site_id").value;
-        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: siteVal ? parseInt(siteVal) : null, status: "Check in" };
+        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: siteVal ? parseInt(siteVal) : null, status: "Available" };
         try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { alert("Activo registrado con exito!"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
     });
 }

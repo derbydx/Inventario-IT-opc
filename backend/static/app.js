@@ -293,15 +293,15 @@ async function openDetailsModal(assetId) {
     const statusElement = document.getElementById("det_status");
     let badgeColor = "bg-gray-100 text-gray-800"; 
 
-    if (asset.status === "Check in" || asset.status === "Available" || asset.status === "Found") {
+    if (asset.status === "Available" || asset.status === "Found") {
         badgeColor = "bg-green-100 text-green-800";
     } else if (asset.status === "Checkout") {
         badgeColor = "bg-blue-100 text-blue-800"; 
     } else if (asset.status === "Broken" || asset.status === "Lost/Missing" || asset.status === "Dispose") {
         badgeColor = "bg-red-100 text-red-800"; 
-    } else if (asset.status === "Under repair") {
+    } else if (asset.status === "Under repair" || asset.status === "GarantiaSD") {
         badgeColor = "bg-amber-100 text-amber-800"; 
-    } else if (asset.status === "Reserved" || asset.status === "Lease") {
+    } else if (asset.status === "Reserved") {
         badgeColor = "bg-purple-100 text-purple-800";
     }
 
@@ -410,7 +410,7 @@ function closeDeletedAssetsModal() { document.getElementById("deletedAssetsModal
 async function restoreAsset(assetId, assetTag) {
     const asset = currentAssets.find(a => a.id === parseInt(assetId));
     if (!asset) return;
-    const restoredData = { ...asset, status: "Check in" };
+    const restoredData = { ...asset, status: "Available" };
     try {
         const response = await api(`/assets/${assetId}`, { method: "PUT", body: JSON.stringify(restoredData) });
         if (response.ok) { alert(`El activo ${assetTag} ha sido restaurado exitosamente al almacen.`); closeDeletedAssetsModal(); loadAssets(); loadHistory(); }
@@ -810,7 +810,7 @@ function setupFormListener() {
     document.getElementById("assetForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const siteVal = document.getElementById("asset_site_id").value;
-        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: siteVal ? parseInt(siteVal) : null, status: "Check in" };
+        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: siteVal ? parseInt(siteVal) : null, status: "Available" };
         try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { alert("Activo registrado con exito!"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
     });
 }
@@ -1113,8 +1113,8 @@ async function executeAdvancedSearch() {
             let badgeColor = "bg-green-100 text-green-800";
             if (asset.status === "Checkout") { badgeColor = "bg-blue-100 text-blue-800"; }
             else if (["Broken", "Lost/Missing", "Dispose"].includes(asset.status)) { badgeColor = "bg-red-100 text-red-800"; }
-            else if (asset.status === "Under repair") { badgeColor = "bg-amber-100 text-amber-800"; }
-            else if (["Reserved", "Lease"].includes(asset.status)) { badgeColor = "bg-purple-100 text-purple-800"; }
+            else if (asset.status === "Under repair" || asset.status === "GarantiaSD") { badgeColor = "bg-amber-100 text-amber-800"; }
+            else if (["Reserved"].includes(asset.status)) { badgeColor = "bg-purple-100 text-purple-800"; }
             row.innerHTML = `
                 <td class="px-4 py-3 font-mono font-bold text-blue-600">${asset.asset_tag_id}</td>
                 <td class="px-4 py-3">${asset.asset_description}</td>
@@ -1167,7 +1167,7 @@ async function updateDashboard() {
             const active = assets.filter(a => a.status !== "Archived");
             document.getElementById("dashAssetCount").textContent = active.length;
             document.getElementById("dashCheckoutCount").textContent = active.filter(a => a.status === "Checkout").length;
-            document.getElementById("dashCheckinCount").textContent = active.filter(a => a.status === "Check in").length;
+            document.getElementById("dashCheckinCount").textContent = active.filter(a => a.status === "Available").length;
             const cats = {};
             active.forEach(a => { if (a.category) { cats[a.category] = (cats[a.category] || 0) + 1; } });
             const catKeys = Object.keys(cats);
@@ -1975,9 +1975,9 @@ async function loadListadoInactivos() {
 }
 
 async function restoreOneAsset(assetId, assetTag) {
-    if (!confirm(`Restaurar ${assetTag} a "Check in"?`)) return;
+    if (!confirm(`Restaurar ${assetTag} a "Available"?`)) return;
     try {
-        const res = await api(`/assets/${assetId}`, { method: "PUT", body: JSON.stringify({ status: "Check in" }) });
+        const res = await api(`/assets/${assetId}`, { method: "PUT", body: JSON.stringify({ status: "Available" }) });
         if (res.ok) { 
             alert(`${assetTag} restaurado a Check in.`);
             loadAssets();
@@ -2007,7 +2007,7 @@ async function restoreAllByStatus(status) {
             const assets = await res.json();
             for (const a of assets) {
                 try {
-                    const r = await api(`/assets/${a.id}`, { method: "PUT", body: JSON.stringify({ status: "Check in" }) });
+                    const r = await api(`/assets/${a.id}`, { method: "PUT", body: JSON.stringify({ status: "Available" }) });
                     if (r.ok) totalOk++; else totalFail++;
                 } catch (e) { totalFail++; }
             }

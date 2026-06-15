@@ -1254,7 +1254,6 @@ async function executeAdvancedSearch() {
     const status = document.getElementById("adv_status").value;
     const person = document.getElementById("adv_person").value;
     const vendor = document.getElementById("adv_vendor").value;
-    const group = document.getElementById("adv_group").value;
     const limit = document.getElementById("adv_limit").value;
     const dateField = document.getElementById("adv_datefield").value;
     const dateRange = document.getElementById("adv_daterange").value;
@@ -1265,7 +1264,6 @@ async function executeAdvancedSearch() {
     if (status) params.set("status", status);
     if (person) params.set("person_id", person);
     if (vendor) params.set("purchased_from", vendor);
-    if (group) params.set("group_by", group);
     params.set("limit", limit);
     if (dateField) params.set("date_field", dateField);
     if (dateRange) {
@@ -1341,7 +1339,6 @@ function cancelAdvancedSearch() {
     document.getElementById("adv_status").value = "";
     document.getElementById("adv_person").value = "";
     document.getElementById("adv_vendor").value = "";
-    document.getElementById("adv_group").value = "";
     document.getElementById("adv_limit").value = "250";
     document.getElementById("adv_datefield").value = "purchase_date";
     document.getElementById("adv_quickdate").value = "";

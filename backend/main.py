@@ -372,7 +372,7 @@ def list_assets(
     if site_id:
         query = query.filter(models.Asset.site_id == site_id)
     if department_id:
-        query = query.join(models.Person).filter(models.Person.department_id == department_id)
+        query = query.join(models.Person, models.Asset.person_id == models.Person.id).filter(models.Person.department_id == department_id)
     if person_id:
         query = query.filter(models.Asset.person_id == person_id)
     if purchased_from:
@@ -440,7 +440,7 @@ def count_assets(
     if site_id:
         query = query.filter(models.Asset.site_id == site_id)
     if department_id:
-        query = query.join(models.Person).filter(models.Person.department_id == department_id)
+        query = query.join(models.Person, models.Asset.person_id == models.Person.id).filter(models.Person.department_id == department_id)
     if person_id:
         query = query.filter(models.Asset.person_id == person_id)
     if purchased_from:

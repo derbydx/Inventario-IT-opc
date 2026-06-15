@@ -209,9 +209,10 @@ async function loadAssets() {
         totalAssets = countData.count;
         currentAssets = await listRes.json();
         tableBody.innerHTML = "";
-        const activeAssets = currentAssets.filter(a => a.status !== "Archived");
+        const inactiveStatuses = ["Archived","Broken","Lost","Disposed","Donate","Sold"];
+        const activeAssets = currentAssets.filter(a => !inactiveStatuses.includes(a.status));
         if (activeAssets.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>`;
             pageInfo.textContent = "mostrando 0-0 de 0";
             if (prevBtn) prevBtn.disabled = true;
             if (nextBtn) nextBtn.disabled = true;
@@ -233,7 +234,9 @@ async function loadAssets() {
             
             let badgeColor = "bg-green-100 text-green-800";
             if (asset.status === "Checkout") badgeColor = "bg-blue-100 text-blue-800";
-            if (asset.status === "Broken") badgeColor = "bg-red-100 text-red-800";
+
+            const assignedPerson = (asset.status === "Checkout" && asset.person_id) ? globalPersons.find(p => p.id === asset.person_id) : null;
+            const assignedName = assignedPerson ? assignedPerson.full_name : '';
 
             let actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-out</button>`;
             if (asset.status === "Checkout") {
@@ -249,6 +252,7 @@ async function loadAssets() {
                         ${asset.status}
                     </span>
                 </td>
+                <td class="px-4 py-3 text-gray-600 text-xs">${assignedName}</td>
                 <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">${actionButton}</td>
                 <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${asset.serial_no}</td>
                 <td data-col="category" class="px-4 py-3 text-gray-500">${asset.category || ''}</td>
@@ -260,7 +264,7 @@ async function loadAssets() {
             tableBody.appendChild(row);
         });
         applyColumnPreferences();
-    } catch (e) { tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>`; }
+    } catch (e) { tableBody.innerHTML = `<tr><td colspan="12" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>`; }
 }
 
 async function openDetailsModal(assetId) {
@@ -298,12 +302,14 @@ async function openDetailsModal(assetId) {
     statusElement.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeColor}">${asset.status}</span>`;
 
     const containerAsignado = document.getElementById("det_assigned_container");
-    if (employeeObj) {
+    if (asset.status === "Checkout" && employeeObj) {
         containerAsignado.innerHTML = `
             <button onclick="openUserAssetsModal('${employeeObj.id}', '${employeeObj.full_name}')" class="w-full text-left bg-blue-50 border border-blue-200 rounded p-2 text-blue-700 font-semibold hover:bg-blue-100 transition-colors cursor-pointer block flex justify-between items-center">
                 <span>${employeeObj.full_name} (${employeeObj.title || 'Personal'})</span>
                 <span class="text-[10px] bg-blue-600 text-white font-bold py-0.5 px-1.5 rounded uppercase tracking-wide">Ver Asignados </span>
             </button>`;
+    } else if (asset.status !== "Checkout") {
+        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded">Status: ${asset.status}</p>`;
     } else {
         containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded">Disponible en Almacen</p>`;
     }
@@ -958,7 +964,7 @@ function toggleCollapse(id) {
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -974,6 +980,11 @@ function showSection(name) {
     if (name === 'deliveryBoard') loadDeliveryBoard();
     if (name === 'deliveryEmployees') loadDeliveryEmployees();
     if (name === 'users') { loadUsers(); loadGroups(); }
+    if (name === 'brokenAssets') loadAssetsByStatus('Broken');
+    if (name === 'lostAssets') loadAssetsByStatus('Lost');
+    if (name === 'disposedAssets') loadAssetsByStatus('Disposed');
+    if (name === 'donateAssets') loadAssetsByStatus('Donate');
+    if (name === 'soldAssets') loadAssetsByStatus('Sold');
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
     // highlight active sidebar item
     document.querySelectorAll('.sidebar-item[data-section], .sidebar-sub-item[data-section]').forEach(el => el.classList.remove('active'));
@@ -982,7 +993,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1888,4 +1899,73 @@ function setupGroupFormListener() {
             errEl.classList.remove("hidden");
         }
     });
+}
+
+// --- INACTIVE ASSETS BY STATUS ---
+const statusSections = {
+    Broken: "brokenAssetsBody",
+    Lost: "lostAssetsBody",
+    Disposed: "disposedAssetsBody",
+    Donate: "donateAssetsBody",
+    Sold: "soldAssetsBody"
+};
+
+async function loadAssetsByStatus(status) {
+    const tbody = document.getElementById(statusSections[status]);
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        const res = await api(`/assets/?status=${status}&limit=1000`);
+        if (!res.ok) { tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-500">Error al cargar</td></tr>'; return; }
+        const assets = await res.json();
+        if (assets.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">No hay equipos con estado "${status}".</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = assets.map(a => `
+            <tr class="hover:bg-red-50/30 transition-colors">
+                <td class="px-4 py-3 font-bold text-red-700">${a.asset_tag_id}</td>
+                <td class="px-4 py-3 text-gray-600">${a.asset_description}</td>
+                <td class="px-4 py-3 text-gray-500">${a.brand} ${a.model}</td>
+                <td class="px-4 py-3 font-mono text-gray-400">${a.serial_no}</td>
+                <td class="px-4 py-3 text-center">
+                    <button onclick="restoreOneAsset(${a.id},'${a.asset_tag_id}')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] uppercase py-1 px-3 rounded shadow transition-colors cursor-pointer">Restaurar</button>
+                </td>
+            </tr>
+        `).join("");
+    } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
+}
+
+async function restoreOneAsset(assetId, assetTag) {
+    if (!confirm(`Restaurar ${assetTag} a "Check in"?`)) return;
+    try {
+        const res = await api(`/assets/${assetId}`, { method: "PUT", body: JSON.stringify({ status: "Check in" }) });
+        if (res.ok) { 
+            alert(`${assetTag} restaurado a Check in.`);
+            loadAssets();
+            Object.keys(statusSections).forEach(s => { const el = document.getElementById(s.toLowerCase() + 'AssetsSection'); if (el && !el.classList.contains('hidden')) loadAssetsByStatus(s); });
+        } else {
+            const err = await res.json().catch(() => ({ detail: "Error" }));
+            alert("Error: " + (err.detail || "No se pudo restaurar"));
+        }
+    } catch (e) { alert("Error de conexion"); }
+}
+
+async function restoreAllByStatus(status) {
+    if (!confirm(`Restaurar TODOS los equipos "${status}" a Check in?`)) return;
+    try {
+        const res = await api(`/assets/?status=${status}&limit=1000`);
+        if (!res.ok) { alert("Error al obtener equipos"); return; }
+        const assets = await res.json();
+        let ok = 0, fail = 0;
+        for (const a of assets) {
+            try {
+                const r = await api(`/assets/${a.id}`, { method: "PUT", body: JSON.stringify({ status: "Check in" }) });
+                if (r.ok) ok++; else fail++;
+            } catch (e) { fail++; }
+        }
+        alert(`${ok} equipo(s) restaurado(s). ${fail} fallaron.`);
+        loadAssets();
+        Object.keys(statusSections).forEach(s => { const el = document.getElementById(s.toLowerCase() + 'AssetsSection'); if (el && !el.classList.contains('hidden')) loadAssetsByStatus(s); });
+    } catch (e) { alert("Error de conexion"); }
 }

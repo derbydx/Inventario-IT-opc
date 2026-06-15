@@ -6,8 +6,10 @@ let globalPersons = [];
 let globalAdmins = [];
 let globalDepartments = [];
 let currentReportResults = [];
-let currentPage = 1;
-const pageSize = 15;
+let currentAssetPage = 1;
+let currentEmployeePage = 1;
+let currentHistoryPage = 1;
+let totalAssets = 0;
 
 function getToken() {
     const session = localStorage.getItem("adminSession");
@@ -141,46 +143,81 @@ function buildAssetQuery() {
     const search = document.getElementById("searchInput").value;
     const status = document.getElementById("filterStatus").value;
     const category = document.getElementById("filterCategory").value;
-    const skip = (currentPage - 1) * pageSize;
+    const pageSize = parseInt(document.getElementById("assetsPageSize").value);
+    const skip = (currentAssetPage - 1) * pageSize;
     const params = new URLSearchParams();
     if (search) params.set("search", search);
     if (status) params.set("status", status);
     if (category) params.set("category", category);
     params.set("skip", skip);
     params.set("limit", pageSize);
-    return params.toString();
+    return params;
 }
 
-function changePage(delta) {
-    currentPage += delta;
-    if (currentPage < 1) currentPage = 1;
-    loadAssets();
-    document.getElementById("pageInfo").innerText = `Pagina ${currentPage}`;
+function changePage(table, delta) {
+    if (table === 'assets') {
+        currentAssetPage += delta;
+        if (currentAssetPage < 1) currentAssetPage = 1;
+        loadAssets();
+    } else if (table === 'employees') {
+        currentEmployeePage += delta;
+        if (currentEmployeePage < 1) currentEmployeePage = 1;
+        renderEmployeesPage();
+    } else if (table === 'history') {
+        currentHistoryPage += delta;
+        if (currentHistoryPage < 1) currentHistoryPage = 1;
+        loadHistory();
+    }
+}
+
+function changePageSize(table) {
+    if (table === 'assets') {
+        currentAssetPage = 1;
+        loadAssets();
+    } else if (table === 'employees') {
+        currentEmployeePage = 1;
+        renderEmployeesPage();
+    } else if (table === 'history') {
+        currentHistoryPage = 1;
+        loadHistory();
+    }
 }
 
 async function loadAssets() {
     const tableBody = document.getElementById("assetsTableBody");
-    const countSpan = document.getElementById("assetCount");
+    const pageInfo = document.getElementById("assetsPageInfo");
+    const pageInfoAux = document.getElementById("assetsPageInfoAux");
+    const prevBtn = document.querySelector("#assetsSection .flex.justify-between button:first-child");
+    const nextBtn = document.querySelector("#assetsSection .flex.justify-between button:last-child");
+    const pageSize = parseInt(document.getElementById("assetsPageSize").value);
     try {
         const query = buildAssetQuery();
-        const response = await api(`/assets/?${query}`);
-        if (!response.ok) throw new Error("Error en el servidor");
-        
-        currentAssets = await response.json();
+        const countParams = new URLSearchParams(query.toString());
+        countParams.delete("skip");
+        countParams.delete("limit");
+        const [countRes, listRes] = await Promise.all([
+            api(`/assets/count/?${countParams.toString()}`),
+            api(`/assets/?${query}`)
+        ]);
+        if (!countRes.ok || !listRes.ok) throw new Error("Error en el servidor");
+        const countData = await countRes.json();
+        totalAssets = countData.count;
+        currentAssets = await listRes.json();
         tableBody.innerHTML = "";
-        
         const activeAssets = currentAssets.filter(a => a.status !== "Archived");
-        
         if (activeAssets.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>`;
-            countSpan.innerText = "0 Equipos";
-            document.getElementById("prevPage").disabled = currentPage <= 1;
+            pageInfo.textContent = "mostrando 0-0 de 0";
+            if (prevBtn) prevBtn.disabled = true;
+            if (nextBtn) nextBtn.disabled = true;
             return;
         }
-
-        countSpan.innerText = `${activeAssets.length} ${activeAssets.length === 1 ? 'Equipo' : 'Equipos'}`;
-        document.getElementById("prevPage").disabled = currentPage <= 1;
-        document.getElementById("nextPage").disabled = activeAssets.length < pageSize;
+        const start = (currentAssetPage - 1) * pageSize + 1;
+        const end = Math.min(start + activeAssets.length - 1, totalAssets);
+        pageInfo.textContent = `mostrando ${start}-${end} de ${totalAssets}`;
+        if (pageInfoAux) pageInfoAux.textContent = `Pagina ${currentAssetPage}`;
+        if (prevBtn) prevBtn.disabled = currentAssetPage <= 1;
+        if (nextBtn) nextBtn.disabled = activeAssets.length < pageSize;
 
         const siteName = sid => { const s = globalSites.find(x => x.id === sid); return s ? s.site_name : ''; };
         const fmtDate = d => d ? new Date(d).toLocaleDateString('es-ES') : '';
@@ -434,14 +471,28 @@ async function triggerDeleteAsset(assetId, assetTag) {
 
 async function loadHistory() {
     const historyBody = document.getElementById("historyTableBody");
+    const pageSize = parseInt(document.getElementById("historyPageSize").value);
+    const pageInfo = document.getElementById("historyPageInfo");
+    const pageInfoAux = document.getElementById("historyPageInfoAux");
+    const prevBtn = document.querySelector("#historySection .flex.justify-between button:first-child");
+    const nextBtn = document.querySelector("#historySection .flex.justify-between button:last-child");
     try {
-        const response = await api("/history/");
-        if (!response.ok) throw new Error("Error");
-        const historyData = await response.json();
-        document.getElementById("historyCount").textContent = historyData.length + " Movimientos";
+        const [countRes, listRes] = await Promise.all([
+            api("/history/count/"),
+            api(`/history/?skip=${(currentHistoryPage - 1) * pageSize}&limit=${pageSize}`)
+        ]);
+        if (!countRes.ok || !listRes.ok) throw new Error("Error");
+        const countData = await countRes.json();
+        const historyData = await listRes.json();
+        const total = countData.count;
         historyBody.innerHTML = "";
-        if (historyData.length === 0) { historyBody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-gray-400 italic">Sin movimientos.</td></tr>`; return; }
-        historyData.reverse();
+        if (historyData.length === 0) { historyBody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-gray-400 italic">Sin movimientos.</td></tr>`; pageInfo.textContent = "mostrando 0-0 de 0"; if (pageInfoAux) pageInfoAux.textContent = "Pagina 1"; if (prevBtn) prevBtn.disabled = true; if (nextBtn) nextBtn.disabled = true; return; }
+        const start = (currentHistoryPage - 1) * pageSize + 1;
+        const end = Math.min(start + historyData.length - 1, total);
+        pageInfo.textContent = `mostrando ${start}-${end} de ${total}`;
+        if (pageInfoAux) pageInfoAux.textContent = `Pagina ${currentHistoryPage}`;
+        if (prevBtn) prevBtn.disabled = currentHistoryPage <= 1;
+        if (nextBtn) nextBtn.disabled = historyData.length < pageSize;
         historyData.forEach(item => {
             const row = document.createElement("tr"); row.className = "hover:bg-gray-50 text-xs";
             let actionBadge = "text-blue-600 font-bold";
@@ -483,22 +534,45 @@ function detailModalKeydown(e) {
 }
 
 async function loadPersons() {
-    const tableBody = document.getElementById("personsTableBody");
     try {
         const res = await api("/persons/");
         if (!res.ok) throw new Error("Error");
-        const persons = await res.json();
-        document.getElementById("employeeCount").textContent = persons.length + " Empleados";
-        tableBody.innerHTML = "";
-        if (persons.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados registrados.</td></tr>';
-            return;
-        }
-        persons.forEach(p => {
-            const dept = globalDepartments.find(d => d.id === p.department_id);
-            const site = globalSites.find(s => s.id === p.site_id);
-            const row = document.createElement("tr");
-            row.className = "hover:bg-teal-50/50 transition-colors";
+        globalPersons = await res.json();
+        renderEmployeesPage();
+    } catch (e) { document.getElementById("personsTableBody").innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-500 font-medium">Error al cargar empleados</td></tr>'; }
+}
+
+function renderEmployeesPage() {
+    const tableBody = document.getElementById("personsTableBody");
+    const pageSize = parseInt(document.getElementById("employeesPageSize").value);
+    const pageInfo = document.getElementById("employeesPageInfo");
+    const pageInfoAux = document.getElementById("employeesPageInfoAux");
+    const prevBtn = document.querySelector("#employeesSection .flex.justify-between button:first-child");
+    const nextBtn = document.querySelector("#employeesSection .flex.justify-between button:last-child");
+    const persons = globalPersons;
+    tableBody.innerHTML = "";
+    if (persons.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados registrados.</td></tr>';
+        pageInfo.textContent = "mostrando 0-0 de 0";
+        if (pageInfoAux) pageInfoAux.textContent = "Pagina 1";
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        return;
+    }
+    const total = persons.length;
+    const start = (currentEmployeePage - 1) * pageSize;
+    const pageItems = persons.slice(start, start + pageSize);
+    const displayStart = total > 0 ? start + 1 : 0;
+    const displayEnd = Math.min(start + pageSize, total);
+    pageInfo.textContent = `mostrando ${displayStart}-${displayEnd} de ${total}`;
+    if (pageInfoAux) pageInfoAux.textContent = `Pagina ${currentEmployeePage}`;
+    if (prevBtn) prevBtn.disabled = currentEmployeePage <= 1;
+    if (nextBtn) nextBtn.disabled = displayEnd >= total;
+    pageItems.forEach(p => {
+        const dept = globalDepartments.find(d => d.id === p.department_id);
+        const site = globalSites.find(s => s.id === p.site_id);
+        const row = document.createElement("tr");
+        row.className = "hover:bg-teal-50/50 transition-colors";
             row.innerHTML = `
                 <td class="px-4 py-3 font-medium text-gray-800">${p.full_name}</td>
                 <td class="px-4 py-3 text-gray-500">${p.email}</td>
@@ -513,9 +587,7 @@ async function loadPersons() {
             tableBody.appendChild(row);
         });
         applyColumnPreferences();
-    } catch (e) { tableBody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-500 font-medium">Error al cargar empleados</td></tr>'; }
 }
-
 async function loadCatalogs() {
     const sitesBody = document.getElementById("sitesTableBody");
     const deptsBody = document.getElementById("departmentsTableBody");
@@ -952,22 +1024,26 @@ async function executeAdvancedSearch() {
         }
     }
     const tableBody = document.getElementById("assetsTableBody");
-    const countSpan = document.getElementById("assetCount");
+    const pageInfo = document.getElementById("assetsPageInfo");
     tableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Buscando...</td></tr>';
     try {
         const response = await api(`/assets/?${params.toString()}`);
         if (!response.ok) throw new Error("Error en el servidor");
         currentAssets = await response.json();
-        currentPage = 1;
-        document.getElementById("pageInfo").innerText = "Pagina 1";
+        currentAssetPage = 1;
+        const pageInfoAux = document.getElementById("assetsPageInfoAux");
+        if (pageInfoAux) pageInfoAux.textContent = "Pagina 1";
         tableBody.innerHTML = "";
         const activeAssets = currentAssets.filter(a => a.status !== "Archived");
         if (activeAssets.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Sin resultados para esta busqueda.</td></tr>`;
-            countSpan.innerText = "0 Equipos";
+            pageInfo.textContent = "mostrando 0-0 de 0";
             return;
         }
-        countSpan.innerText = `${activeAssets.length} ${activeAssets.length === 1 ? 'Equipo' : 'Equipos'}`;
+        totalAssets = activeAssets.length;
+        const start = 1;
+        const end = activeAssets.length;
+        pageInfo.textContent = `mostrando ${start}-${end} de ${totalAssets}`;
         const siteName = sid => { const s = globalSites.find(x => x.id === sid); return s ? s.site_name : ''; };
         const fmtDate = d => d ? new Date(d).toLocaleDateString('es-ES') : '';
         activeAssets.forEach(asset => {
@@ -1022,7 +1098,7 @@ function cancelAdvancedSearch() {
 
 async function updateDashboard() {
     try {
-        const resAssets = await api("/assets/");
+        const resAssets = await api("/assets/?limit=9999");
         const resPersons = await api("/persons/");
         const resHistory = await api("/history/");
         const resDeliveries = await api("/deliveries/pending/");
@@ -1083,7 +1159,7 @@ async function updateDashboard() {
 
 function goToAssetsFiltered(filterKey, filterValue) {
     showSection('assets');
-    currentPage = 1;
+    currentAssetPage = 1;
     const statusSel = document.getElementById("filterStatus");
     const catSel = document.getElementById("filterCategory");
     if (filterKey === 'status' && statusSel) {

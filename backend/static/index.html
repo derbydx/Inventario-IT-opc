@@ -269,19 +269,8 @@
                             <table class="w-full text-xs">
                                 <thead><tr class="border-b border-gray-200"><th class="text-left py-1.5 px-2 text-gray-500 font-bold uppercase">Categoria</th><th class="text-right py-1.5 px-2 text-gray-500 font-bold uppercase">Cantidad</th></tr></thead>
                                 <tbody id="dashCategoryBody"></tbody>
-                            </table>
-                        </div>
+                        </table>
                     </div>
-
-                    <!-- Actividad Reciente -->
-                    <div class="mt-6">
-                        <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Actividad Reciente</h3>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-xs">
-                                <thead class="bg-gray-50"><tr><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Fecha</th><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Accion</th><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Equipo</th><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Persona</th></tr></thead>
-                                <tbody id="dashRecentActivity" class="divide-y divide-gray-100"></tbody>
-                            </table>
-                        </div>
                     </div>
                 </section>
 
@@ -290,7 +279,7 @@
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-semibold text-gray-800">Inventario Global de Activos</h2>
                         <div class="flex items-center gap-2">
-                            <span id="assetCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Equipos</span>
+                            <span id="assetsPageInfo" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">mostrando 0-0 de 0</span>
                             <div class="relative">
                                 <button onclick="toggleColumnPanel('assets')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Columnas</button>
                                 <div id="colPanel_assets" class="hidden absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg p-3 z-20 w-44 text-xs space-y-1.5">
@@ -466,9 +455,20 @@
                         </table>
                     </div>
                     <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-200">
-                        <button id="prevPage" onclick="changePage(-1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Anterior</button>
-                        <span id="pageInfo" class="text-xs text-gray-500">Pagina 1</span>
-                        <button id="nextPage" onclick="changePage(1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Siguiente</button>
+                        <button onclick="changePage('assets', -1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Anterior</button>
+                        <div class="flex items-center gap-3">
+                            <span id="assetsPageInfoAux" class="text-xs text-gray-500">Pagina 1</span>
+                            <label class="text-xs text-gray-500 flex items-center gap-1">Mostrar:
+                                <select id="assetsPageSize" onchange="changePageSize('assets')" class="p-1 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="10">10</option>
+                                    <option value="50" selected>50</option>
+                                    <option value="100">100</option>
+                                    <option value="200">200</option>
+                                    <option value="500">500</option>
+                                </select>
+                            </label>
+                        </div>
+                        <button onclick="changePage('assets', 1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Siguiente</button>
                     </div>
                 </section>
 
@@ -477,7 +477,7 @@
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-semibold text-gray-800">Directorio de Empleados</h2>
                         <div class="flex items-center gap-2">
-                            <span id="employeeCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Empleados</span>
+                            <span id="employeesPageInfo" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">mostrando 0-0 de 0</span>
                             <button onclick="loadPersons()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded border border-gray-300 transition-colors cursor-pointer">Actualizar</button>
                             <div class="relative">
                                 <button onclick="toggleColumnPanel('employees')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Columnas</button>
@@ -509,6 +509,22 @@
                                 <tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 italic">Cargando empleados...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-200">
+                        <button onclick="changePage('employees', -1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Anterior</button>
+                        <div class="flex items-center gap-3">
+                            <span id="employeesPageInfoAux" class="text-xs text-gray-500">Pagina 1</span>
+                            <label class="text-xs text-gray-500 flex items-center gap-1">Mostrar:
+                                <select id="employeesPageSize" onchange="changePageSize('employees')" class="p-1 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="10">10</option>
+                                    <option value="50" selected>50</option>
+                                    <option value="100">100</option>
+                                    <option value="200">200</option>
+                                    <option value="500">500</option>
+                                </select>
+                            </label>
+                        </div>
+                        <button onclick="changePage('employees', 1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Siguiente</button>
                     </div>
                 </section>
 
@@ -566,7 +582,7 @@
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-semibold text-gray-800 flex items-center gap-2">Historial de Auditoria Reciente</h2>
                         <div class="flex items-center gap-2">
-                            <span id="historyCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Movimientos</span>
+                            <span id="historyPageInfo" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">mostrando 0-0 de 0</span>
                             <button onclick="loadHistory()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded border border-gray-300 transition-colors cursor-pointer">Actualizar</button>
                         </div>
                     </div>
@@ -587,9 +603,23 @@
                             </tbody>
                         </table>
                     </div>
+                    <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-200">
+                        <button onclick="changePage('history', -1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Anterior</button>
+                        <div class="flex items-center gap-3">
+                            <span id="historyPageInfoAux" class="text-xs text-gray-500">Pagina 1</span>
+                            <label class="text-xs text-gray-500 flex items-center gap-1">Mostrar:
+                                <select id="historyPageSize" onchange="changePageSize('history')" class="p-1 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="10">10</option>
+                                    <option value="50" selected>50</option>
+                                    <option value="100">100</option>
+                                    <option value="200">200</option>
+                                    <option value="500">500</option>
+                                </select>
+                            </label>
+                        </div>
+                        <button onclick="changePage('history', 1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Siguiente</button>
+                    </div>
                 </section>
-
-                <!-- SECTION: REPORTES -->
                 <section id="reportsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-gray-800">Checkout by Person</h2>

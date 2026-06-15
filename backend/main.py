@@ -312,6 +312,74 @@ def list_assets(
         query = query.filter(models.Asset.id.in_(subq))
     return query.offset(skip).limit(limit).all()
 
+@app.get("/assets/count/", tags=["Gestión de Activos"])
+def count_assets(
+    search: str = None,
+    search_condition: str = "contains",
+    search_field: str = None,
+    status: str = None,
+    category: str = None,
+    site_id: int = None,
+    department_id: int = None,
+    person_id: int = None,
+    purchased_from: str = None,
+    date_field: str = "purchase_date",
+    date_from: str = None,
+    date_to: str = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Asset)
+    if search and search_field:
+        column = getattr(models.Asset, search_field, None)
+        if column:
+            if search_condition == "exact":
+                query = query.filter(column == search)
+            elif search_condition == "startswith":
+                query = query.filter(column.like(f"{search}%"))
+            elif search_condition == "endswith":
+                query = query.filter(column.like(f"%{search}"))
+            else:
+                query = query.filter(column.like(f"%{search}%"))
+    elif search:
+        like = f"%{search}%"
+        query = query.filter(
+            models.Asset.asset_tag_id.like(like) |
+            models.Asset.asset_description.like(like) |
+            models.Asset.brand.like(like) |
+            models.Asset.model.like(like) |
+            models.Asset.serial_no.like(like) |
+            models.Asset.category.like(like)
+        )
+    if status:
+        query = query.filter(models.Asset.status == status)
+    if category:
+        query = query.filter(models.Asset.category == category)
+    if site_id:
+        query = query.filter(models.Asset.site_id == site_id)
+    if department_id:
+        query = query.join(models.Person).filter(models.Person.department_id == department_id)
+    if person_id:
+        query = query.filter(models.Asset.person_id == person_id)
+    if purchased_from:
+        query = query.filter(models.Asset.purchased_from.like(f"%{purchased_from}%"))
+    if date_from and date_field == "purchase_date":
+        query = query.filter(models.Asset.purchase_date >= datetime.strptime(date_from, "%Y-%m-%d").date())
+    if date_to and date_field == "purchase_date":
+        query = query.filter(models.Asset.purchase_date <= datetime.strptime(date_to, "%Y-%m-%d").date())
+    if date_from and date_field == "assigned_date":
+        subq = db.query(models.History.asset_id).filter(
+            models.History.tipo_accion == "Checkout",
+            models.History.fecha_accion >= date_from
+        ).subquery()
+        query = query.filter(models.Asset.id.in_(subq))
+    if date_to and date_field == "assigned_date":
+        subq = db.query(models.History.asset_id).filter(
+            models.History.tipo_accion == "Checkout",
+            models.History.fecha_accion <= date_to
+        ).subquery()
+        query = query.filter(models.Asset.id.in_(subq))
+    return {"count": query.count()}
+
 @app.get("/assets/{asset_id}", tags=["Assets"])
 def get_asset(asset_id: int, db: Session = Depends(get_db)):
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
@@ -388,6 +456,10 @@ def view_history(
     db: Session = Depends(get_db)
 ):
     return db.query(models.History).order_by(models.History.id.desc()).offset(skip).limit(limit).all()
+
+@app.get("/history/count/", tags=["Acciones de Inventario"])
+def count_history(db: Session = Depends(get_db)):
+    return {"count": db.query(models.History).count()}
 
 # ==========================================
 # 9. EDICIÓN Y ELIMINACIÓN (SOFT DELETE)

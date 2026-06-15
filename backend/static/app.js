@@ -6,6 +6,7 @@ let globalPersons = [];
 let globalAdmins = [];
 let globalDepartments = [];
 let currentReportResults = [];
+let currentCtfResults = [];
 let currentAssetPage = 1;
 let currentEmployeePage = 1;
 let currentHistoryPage = 1;
@@ -1077,7 +1078,7 @@ function toggleCollapse(id) {
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1090,6 +1091,7 @@ function showSection(name) {
     if (name === 'assets' && typeof loadAssets === 'function') loadAssets();
     if (name === 'dashboard') updateDashboard();
     if (name === 'reports') populateReportPersonSelect();
+    if (name === 'checkoutTimeframe') { var d = new Date(); document.getElementById("ctf_end").value = d.toISOString().split("T")[0]; d.setDate(d.getDate() - 30); document.getElementById("ctf_start").value = d.toISOString().split("T")[0]; }
     if (name === 'deliveryBoard') loadDeliveryBoard();
     if (name === 'deliveryEmployees') loadDeliveryEmployees();
     if (name === 'deliveryAdd') { document.getElementById("delivery_person_search").value = ""; document.getElementById("delivery_person_id").value = ""; document.getElementById("delivery_person_results").classList.add("hidden"); document.querySelectorAll('.delivery-cat-qty').forEach(function (q) { q.disabled = true; }); }
@@ -1108,7 +1110,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1470,6 +1472,48 @@ async function loadCheckoutReport() {
     }
 }
 
+async function loadCheckoutTimeframeReport() {
+    const start = document.getElementById("ctf_start").value;
+    const end = document.getElementById("ctf_end").value;
+    const tbody = document.getElementById("ctfResultsBody");
+    if (!start || !end) { tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-amber-600 font-medium">Seleccione fecha de inicio y fin.</td></tr>'; return; }
+    tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        const res = await api("/reports/checkout-timeframe/?start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end));
+        if (!res.ok) throw new Error("Error en el servidor");
+        const data = await res.json();
+        document.getElementById("ctfCount").textContent = data.length + " Resultados";
+        tbody.innerHTML = "";
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-gray-400 italic">Sin resultados en este rango de fechas.</td></tr>';
+            return;
+        }
+        currentCtfResults = data;
+        data.forEach(function (item) {
+            var row = document.createElement("tr");
+            row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer";
+            row.onclick = function () { openAssetModalById(item.asset_id); };
+            var badge = "bg-green-100 text-green-800";
+            if (item.current_status === "Checkout") badge = "bg-blue-100 text-blue-800";
+            if (item.current_status === "Broken" || item.current_status === "Lost/Missing") badge = "bg-red-100 text-red-800";
+            if (item.current_status === "Under repair" || item.current_status === "GarantiaSD") badge = "bg-amber-100 text-amber-800";
+            row.innerHTML =
+                '<td class="px-3 py-2 font-mono font-bold text-blue-600">' + item.asset_tag_id + '</td>' +
+                '<td class="px-3 py-2">' + item.asset_description + '</td>' +
+                '<td class="px-3 py-2">' + item.brand + " " + item.model + '</td>' +
+                '<td class="px-3 py-2 font-mono">' + item.serial_no + '</td>' +
+                '<td class="px-3 py-2">' + item.category + '</td>' +
+                '<td class="px-3 py-2">' + item.employee_name + ' <span class="text-gray-400 text-[10px]">(' + item.employee_id + ')</span></td>' +
+                '<td class="px-3 py-2 text-gray-500">' + item.admin_name + '</td>' +
+                '<td class="px-3 py-2 text-gray-500 text-[10px]">' + new Date(item.checkout_date).toLocaleDateString("es-ES", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) + '</td>' +
+                '<td class="px-3 py-2"><span class="px-2 py-0.5 inline-flex text-[10px] leading-5 font-semibold rounded-full ' + badge + '">' + item.current_status + '</span></td>';
+            tbody.appendChild(row);
+        });
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>';
+    }
+}
+
 async function openAssetModalById(assetId) {
     const existing = currentAssets.find(a => a.id === parseInt(assetId));
     if (existing) {
@@ -1793,6 +1837,21 @@ function exportVisibleCSV(section) {
         ];
         headers = colMap.filter(c => !c.col || localStorage.getItem(`col_reports_${c.col}`) !== "0").map(c => c.label);
         rows = data.map(r => colMap.filter(c => !c.col || localStorage.getItem(`col_reports_${c.col}`) !== "0").map(c => csvEscape(c.fn ? c.fn(r) : r[c.key])));
+    } else if (section === "ctf") {
+        data = currentCtfResults;
+        const colMap = [
+            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_description", label: "Descripcion" },
+            { key: "brand", label: "Marca", fn: r => r.brand + " " + r.model },
+            { key: "serial_no", label: "Serie" },
+            { key: "category", label: "Categoria" },
+            { key: "employee_name", label: "Empleado", fn: r => r.employee_name + " (" + r.employee_id + ")" },
+            { key: "admin_name", label: "Admin" },
+            { key: "checkout_date", label: "Fecha Checkout", fn: r => new Date(r.checkout_date).toLocaleDateString("es-ES") },
+            { key: "current_status", label: "Status Actual" }
+        ];
+        headers = colMap.map(c => c.label);
+        rows = data.map(r => colMap.map(c => csvEscape(c.fn ? c.fn(r) : r[c.key])));
     }
 
     if (rows.length === 0) { alert("No hay datos para exportar"); return; }
@@ -1800,7 +1859,7 @@ function exportVisibleCSV(section) {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    const names = { assets: "activos", employees: "empleados", reports: "reporte_checkout" };
+    const names = { assets: "activos", employees: "empleados", reports: "reporte_checkout", ctf: "checkout_por_fecha" };
     a.download = `${names[section] || section}_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);

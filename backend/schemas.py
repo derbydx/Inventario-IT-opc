@@ -256,3 +256,17 @@ class CategoryResponse(BaseModel):
     name: str
     class Config:
         from_attributes = True
+
+class CheckoutTimeframeItem(BaseModel):
+    asset_id: int
+    asset_tag_id: str
+    asset_description: str
+    brand: str
+    model: str
+    serial_no: str
+    category: str
+    employee_name: str
+    employee_id: str
+    admin_name: str
+    checkout_date: datetime
+    current_status: str

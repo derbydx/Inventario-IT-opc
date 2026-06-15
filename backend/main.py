@@ -866,6 +866,55 @@ def report_person_checkouts(person_id: int, mode: str = "current", db: Session =
             ))
         return results
 
+@app.get("/reports/checkout-timeframe/", tags=["Reportes"])
+def report_checkout_timeframe(
+    start: str,
+    end: str,
+    db: Session = Depends(get_db)
+):
+    from datetime import datetime as dt_lib
+    try:
+        start_dt = dt_lib.strptime(start, "%Y-%m-%d")
+        end_dt = dt_lib.strptime(end, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+    except ValueError:
+        raise HTTPException(400, "Formato de fecha invalido. Use YYYY-MM-DD")
+
+    history = db.query(models.History).filter(
+        models.History.tipo_accion == "Checkout",
+        models.History.fecha_accion >= start_dt,
+        models.History.fecha_accion <= end_dt
+    ).order_by(models.History.fecha_accion.desc()).all()
+
+    asset_ids = list(set(h.asset_id for h in history))
+    assets = {a.id: a for a in db.query(models.Asset).filter(models.Asset.id.in_(asset_ids)).all()}
+    person_ids = list(set(h.asignado_a_id for h in history if h.asignado_a_id))
+    persons = {p.id: p for p in db.query(models.Person).filter(models.Person.id.in_(person_ids)).all()}
+    admin_ids = list(set(h.realizado_por_id for h in history))
+    admins = {a.id: a for a in db.query(models.Admin).filter(models.Admin.id.in_(admin_ids)).all()}
+
+    results = []
+    for h in history:
+        asset = assets.get(h.asset_id)
+        if not asset:
+            continue
+        person = persons.get(h.asignado_a_id) if h.asignado_a_id else None
+        admin = admins.get(h.realizado_por_id)
+        results.append(schemas.CheckoutTimeframeItem(
+            asset_id=asset.id,
+            asset_tag_id=asset.asset_tag_id,
+            asset_description=asset.asset_description,
+            brand=asset.brand,
+            model=asset.model,
+            serial_no=asset.serial_no,
+            category=asset.category or "",
+            employee_name=person.full_name if person else "N/A",
+            employee_id=person.employee_id if person else "",
+            admin_name=admin.username if admin else "Desconocido",
+            checkout_date=h.fecha_accion,
+            current_status=asset.status
+        ))
+    return results
+
 # ==========================================
 # 13. ENDPOINTS DE ENTREGAS PENDIENTES
 # ==========================================

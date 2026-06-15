@@ -7,6 +7,7 @@ let globalAdmins = [];
 let globalDepartments = [];
 let currentReportResults = [];
 let currentCtfResults = [];
+let currentSrResults = [];
 let currentAssetPage = 1;
 let currentEmployeePage = 1;
 let currentHistoryPage = 1;
@@ -1157,6 +1158,53 @@ function toggleCollapse(id) {
     }
 }
 
+async function loadStatusReport() {
+    var status = document.getElementById("sr_status").value;
+    var tbody = document.getElementById("srResultsBody");
+    if (!status) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-3 py-4 text-center text-gray-400 italic">Seleccione un status para generar el reporte.</td></tr>';
+        document.getElementById("srCount").textContent = "0 Resultados";
+        return;
+    }
+    tbody.innerHTML = '<tr><td colspan="7" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        var res = await api("/assets/?status=" + encodeURIComponent(status) + "&limit=5000");
+        if (!res.ok) throw new Error("Error");
+        var assets = await res.json();
+        document.getElementById("srCount").textContent = assets.length + " Resultados";
+        tbody.innerHTML = "";
+        if (assets.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="px-3 py-4 text-center text-gray-400 italic">Sin activos con este status.</td></tr>';
+            return;
+        }
+        currentSrResults = assets;
+        var siteName = function (sid) { var s = globalSites.find(function (x) { return x.id === sid; }); return s ? s.site_name : ""; };
+        assets.forEach(function (a) {
+            var row = document.createElement("tr");
+            row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer";
+            row.onclick = function () { openDetailsModal(a.id); };
+            var badge = "bg-green-100 text-green-800";
+            if (a.status === "Checkout") badge = "bg-blue-100 text-blue-800";
+            else if (["Broken", "Lost/Missing", "Dispose"].includes(a.status)) badge = "bg-red-100 text-red-800";
+            else if (a.status === "Under repair" || a.status === "GarantiaSD") badge = "bg-amber-100 text-amber-800";
+            else if (a.status === "Reserved") badge = "bg-purple-100 text-purple-800";
+            else if (a.status === "Archived") badge = "bg-gray-200 text-gray-700";
+            else if (a.status === "Sold") badge = "bg-yellow-100 text-yellow-800";
+            row.innerHTML =
+                '<td class="px-3 py-2 font-mono font-bold text-blue-600">' + a.asset_tag_id + '</td>' +
+                '<td class="px-3 py-2">' + (a.asset_description || "") + '</td>' +
+                '<td class="px-3 py-2">' + (a.brand || "") + " " + (a.model || "") + '</td>' +
+                '<td class="px-3 py-2 font-mono text-gray-500">' + (a.serial_no || "") + '</td>' +
+                '<td class="px-3 py-2 text-gray-500">' + (a.category || "") + '</td>' +
+                '<td class="px-3 py-2 text-gray-500">' + siteName(a.site_id) + '</td>' +
+                '<td class="px-3 py-2"><span class="px-2 py-0.5 inline-flex text-[10px] leading-5 font-semibold rounded-full ' + badge + '">' + a.status + '</span></td>';
+            tbody.appendChild(row);
+        });
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-3 py-4 text-center text-red-500 font-medium">Error de conexion</td></tr>';
+    }
+}
+
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
@@ -1193,7 +1241,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1924,6 +1972,20 @@ function exportVisibleCSV(section) {
         ];
         headers = colMap.map(c => c.label);
         rows = data.map(r => colMap.map(c => csvEscape(c.fn ? c.fn(r) : r[c.key])));
+    } else if (section === "sr") {
+        data = currentSrResults;
+        const siteName = function (sid) { var s = globalSites.find(function (x) { return x.id === sid; }); return s ? s.site_name : ""; };
+        const colMap = [
+            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_description", label: "Descripcion" },
+            { key: "brand_model", label: "Marca/Modelo", fn: function (a) { return a.brand + " " + a.model; } },
+            { key: "serial_no", label: "Serie" },
+            { key: "category", label: "Categoria" },
+            { key: "site", label: "Sitio", fn: function (a) { return siteName(a.site_id); } },
+            { key: "status", label: "Status" }
+        ];
+        headers = colMap.map(function (c) { return c.label; });
+        rows = data.map(function (r) { return colMap.map(function (c) { return csvEscape(c.fn ? c.fn(r) : r[c.key]); }); });
     }
 
     if (rows.length === 0) { alert("No hay datos para exportar"); return; }
@@ -1931,7 +1993,7 @@ function exportVisibleCSV(section) {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    const names = { assets: "activos", employees: "empleados", reports: "reporte_checkout", ctf: "checkout_por_fecha" };
+    const names = { assets: "activos", employees: "empleados", reports: "reporte_checkout", ctf: "checkout_por_fecha", sr: "status_report" };
     a.download = `${names[section] || section}_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);

@@ -268,8 +268,14 @@ async function loadAssets() {
 }
 
 async function openDetailsModal(assetId) {
-    const asset = currentAssets.find(a => a.id === parseInt(assetId));
-    if (!asset) return;
+    let asset = currentAssets.find(a => a.id === parseInt(assetId));
+    if (!asset) {
+        try {
+            const res = await api(`/assets/${assetId}`);
+            if (res.ok) asset = await res.json();
+        } catch (e) {}
+        if (!asset) return;
+    }
 
     document.getElementById("assetSpecificHistoryWrapper").classList.add("hidden");
     document.getElementById("historyToggleIcon").innerText = "Mostrar";
@@ -964,7 +970,7 @@ function toggleCollapse(id) {
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -985,6 +991,7 @@ function showSection(name) {
     if (name === 'disposedAssets') loadAssetsByStatus('Disposed');
     if (name === 'donateAssets') loadAssetsByStatus('Donate');
     if (name === 'soldAssets') loadAssetsByStatus('Sold');
+    if (name === 'listadoInactivos') loadListadoInactivos();
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
     // highlight active sidebar item
     document.querySelectorAll('.sidebar-item[data-section], .sidebar-sub-item[data-section]').forEach(el => el.classList.remove('active'));
@@ -993,7 +1000,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1923,17 +1930,49 @@ async function loadAssetsByStatus(status) {
             return;
         }
         tbody.innerHTML = assets.map(a => `
-            <tr class="hover:bg-red-50/30 transition-colors">
+            <tr class="hover:bg-red-50/30 transition-colors cursor-pointer" onclick="openDetailsModal(${a.id})">
                 <td class="px-4 py-3 font-bold text-red-700">${a.asset_tag_id}</td>
                 <td class="px-4 py-3 text-gray-600">${a.asset_description}</td>
                 <td class="px-4 py-3 text-gray-500">${a.brand} ${a.model}</td>
                 <td class="px-4 py-3 font-mono text-gray-400">${a.serial_no}</td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">
                     <button onclick="restoreOneAsset(${a.id},'${a.asset_tag_id}')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] uppercase py-1 px-3 rounded shadow transition-colors cursor-pointer">Restaurar</button>
                 </td>
             </tr>
         `).join("");
     } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
+}
+
+async function loadListadoInactivos() {
+    const tbody = document.getElementById("listadoInactivosBody");
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        const statuses = ["Broken","Lost","Disposed","Donate","Sold"];
+        const results = await Promise.all(statuses.map(s => api(`/assets/?status=${s}&limit=1000`).then(r => r.ok ? r.json() : [])));
+        const all = results.flat().sort((a, b) => a.asset_tag_id.localeCompare(b.asset_tag_id));
+        if (all.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 italic">No hay equipos inactivos.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = all.map(a => {
+            let badgeColor = "bg-red-100 text-red-800";
+            if (a.status === "Donate") badgeColor = "bg-pink-100 text-pink-800";
+            if (a.status === "Sold") badgeColor = "bg-yellow-100 text-yellow-800";
+            if (a.status === "Disposed") badgeColor = "bg-gray-200 text-gray-700";
+            return `<tr class="hover:bg-blue-50/30 transition-colors cursor-pointer" onclick="openDetailsModal(${a.id})">
+                <td class="px-4 py-3 font-bold text-blue-700">${a.asset_tag_id}</td>
+                <td class="px-4 py-3 text-gray-600">${a.asset_description}</td>
+                <td class="px-4 py-3 text-gray-500">${a.brand} ${a.model}</td>
+                <td class="px-4 py-3"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}">${a.status}</span></td>
+                <td class="px-4 py-3 font-mono text-gray-400">${a.serial_no}</td>
+                <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">
+                    <button onclick="restoreOneAsset(${a.id},'${a.asset_tag_id}')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] uppercase py-1 px-3 rounded shadow transition-colors cursor-pointer">Restaurar</button>
+                </td>
+            </tr>`;
+        }).join("");
+    } catch (e) { tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
+}
 }
 
 async function restoreOneAsset(assetId, assetTag) {
@@ -1943,7 +1982,7 @@ async function restoreOneAsset(assetId, assetTag) {
         if (res.ok) { 
             alert(`${assetTag} restaurado a Check in.`);
             loadAssets();
-            Object.keys(statusSections).forEach(s => { const el = document.getElementById(s.toLowerCase() + 'AssetsSection'); if (el && !el.classList.contains('hidden')) loadAssetsByStatus(s); });
+            reloadVisibleInactive();
         } else {
             const err = await res.json().catch(() => ({ detail: "Error" }));
             alert("Error: " + (err.detail || "No se pudo restaurar"));
@@ -1951,21 +1990,31 @@ async function restoreOneAsset(assetId, assetTag) {
     } catch (e) { alert("Error de conexion"); }
 }
 
+async function reloadVisibleInactive() {
+    Object.keys(statusSections).forEach(s => { const el = document.getElementById(s.toLowerCase() + 'AssetsSection'); if (el && !el.classList.contains('hidden')) loadAssetsByStatus(s); });
+    const listadoEl = document.getElementById("listadoInactivosSection");
+    if (listadoEl && !listadoEl.classList.contains('hidden')) loadListadoInactivos();
+}
+
 async function restoreAllByStatus(status) {
-    if (!confirm(`Restaurar TODOS los equipos "${status}" a Check in?`)) return;
+    const statuses = status ? [status] : ["Broken","Lost","Disposed","Donate","Sold"];
+    const label = status || "INACTIVOS";
+    if (!confirm(`Restaurar TODOS los equipos "${label}" a Check in?`)) return;
     try {
-        const res = await api(`/assets/?status=${status}&limit=1000`);
-        if (!res.ok) { alert("Error al obtener equipos"); return; }
-        const assets = await res.json();
-        let ok = 0, fail = 0;
-        for (const a of assets) {
-            try {
-                const r = await api(`/assets/${a.id}`, { method: "PUT", body: JSON.stringify({ status: "Check in" }) });
-                if (r.ok) ok++; else fail++;
-            } catch (e) { fail++; }
+        let totalOk = 0, totalFail = 0;
+        for (const st of statuses) {
+            const res = await api(`/assets/?status=${st}&limit=1000`);
+            if (!res.ok) continue;
+            const assets = await res.json();
+            for (const a of assets) {
+                try {
+                    const r = await api(`/assets/${a.id}`, { method: "PUT", body: JSON.stringify({ status: "Check in" }) });
+                    if (r.ok) totalOk++; else totalFail++;
+                } catch (e) { totalFail++; }
+            }
         }
-        alert(`${ok} equipo(s) restaurado(s). ${fail} fallaron.`);
+        alert(`${totalOk} equipo(s) restaurado(s). ${totalFail} fallaron.`);
         loadAssets();
-        Object.keys(statusSections).forEach(s => { const el = document.getElementById(s.toLowerCase() + 'AssetsSection'); if (el && !el.classList.contains('hidden')) loadAssetsByStatus(s); });
+        reloadVisibleInactive();
     } catch (e) { alert("Error de conexion"); }
 }

@@ -671,8 +671,9 @@ def export_assets(db: Session = Depends(get_db), admin: models.Admin = Depends(r
     rows = []
     for a in q:
         p = db.query(models.Person).filter(models.Person.id == a.person_id).first() if a.person_id else None
-        rows.append((a.asset_tag_id, a.asset_description, a.brand, a.model, a.serial_no, a.category or "", p.email if p else "", a.status))
-    buf = _make_excel(["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "AsignadoA", "Status"], rows)
+        s = db.query(models.Site).filter(models.Site.id == a.site_id).first() if a.site_id else None
+        rows.append((a.asset_tag_id, a.asset_description, a.brand, a.model, a.serial_no, a.category or "", s.site_name if s else "", p.email if p else ""))
+    buf = _make_excel(["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio", "AsignadoA"], rows)
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=activos.xlsx"})
 
 @app.get("/export/persons/", tags=["Import/Export"])

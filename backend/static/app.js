@@ -1492,6 +1492,22 @@ async function exportEntity(entity) {
     } catch(e) { alert("Error de conexion al exportar"); }
 }
 
+async function downloadTemplate(entity) {
+    if (!getToken()) { alert("Debe iniciar sesion"); return; }
+    const url = `/export/${entity}/template/`;
+    try {
+        const res = await api(url);
+        if (!res.ok) { const e = await res.json().catch(()=>({})); alert("Error al descargar plantilla: " + (e.detail||"Error")); return; }
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        const names = { assets:"plantilla_activos", persons:"plantilla_empleados", sites:"plantilla_sitios" };
+        a.download = names[entity]||entity+"_template.xlsx";
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch(e) { alert("Error de conexion al descargar plantilla"); }
+}
+
 function setupImportFormListener() {
     document.getElementById("importForm").addEventListener("submit", async (e) => {
         e.preventDefault();

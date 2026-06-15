@@ -74,7 +74,6 @@ async function loadDropdownData() {
     const personSiteSelect = document.getElementById("person_site_id");
     const editCatSelect = document.getElementById("edit_asset_category");
     const editSiteSelect = document.getElementById("edit_asset_site_id");
-    const deliveryCatSelect = document.getElementById("delivery_category");
 
     try {
         const resPersons = await api("/persons/");
@@ -111,10 +110,12 @@ async function loadDropdownData() {
                 filterCat.innerHTML = '<option value="">Todas las categorias</option>';
                 cats.forEach(c => { filterCat.innerHTML += `<option value="${c}">${c}</option>`; });
             }
-            if (deliveryCatSelect) {
-                deliveryCatSelect.innerHTML = '<option value="">-- Seleccione Categoria --</option>';
-                cats.forEach(c => { deliveryCatSelect.innerHTML += `<option value="${c}">${c}</option>`; });
-            }
+            populateDeliveryCategoryCheckboxes(cats);
+        }
+        const resAllCats = await api("/categories/");
+        if (resAllCats.ok) {
+            const allCats = (await resAllCats.json()).map(function (c) { return c.name; });
+            populateDeliveryCategoryCheckboxes(allCats);
         }
         const resSites = await api("/sites/");
         if (resSites.ok) {
@@ -635,6 +636,28 @@ async function loadCatalogs() {
                 });
             }
         }
+        const resCats = await api("/categories/");
+        if (resCats.ok) {
+            const cats = await resCats.json();
+            document.getElementById("catCount").textContent = cats.length;
+            const catsBody = document.getElementById("categoriesTableBody");
+            if (!catsBody) return;
+            catsBody.innerHTML = "";
+            if (cats.length === 0) {
+                catsBody.innerHTML = '<tr><td colspan="2" class="px-3 py-3 text-center text-gray-400 italic">Sin categorias registradas.</td></tr>';
+            } else {
+                cats.forEach(c => {
+                    const row = document.createElement("tr");
+                    row.className = "hover:bg-blue-50/50 transition-colors";
+                    row.innerHTML = '<td class="px-3 py-2 font-medium">' + c.name + '</td>' +
+                        '<td class="px-3 py-2 text-center">' +
+                        '<button onclick="openEditCategoryModal(' + c.id + ',\'' + c.name.replace(/'/g, "\\'") + '\')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-blue-300 transition-colors cursor-pointer">Editar</button>' +
+                        ' <button onclick="deleteCategory(' + c.id + ',\'' + c.name.replace(/'/g, "\\'") + '\')" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-red-300 transition-colors cursor-pointer">Eliminar</button>' +
+                        '</td>';
+                    catsBody.appendChild(row);
+                });
+            }
+        }
     } catch (e) { console.error(e); }
 }
 
@@ -900,6 +923,30 @@ function setupCatalogFormsListeners() {
             }
         } catch (e) { alert("Error de conexion: " + e.message); }
     });
+
+    document.getElementById("form_add_category").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const editId = document.getElementById("edit_cat_id").value;
+        const name = document.getElementById("cat_name_input").value.trim();
+        if (!name) { alert("El nombre es obligatorio"); return; }
+        try {
+            let res;
+            if (editId) {
+                res = await api("/categories/" + editId, { method: "PUT", body: JSON.stringify({ name: name }) });
+            } else {
+                res = await api("/categories/", { method: "POST", body: JSON.stringify({ name: name }) });
+            }
+            if (res.ok) {
+                alert(editId ? "Categoria actualizada!" : "Categoria creada!");
+                closeCategoryModal();
+                loadCatalogs();
+                loadDropdownData();
+            } else {
+                const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
+                alert("Error: " + (err.detail || "No se pudo guardar"));
+            }
+        } catch (e) { alert("Error de conexion: " + e.message); }
+    });
 }
 
 function checkSession() {
@@ -1003,6 +1050,20 @@ function closeSiteModal() { document.getElementById("siteModal").classList.add("
 function openDepartmentModal() { document.getElementById("departmentModal").classList.remove("hidden"); }
 function closeDepartmentModal() { document.getElementById("departmentModal").classList.add("hidden"); document.getElementById("form_add_department").reset(); }
 
+function openCategoryModal() { document.getElementById("edit_cat_id").value = ""; document.getElementById("cat_name_input").value = ""; document.getElementById("categoryModalTitle").textContent = "Nueva Categoria"; document.getElementById("categoryModal").classList.remove("hidden"); }
+function closeCategoryModal() { document.getElementById("categoryModal").classList.add("hidden"); document.getElementById("form_add_category").reset(); }
+
+function openEditCategoryModal(id, name) { document.getElementById("edit_cat_id").value = id; document.getElementById("cat_name_input").value = name; document.getElementById("categoryModalTitle").textContent = "Editar Categoria"; document.getElementById("categoryModal").classList.remove("hidden"); }
+
+async function deleteCategory(id, name) {
+    if (!confirm('¿Eliminar la categoria "' + name + '"?')) return;
+    try {
+        const res = await api("/categories/" + id, { method: "DELETE" });
+        if (res.ok) { alert("Categoria eliminada"); loadCatalogs(); loadDropdownData(); }
+        else { const err = await res.json().catch(()=>({detail:"Error"})); alert("Error: " + (err.detail || "No se pudo eliminar")); }
+    } catch (e) { alert("Error de conexion"); }
+}
+
 function toggleCollapse(id) {
     const el = document.getElementById(id);
     const chevronId = id.replace("Submenu", "Chevron");
@@ -1031,7 +1092,7 @@ function showSection(name) {
     if (name === 'reports') populateReportPersonSelect();
     if (name === 'deliveryBoard') loadDeliveryBoard();
     if (name === 'deliveryEmployees') loadDeliveryEmployees();
-    if (name === 'deliveryAdd') { document.getElementById("delivery_person_search").value = ""; document.getElementById("delivery_person_id").value = ""; document.getElementById("delivery_person_results").classList.add("hidden"); }
+    if (name === 'deliveryAdd') { document.getElementById("delivery_person_search").value = ""; document.getElementById("delivery_person_id").value = ""; document.getElementById("delivery_person_results").classList.add("hidden"); document.querySelectorAll('.delivery-cat-qty').forEach(function (q) { q.disabled = true; }); }
     if (name === 'users') { loadUsers(); loadGroups(); }
     if (name === 'brokenAssets') loadAssetsByStatus('Broken');
     if (name === 'lostAssets') loadAssetsByStatus('Lost');
@@ -1430,26 +1491,49 @@ async function openAssetModalById(assetId) {
 
 
 
+function populateDeliveryCategoryCheckboxes(cats) {
+    const container = document.getElementById("delivery_category_checkboxes");
+    if (!container) return;
+    container.innerHTML = cats.map(c =>
+        '<label class="flex items-center gap-2 p-1 hover:bg-gray-50 rounded cursor-pointer">' +
+            '<input type="checkbox" class="delivery-cat-checkbox" value="' + c + '">' +
+            '<span class="text-sm text-gray-700 flex-1">' + c + '</span>' +
+            '<input type="number" class="delivery-cat-qty w-16 p-1 border border-gray-300 rounded text-xs text-center" value="1" min="1" disabled>' +
+        '</label>'
+    ).join('');
+    container.querySelectorAll('.delivery-cat-checkbox').forEach(function (cb) {
+        cb.addEventListener('change', function () {
+            this.closest('label').querySelector('.delivery-cat-qty').disabled = !this.checked;
+        });
+    });
+}
+
 async function submitNewPending() {
     const personId = document.getElementById("delivery_person_id").value;
-    const category = document.getElementById("delivery_category").value;
-    const quantity = parseInt(document.getElementById("delivery_quantity").value) || 1;
     const notes = document.getElementById("delivery_notes").value;
     if (!personId) { alert("Seleccione un empleado"); return; }
-    if (!category) { alert("Seleccione una categoria"); return; }
-    try {
-        const res = await api("/deliveries/pending", {
-            method: "POST",
-            body: JSON.stringify({ person_id: parseInt(personId), category, quantity, notes: notes || null })
-        });
-        if (res.ok) {
-            alert("Entrega pendiente agregada correctamente!");
-            document.getElementById("deliveryForm").reset();
-        } else {
-            const err = await res.json().catch(()=>({detail:"Error"}));
-            alert("Error: " + (err.detail || "No se pudo crear"));
-        }
-    } catch (e) { alert("Error de conexion"); }
+    const checked = document.querySelectorAll('.delivery-cat-checkbox:checked');
+    if (checked.length === 0) { alert("Seleccione al menos una categoria"); return; }
+    let successCount = 0;
+    for (const cb of checked) {
+        const category = cb.value;
+        const qty = parseInt(cb.closest('label').querySelector('.delivery-cat-qty').value) || 1;
+        try {
+            const res = await api("/deliveries/pending", {
+                method: "POST",
+                body: JSON.stringify({ person_id: parseInt(personId), category, quantity: qty, notes: notes || null })
+            });
+            if (res.ok) successCount++;
+        } catch (e) { /* continue */ }
+    }
+    if (successCount > 0) {
+        alert(successCount + " entrega(s) pendiente(s) agregada(s) correctamente!");
+        document.getElementById("deliveryForm").reset();
+        document.querySelectorAll('.delivery-cat-qty').forEach(function (q) { q.disabled = true; });
+        loadDeliveryBoard();
+    } else {
+        alert("Error al crear las entregas");
+    }
 }
 
 async function loadDeliveryBoard() {

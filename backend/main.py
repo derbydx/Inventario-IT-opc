@@ -72,6 +72,19 @@ def seed_groups_and_admin():
                 admin.is_active = True
             db.commit()
             print("Usuario 'derby_admin' detectado. Contrasena restablecida en: admin123")
+
+        # Sembrar categorias desde valores existentes en assets
+        from sqlalchemy import text as sa_text
+        inspector = inspect(db.bind)
+        if "categories" not in [c["name"] for c in inspector.get_columns("categories")]:
+            pass  # tabla aun no creada (se crea con models)
+        existing = db.query(models.Category).count()
+        if existing == 0:
+            distinct_vals = db.execute(sa_text("SELECT DISTINCT category FROM assets WHERE category IS NOT NULL AND category != ''")).fetchall()
+            for (cat_name,) in distinct_vals:
+                db.add(models.Category(name=cat_name))
+            db.commit()
+            print(f"Sembradas {len(distinct_vals)} categorias desde assets existentes.")
             
     except Exception as e:
         print(f"No se pudo ejecutar el seed: {e}")
@@ -201,6 +214,52 @@ def update_department(dept_id: int, dept: schemas.DepartmentBase, db: Session = 
 def list_categories_distinct(db: Session = Depends(get_db)):
     results = db.query(models.Asset.category).distinct(models.Asset.category).order_by(models.Asset.category).all()
     return [r[0] for r in results if r[0]]
+
+@app.get("/categories/", response_model=List[schemas.CategoryResponse], tags=["Catálogos"])
+def list_categories(db: Session = Depends(get_db)):
+    return db.query(models.Category).order_by(models.Category.name).all()
+
+@app.post("/categories/", response_model=schemas.CategoryResponse, status_code=201, tags=["Catálogos"])
+def create_category(cat: schemas.CategoryCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_edit"))):
+    name = cat.name.strip()
+    if not name:
+        raise HTTPException(400, "El nombre de la categoria no puede estar vacio")
+    existing = db.query(models.Category).filter(models.Category.name == name).first()
+    if existing:
+        raise HTTPException(400, "Ya existe una categoria con ese nombre")
+    db_cat = models.Category(name=name)
+    db.add(db_cat)
+    db.commit()
+    db.refresh(db_cat)
+    return db_cat
+
+@app.put("/categories/{cat_id}", response_model=schemas.CategoryResponse, tags=["Catálogos"])
+def update_category(cat_id: int, cat: schemas.CategoryCreate, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_edit"))):
+    db_cat = db.query(models.Category).filter(models.Category.id == cat_id).first()
+    if not db_cat:
+        raise HTTPException(404, "Categoria no encontrada")
+    name = cat.name.strip()
+    if not name:
+        raise HTTPException(400, "El nombre no puede estar vacio")
+    conflict = db.query(models.Category).filter(models.Category.name == name, models.Category.id != cat_id).first()
+    if conflict:
+        raise HTTPException(400, "Ya existe otra categoria con ese nombre")
+    db_cat.name = name
+    db.commit()
+    db.refresh(db_cat)
+    return db_cat
+
+@app.delete("/categories/{cat_id}", tags=["Catálogos"])
+def delete_category(cat_id: int, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_delete"))):
+    db_cat = db.query(models.Category).filter(models.Category.id == cat_id).first()
+    if not db_cat:
+        raise HTTPException(404, "Categoria no encontrada")
+    in_use = db.query(models.Asset).filter(models.Asset.category == db_cat.name).first()
+    if in_use:
+        raise HTTPException(400, f"No se puede eliminar la categoria '{db_cat.name}' porque hay activos que la usan")
+    db.delete(db_cat)
+    db.commit()
+    return {"detail": "Categoria eliminada"}
 
 # ==========================================
 # 5. ENDPOINTS: ADMINISTRADORES (ADMINS)

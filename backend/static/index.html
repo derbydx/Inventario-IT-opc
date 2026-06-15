@@ -315,8 +315,29 @@
                             <table class="w-full text-xs">
                                 <thead><tr class="border-b border-gray-200"><th class="text-left py-1.5 px-2 text-gray-500 font-bold uppercase">Categoria</th><th class="text-right py-1.5 px-2 text-gray-500 font-bold uppercase">Cantidad</th></tr></thead>
                                 <tbody id="dashCategoryBody"></tbody>
-                        </table>
+                            </table>
+                        </div>
                     </div>
+
+                    <div class="mt-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-gray-700 uppercase">Categorias</h3>
+                            <div class="flex items-center gap-2">
+                                <span id="catCount" class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold">0</span>
+                                <button onclick="openCategoryModal()" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-3 rounded border border-blue-300 transition-colors cursor-pointer">+ Nueva Categoria</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50 text-gray-500">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-bold uppercase">Nombre</th>
+                                        <th class="px-3 py-2 text-center font-bold uppercase">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="categoriesTableBody" class="bg-white divide-y divide-gray-200 text-gray-700"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
 
@@ -729,7 +750,10 @@
                     <h2 class="text-lg font-bold text-gray-800 mb-4">Agregar Entrega Pendiente</h2>
                     <form id="deliveryForm" class="max-w-md space-y-3">
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Empleado</label>
+                            <div class="flex justify-between items-center">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Empleado</label>
+                                <button type="button" onclick="openPersonModal()" class="text-blue-600 hover:text-blue-800 text-xs font-bold mb-1">+ Nuevo Empleado</button>
+                            </div>
                             <div class="relative">
                                 <input type="text" id="delivery_person_search" autocomplete="off" placeholder="Buscar por nombre, apellido, email o ID..." class="w-full p-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <input type="hidden" id="delivery_person_id" value="">
@@ -737,12 +761,8 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categoria</label>
-                            <select id="delivery_category" class="w-full p-2 border border-gray-300 rounded text-sm bg-white"></select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Cantidad</label>
-                            <input type="number" id="delivery_quantity" value="1" min="1" class="w-full p-2 border border-gray-300 rounded text-sm">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categorias y Cantidades</label>
+                            <div id="delivery_category_checkboxes" class="max-h-60 overflow-y-auto border border-gray-200 rounded p-2 space-y-1"></div>
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Notas</label>
@@ -1435,6 +1455,21 @@
                 <input type="text" id="edit_dept_name_input" required placeholder="Nombre Departamento" class="w-full p-2 border rounded text-sm bg-white">
                 <div class="flex justify-end gap-2 text-xs">
                     <button type="button" onclick="closeEditDepartmentModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
+                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CATEGORY MODAL -->
+    <div id="categoryModal" class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center p-4 z-[60]">
+        <div class="bg-white rounded-lg p-5 max-w-sm w-full shadow-2xl">
+            <h4 id="categoryModalTitle" class="font-bold text-sm text-gray-800 border-b pb-2 mb-3">Nueva Categoria</h4>
+            <form id="form_add_category" class="space-y-3">
+                <input type="hidden" id="edit_cat_id">
+                <input type="text" id="cat_name_input" required placeholder="Nombre de la categoria" class="w-full p-2 border rounded text-sm bg-white">
+                <div class="flex justify-end gap-2 text-xs">
+                    <button type="button" onclick="closeCategoryModal()" class="px-3 py-1.5 bg-gray-200 rounded">Cancelar</button>
                     <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded cursor-pointer">Guardar</button>
                 </div>
             </form>

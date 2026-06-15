@@ -247,3 +247,12 @@ class AvailableAssetItem(BaseModel):
     model: str
     serial_no: str
     category: str
+
+class CategoryCreate(BaseModel):
+    name: str
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    class Config:
+        from_attributes = True

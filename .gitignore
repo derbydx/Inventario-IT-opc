@@ -10,3 +10,5 @@ __pycache__/
 
 # Archivos de configuración del editor
 .vscode/
+.vs/
+frontend/

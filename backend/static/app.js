@@ -381,19 +381,25 @@ function toggleSpecificHistory() {
 function openUserAssetsModal(personId, personName) {
     document.getElementById("userAssetsModalSubtitle").innerText = `Empleado: ${personName}`;
     const tableBody = document.getElementById("userAssetsTableBody");
-    tableBody.innerHTML = "";
-    const assignedDevices = currentAssets.filter(a => a.person_id === parseInt(personId));
-
-    if (assignedDevices.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">No registra activos en custodia.</td></tr>`;
-    } else {
-        assignedDevices.forEach(dev => {
-            const row = document.createElement("tr");
-            row.innerHTML = `<td class="px-3 py-2 font-bold text-blue-600">${dev.asset_tag_id}</td><td class="px-3 py-2 text-gray-600">${dev.asset_description}</td><td class="px-3 py-2 text-gray-500">${dev.brand} ${dev.model}</td><td class="px-3 py-2 font-bold text-gray-400">${dev.serial_no}</td>`;
-            tableBody.appendChild(row);
-        });
-    }
+    tableBody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
     document.getElementById("userAssetsModal").classList.remove("hidden");
+    api("/reports/person-checkouts/" + personId + "?mode=current").then(res => {
+        if (!res.ok) throw new Error("Error");
+        return res.json();
+    }).then(assignedDevices => {
+        tableBody.innerHTML = "";
+        if (assignedDevices.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">No registra activos en custodia.</td></tr>';
+        } else {
+            assignedDevices.forEach(dev => {
+                const row = document.createElement("tr");
+                row.innerHTML = '<td class="px-3 py-2 font-bold text-blue-600">' + dev.asset_tag_id + '</td><td class="px-3 py-2 text-gray-600">' + (dev.asset_description || "-") + '</td><td class="px-3 py-2 text-gray-500">' + (dev.brand || "") + " " + (dev.model || "") + '</td><td class="px-3 py-2 font-bold text-gray-400">' + (dev.serial_no || "-") + '</td>';
+                tableBody.appendChild(row);
+            });
+        }
+    }).catch(() => {
+        tableBody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-red-400 italic">Error al cargar.</td></tr>';
+    });
 }
 function closeUserAssetsModal() { document.getElementById("userAssetsModal").classList.add("hidden"); }
 
@@ -2643,4 +2649,13 @@ function toggleSessionAssetList(sessionId) {
     if (!body) return;
     body.classList.toggle("hidden");
     if (icon) icon.style.transform = body.classList.contains("hidden") ? "" : "rotate(90deg)";
+}
+
+async function refreshReconciliation() {
+    const res = await api("/employees/reconciliation/refresh/", { method: "POST" });
+    if (res.ok) {
+        const data = await res.json();
+        alert(data.reactivated + " registro(s) reactivado(s) por reasignacion.");
+        loadReconciliationStatus();
+    }
 }

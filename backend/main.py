@@ -951,6 +951,22 @@ def reconciliation_clear(departed_asset_id: int, db: Session = Depends(get_db), 
     db.commit()
     return {"message": "Registro marcado como completado"}
 
+@app.post("/employees/reconciliation/refresh/", tags=["Directorio"])
+def reconciliation_refresh(db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
+    cleared = db.query(models.ReconciliationDepartedAsset).filter(
+        models.ReconciliationDepartedAsset.status == "cleared"
+    ).all()
+    reactivated = 0
+    for rec in cleared:
+        asset = db.query(models.Asset).filter(models.Asset.id == rec.asset_id).first()
+        if asset and asset.status == "Checkout" and asset.person_id == rec.person_id:
+            rec.status = "pending"
+            rec.cleared_at = None
+            rec.cleared_by_id = None
+            reactivated += 1
+    db.commit()
+    return {"reactivated": reactivated}
+
 @app.post("/import/assets/", tags=["Import/Export"])
 def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
     wb = openpyxl.load_workbook(file.file)

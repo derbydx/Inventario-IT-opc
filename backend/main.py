@@ -1207,7 +1207,16 @@ def cancel_pending_delivery(delivery_id: int, db: Session = Depends(get_db), adm
     d = db.query(models.PendingDelivery).filter(models.PendingDelivery.id == delivery_id).first()
     if not d:
         raise HTTPException(404, "Entrega pendiente no encontrada")
+    person = db.query(models.Person).filter(models.Person.id == d.person_id).first()
+    person_name = person.full_name if person else "Desconocido"
     d.status = "Cancelled"
+    db.add(models.History(
+        realizado_por_id=admin.id,
+        tipo_accion="Cancelacion",
+        estado_anterior="Active",
+        estado_nuevo="Cancelled",
+        notas_detalle=f"Entrega pendiente #{delivery_id} cancelada por {admin.username}: {d.category} - {person_name}"
+    ))
     db.commit()
     return {"message": "Entrega pendiente cancelada"}
 

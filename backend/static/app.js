@@ -1887,10 +1887,10 @@ async function loadDeliveryBoard() {
             return;
         }
         const wrapper = document.createElement("div");
-        wrapper.className = "flex gap-4 overflow-x-auto pb-4";
+        wrapper.className = "grid grid-cols-1 md:grid-cols-2 gap-4";
         data.forEach(cat => {
             const col = document.createElement("div");
-            col.className = "min-w-[280px] max-w-[300px] flex-shrink-0";
+            col.className = "w-full";
             const pendingCount = cat.total_pending;
             const availCount = cat.available;
             col.innerHTML = `
@@ -1900,14 +1900,17 @@ async function loadDeliveryBoard() {
                         <span class="text-xs font-bold text-gray-500">${pendingCount} pendiente${pendingCount !== 1 ? 's' : ''}</span>
                     </div>
                     <div class="text-xs text-gray-400 mb-2">${availCount} disponible${availCount !== 1 ? 's' : ''} en almacen</div>
-                    <div class="space-y-2 max-h-[400px] overflow-y-auto">`;
+                    <div class="space-y-2 max-h-[500px] overflow-y-auto pr-1">`;
             cat.employees.forEach(emp => {
                 col.innerHTML += `
                         <div class="bg-white rounded p-2 border border-gray-200 shadow-sm">
                             <div class="font-bold text-xs text-gray-700">${emp.person_name}</div>
                             <div class="text-[10px] text-gray-400">${emp.pending} pendiente${emp.pending !== 1 ? 's' : ''}</div>
                             ${emp.notes ? `<div class="text-[10px] text-gray-400 italic mt-1">${emp.notes}</div>` : ''}
-                            <button onclick="openFulfillModal(${emp.delivery_id}, '${cat.category}', '${emp.person_name}')" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors cursor-pointer" ${availCount === 0 ? 'disabled' : ''}>Asignar</button>
+                            <div class="flex gap-1 mt-2">
+                                <button onclick="openFulfillModal(${emp.delivery_id}, '${cat.category}', '${emp.person_name}')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors cursor-pointer" ${availCount === 0 ? 'disabled' : ''}>Asignar</button>
+                                <button onclick="cancelPending(${emp.delivery_id})" class="bg-red-100 hover:bg-red-200 text-red-700 text-[10px] font-bold py-1 px-2 rounded border border-red-300 transition-colors cursor-pointer">Cancelar</button>
+                            </div>
                         </div>`;
             });
             col.innerHTML += `</div></div>`;

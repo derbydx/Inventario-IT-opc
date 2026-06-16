@@ -1,3 +1,6 @@
+/* Inter font baseline */
+body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+
 /* Sidebar custom scroll */
 #sidebar nav::-webkit-scrollbar { width: 4px; }
 #sidebar nav::-webkit-scrollbar-track { background: transparent; }
@@ -9,12 +12,13 @@
     border-right: 3px solid transparent;
 }
 .sidebar-item:hover {
-    background: rgba(59, 130, 246, 0.12);
+    background: rgba(59, 130, 246, 0.15);
 }
 .sidebar-item.active {
-    background: rgba(59, 130, 246, 0.18);
+    background: rgba(59, 130, 246, 0.25);
     font-weight: 700;
-    border-right-color: #60a5fa;
+    border-right-color: #93c5fd;
+    color: #fff;
 }
 
 /* Submenu items (second level) */
@@ -23,12 +27,13 @@
     border-right: 3px solid transparent;
 }
 .sidebar-sub-item:hover {
-    background: rgba(59, 130, 246, 0.12);
+    background: rgba(59, 130, 246, 0.15);
 }
 .sidebar-sub-item.active {
-    background: rgba(59, 130, 246, 0.18);
+    background: rgba(59, 130, 246, 0.25);
     font-weight: 700;
-    border-right-color: #60a5fa;
+    border-right-color: #93c5fd;
+    color: #fff;
 }
 
 /* Deep nested items (third level) */
@@ -37,12 +42,13 @@
     border-right: 3px solid transparent;
 }
 .sidebar-nested-item:hover {
-    background: rgba(59, 130, 246, 0.12);
+    background: rgba(59, 130, 246, 0.15);
 }
 .sidebar-nested-item.active {
-    background: rgba(59, 130, 246, 0.18);
+    background: rgba(59, 130, 246, 0.25);
     font-weight: 700;
-    border-right-color: #60a5fa;
+    border-right-color: #93c5fd;
+    color: #fff;
 }
 
 /* Collapse chevron rotation */
@@ -51,6 +57,55 @@
 }
 .sidebar-chevron.open {
     transform: rotate(90deg);
+}
+
+/* Sidebar icons: scale up via CSS without touching HTML classes */
+#sidebar .sidebar-item > span > svg:first-child { width: 1.25rem; height: 1.25rem; }
+#sidebar .sidebar-sub-item > span > svg:first-child { width: 1rem; height: 1rem; }
+#sidebar .sidebar-nested-item > span > svg:first-child { width: 0.875rem; height: 0.875rem; }
+
+/* Inputs, selects, textareas uniformes */
+input, select, textarea, button {
+    font-family: inherit;
+}
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+    border-color: #3b82f6;
+}
+
+/* Botones con altura y padding uniformes */
+main button.py-1\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+main button.py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+
+/* Tablas: striped rows & uniform headers */
+main section table tbody tr:nth-child(even) {
+    background: rgba(249, 250, 251, 0.7);
+}
+main section table thead th,
+main section table thead td {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.6875rem;
+    color: #6b7280;
+    background: #f9fafb;
+}
+
+/* Modal fade+scale animation */
+.modal-overlay {
+    animation: modalFadeIn 0.2s ease-out;
+}
+.modal-panel {
+    animation: modalScaleIn 0.2s ease-out;
+}
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes modalScaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
 }
 
 /* Modal scroll */

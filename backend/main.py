@@ -769,6 +769,188 @@ def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), 
     db.commit()
     return {"importados": ok}
 
+@app.post("/employees/reconcile/", tags=["Directorio"])
+def reconcile_employees(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
+    wb = openpyxl.load_workbook(file.file)
+    ws = wb.active
+    h = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+    for col in ["Nombre", "Email", "EmployeeID"]:
+        if col not in h: raise HTTPException(400, f"Falta columna '{col}'")
+    def _ci(name): return h.index(name) if name in h else None
+    i_fn, i_em, i_eid = h.index("Nombre"), h.index("Email"), h.index("EmployeeID")
+    i_tit, i_tel, i_not, i_dept, i_sit = _ci("Titulo"), _ci("Telefono"), _ci("Notas"), _ci("Departamento"), _ci("Sitio")
+
+    file_eids = set()
+    file_rows = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if all(c is None for c in row): continue
+        eid = _cell(row[i_eid])
+        if not eid: continue
+        file_eids.add(eid)
+        file_rows.append({
+            "full_name": _cell(row[i_fn]),
+            "email": _cell(row[i_em]),
+            "employee_id": eid,
+            "title": _cell(row[i_tit]) if i_tit is not None else None,
+            "phone": _cell(row[i_tel]) if i_tel is not None else None,
+            "notes": _cell(row[i_not]) if i_not is not None else None,
+            "dept_name": _cell(row[i_dept]) if i_dept is not None else None,
+            "site_name": _cell(row[i_sit]) if i_sit is not None else None,
+        })
+
+    all_db_persons = db.query(models.Person).all()
+    db_by_eid = {p.employee_id: p for p in all_db_persons if p.employee_id}
+
+    departed_db_ids = set(db_by_eid.keys()) - file_eids
+    new_file_ids = file_eids - set(db_by_eid.keys())
+
+    # Auto-import new employees
+    imported = []
+    for row_data in file_rows:
+        if row_data["employee_id"] not in new_file_ids: continue
+        if not row_data["full_name"] or not row_data["email"]: continue
+        dept_id, site_id = None, None
+        if row_data["dept_name"]:
+            d = db.query(models.Department).filter(models.Department.department_name == row_data["dept_name"]).first()
+            if not d:
+                d = models.Department(department_name=row_data["dept_name"])
+                db.add(d); db.flush()
+            dept_id = d.id
+        if row_data["site_name"]:
+            s = db.query(models.Site).filter(models.Site.site_name == row_data["site_name"]).first()
+            if not s:
+                s = models.Site(site_name=row_data["site_name"])
+                db.add(s); db.flush()
+            site_id = s.id
+        new_p = models.Person(
+            full_name=row_data["full_name"],
+            email=row_data["email"],
+            employee_id=row_data["employee_id"],
+            title=row_data["title"],
+            phone=row_data["phone"],
+            notes=row_data["notes"],
+            department_id=dept_id,
+            site_id=site_id
+        )
+        db.add(new_p)
+        db.flush()
+        imported.append({"id": new_p.id, "full_name": new_p.full_name, "email": new_p.email, "employee_id": new_p.employee_id})
+    db.commit()
+
+    # Create reconciliation session
+    session_rec = models.ReconciliationSession(
+        uploaded_by_id=admin.id,
+        filename=file.filename or "desconocido.xlsx",
+        total_db=len(all_db_persons),
+        total_file=len(file_eids),
+        matched_count=len(file_eids & set(db_by_eid.keys())),
+        imported_count=len(imported)
+    )
+    db.add(session_rec)
+    db.flush()
+
+    # Build departed list with only Checkout assets, save to BD
+    departed = []
+    departed_asset_records = []
+    for eid in sorted(departed_db_ids):
+        p = db_by_eid[eid]
+        checkout_assets = db.query(models.Asset).filter(models.Asset.person_id == p.id, models.Asset.status == "Checkout").all()
+        for a in checkout_assets:
+            departed_asset_records.append(models.ReconciliationDepartedAsset(
+                session_id=session_rec.id,
+                person_id=p.id,
+                asset_id=a.id,
+                status="pending"
+            ))
+        if checkout_assets:
+            departed.append({
+                "person": {
+                    "id": p.id, "full_name": p.full_name, "email": p.email,
+                    "employee_id": p.employee_id, "title": p.title, "phone": p.phone
+                },
+                "assets": [
+                    {
+                        "id": a.id, "asset_tag_id": a.asset_tag_id,
+                        "asset_description": a.asset_description, "brand": a.brand,
+                        "model": a.model, "serial_no": a.serial_no,
+                        "status": a.status, "category": a.category
+                    }
+                    for a in checkout_assets
+                ]
+            })
+    for rec in departed_asset_records:
+        db.add(rec)
+    db.commit()
+
+    return {
+        "session_id": session_rec.id,
+        "departed": departed,
+        "new_employees": imported,
+        "matched_count": session_rec.matched_count,
+        "total_db": session_rec.total_db,
+        "total_file": session_rec.total_file,
+        "imported_count": session_rec.imported_count
+    }
+
+@app.get("/employees/reconciliation/status/", tags=["Directorio"])
+def reconciliation_status(include_cleared: bool = False, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
+    sessions = db.query(models.ReconciliationSession).order_by(models.ReconciliationSession.uploaded_at.desc()).all()
+    status_filter = [models.ReconciliationDepartedAsset.status == "pending"]
+    if include_cleared:
+        status_filter = []
+    total_pending = db.query(models.ReconciliationDepartedAsset).filter(models.ReconciliationDepartedAsset.status == "pending").count()
+    total_cleared = db.query(models.ReconciliationDepartedAsset).filter(models.ReconciliationDepartedAsset.status == "cleared").count()
+
+    result = []
+    for s in sessions:
+        query = db.query(models.ReconciliationDepartedAsset).filter(models.ReconciliationDepartedAsset.session_id == s.id)
+        if not include_cleared:
+            query = query.filter(models.ReconciliationDepartedAsset.status == "pending")
+        records = query.all()
+        session_departed = {}
+        for rec in records:
+            p = rec.person
+            a = rec.asset
+            if p.id not in session_departed:
+                session_departed[p.id] = {
+                    "person": {"id": p.id, "full_name": p.full_name, "email": p.email, "employee_id": p.employee_id, "title": p.title},
+                    "assets": []
+                }
+            session_departed[p.id]["assets"].append({
+                "departed_asset_id": rec.id,
+                "id": a.id, "asset_tag_id": a.asset_tag_id,
+                "asset_description": a.asset_description, "brand": a.brand,
+                "model": a.model, "serial_no": a.serial_no,
+                "status": a.status, "category": a.category,
+                "reconciliation_status": rec.status
+            })
+        result.append({
+            "session_id": s.id,
+            "uploaded_by": s.uploaded_by.username if s.uploaded_by else "Desconocido",
+            "uploaded_at": s.uploaded_at.isoformat() if s.uploaded_at else None,
+            "filename": s.filename,
+            "total_db": s.total_db,
+            "total_file": s.total_file,
+            "matched_count": s.matched_count,
+            "imported_count": s.imported_count,
+            "departed": list(session_departed.values()),
+            "pending_count": sum(1 for r in records if r.status == "pending"),
+            "cleared_count": sum(1 for r in records if r.status == "cleared")
+        })
+
+    return {"sessions": result, "total_pending": total_pending, "total_cleared": total_cleared, "total_sessions": len(sessions)}
+
+@app.post("/employees/reconciliation/{departed_asset_id}/clear/", tags=["Directorio"])
+def reconciliation_clear(departed_asset_id: int, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
+    rec = db.query(models.ReconciliationDepartedAsset).filter(models.ReconciliationDepartedAsset.id == departed_asset_id).first()
+    if not rec:
+        raise HTTPException(404, "Registro de conciliacion no encontrado")
+    rec.status = "cleared"
+    rec.cleared_at = datetime.utcnow()
+    rec.cleared_by_id = admin.id
+    db.commit()
+    return {"message": "Registro marcado como completado"}
+
 @app.post("/import/assets/", tags=["Import/Export"])
 def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
     wb = openpyxl.load_workbook(file.file)

@@ -61,6 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPersonFormListener();
     setupEditAssetFormListener();
     setupImportFormListener();
+    setupReconciliationFormListener();
     setupEditPersonFormListener();
     setupEditSiteFormListener();
     setupEditDepartmentFormListener();
@@ -950,7 +951,7 @@ function openModal(assetId, assetTag, actionType) {
     else { modalTitle.innerText = "Registrar Devolucion (Check-in)"; submitBtn.innerText = "Recibir en Almacen"; submitBtn.className = "px-4 py-2 bg-amber-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.add("hidden"); }
     document.getElementById("movementModal").classList.remove("hidden");
 }
-function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); document.getElementById("modal_person_results")?.classList.add("hidden"); }
+function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); document.getElementById("modal_person_results")?.classList.add("hidden"); window.__reconciliationAfterCheckin = null; }
 
 function setupMovementFormListener() {
     document.getElementById("movementForm").addEventListener("submit", async (e) => {
@@ -972,6 +973,7 @@ function setupMovementFormListener() {
             const response = await api(url, { method: "POST" }); 
             if (response.ok) { 
                 alert("Movimiento procesado con exito!"); 
+                processReconciliationAfterCheckin();
                 closeModal(); 
                 loadAssets(); 
                 loadHistory(); 
@@ -1277,7 +1279,7 @@ async function loadStatusReport() {
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1303,6 +1305,7 @@ function showSection(name) {
     if (name === 'listadoInactivos') loadListadoInactivos();
     if (name === 'enReparacion') loadRepairAssets();
     if (name === 'importExport') { switchImportTab('import'); }
+    if (name === 'employeeReconciliation') { showReconciliationView(); }
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
     // highlight active sidebar item
     document.querySelectorAll('.sidebar-item[data-section], .sidebar-sub-item[data-section], .sidebar-nested-item[data-section]').forEach(el => el.classList.remove('active'));
@@ -1311,7 +1314,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -2447,4 +2450,197 @@ async function restoreAllByStatus(status) {
         loadAssets();
         reloadVisibleInactive();
     } catch (e) { alert("Error de conexion"); }
+}
+
+// ===== CONCILIACION DE EMPLEADOS =====
+function showReconciliationView() {
+    document.getElementById("reconciliationForm").classList.add("hidden");
+    document.getElementById("reconciliationError").classList.add("hidden");
+    document.getElementById("reconciliationFile").value = "";
+    loadReconciliationStatus();
+}
+
+function loadReconciliationStatus() {
+    const includeCleared = document.getElementById("recIncludeCleared").checked;
+    const url = "/employees/reconciliation/status/" + (includeCleared ? "?include_cleared=true" : "");
+    api(url).then(res => {
+        if (!res.ok) return;
+        res.json().then(data => renderReconciliationStatus(data));
+    }).catch(() => {});
+}
+
+function renderReconciliationStatus(data) {
+    document.getElementById("recTotalSessions").textContent = data.total_sessions;
+    document.getElementById("recTotalPending").textContent = data.total_pending;
+    document.getElementById("recTotalCleared").textContent = data.total_cleared;
+
+    const container = document.getElementById("recSessionList");
+    container.innerHTML = "";
+    if (data.sessions.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-400 italic py-4 text-center">No hay sesiones de conciliacion. Haz clic en "+ Nueva Conciliacion" para comenzar.</p>';
+        return;
+    }
+    data.sessions.forEach((session) => {
+        const sessionId = session.session_id;
+        const dateStr = session.uploaded_at ? new Date(session.uploaded_at).toLocaleDateString("es-DO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-";
+        const pendingCount = session.pending_count;
+        const hasPending = pendingCount > 0;
+
+        const card = document.createElement("div");
+        card.className = "border border-gray-200 rounded overflow-hidden";
+
+        const header = document.createElement("button");
+        header.className = "w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-left cursor-pointer";
+        header.setAttribute("onclick", "toggleSessionAssetList(" + sessionId + ")");
+        header.innerHTML = `
+            <div class="flex items-center gap-3 min-w-0">
+                <svg class="w-4 h-4 shrink-0 ${hasPending ? 'text-amber-400' : 'text-green-400'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z"/></svg>
+                <div class="min-w-0">
+                    <span class="font-bold text-sm text-gray-800">Sesion del ${dateStr}</span>
+                    <span class="text-xs text-gray-400 ml-2">${session.filename}</span>
+                    <div class="text-[11px] text-gray-500">Subido por: ${session.uploaded_by} &middot; ${session.matched_count} coincidencias &middot; ${session.imported_count} importados</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="text-[10px] font-bold ${hasPending ? 'text-amber-600 bg-amber-50' : 'text-green-700 bg-green-100'} px-2 py-0.5 rounded-full">${pendingCount} pendiente(s)</span>
+                <svg id="sessionToggleIcon-${sessionId}" class="w-3 h-3 text-gray-400 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+            </div>
+        `;
+        card.appendChild(header);
+
+        const body = document.createElement("div");
+        body.id = "sessionAssets-" + sessionId;
+        body.className = "hidden";
+
+        if (session.departed.length === 0) {
+            body.innerHTML = '<div class="px-4 py-3 text-xs text-gray-400 italic border-t border-gray-200">Sin empleados ausentes con activos en esta sesion.</div>';
+        } else {
+            const wrapper = document.createElement("div");
+            wrapper.className = "border-t border-gray-200 divide-y divide-gray-100";
+            session.departed.forEach((item) => {
+                const p = item.person;
+                const assets = item.assets;
+                const pIsComplete = assets.length === 0;
+                const personBlock = document.createElement("div");
+                personBlock.className = "px-4 py-2";
+
+                const personHeader = document.createElement("div");
+                personHeader.className = "flex items-center justify-between py-1";
+                personHeader.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 ${pIsComplete ? 'text-green-400' : 'text-red-400'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+                        <span class="font-bold text-xs text-gray-800">${p.full_name}</span>
+                        <span class="text-[10px] text-gray-400">${p.employee_id}</span>
+                    </div>
+                    ${pIsComplete ? '<span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Completado</span>' : '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">' + assets.length + ' activo(s)</span>'}
+                `;
+                personBlock.appendChild(personHeader);
+
+                if (!pIsComplete) {
+                    const table = document.createElement("table");
+                    table.className = "min-w-full divide-y divide-gray-200 text-xs mt-2";
+                    table.innerHTML = `
+                        <thead class="bg-gray-100 text-gray-500">
+                            <tr>
+                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Tag</th>
+                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Descripcion</th>
+                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Modelo</th>
+                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Serie</th>
+                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Estado</th>
+                                <th class="px-3 py-1.5 text-center font-bold uppercase text-[10px]">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200 text-gray-700"></tbody>
+                    `;
+                    const tbody = table.querySelector("tbody");
+                    assets.forEach((a) => {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td class="px-3 py-1.5 font-mono font-bold">${a.asset_tag_id}</td>
+                            <td class="px-3 py-1.5">${a.asset_description || '-'}</td>
+                            <td class="px-3 py-1.5">${a.model || '-'}</td>
+                            <td class="px-3 py-1.5 font-mono">${a.serial_no || '-'}</td>
+                            <td class="px-3 py-1.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${a.status === 'Checkout' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}">${a.status}</span></td>
+                            <td class="px-3 py-1.5 text-center">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button onclick="reconciliationCheckin(${a.id}, ${a.departed_asset_id}, '${a.asset_tag_id}')" class="px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-[10px] font-bold cursor-pointer">Checkin</button>
+                                    <button onclick="openDetailsModal(${a.id})" class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-[10px] font-bold cursor-pointer">Detalle</button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    personBlock.appendChild(table);
+                }
+                wrapper.appendChild(personBlock);
+            });
+            body.appendChild(wrapper);
+        }
+        card.appendChild(body);
+        container.appendChild(card);
+    });
+}
+
+function toggleReconciliationForm() {
+    const form = document.getElementById("reconciliationForm");
+    form.classList.toggle("hidden");
+    if (!form.classList.contains("hidden")) {
+        document.getElementById("reconciliationFile").value = "";
+        document.getElementById("reconciliationError").classList.add("hidden");
+    }
+}
+
+function cancelReconciliationUpload() {
+    document.getElementById("reconciliationForm").classList.add("hidden");
+}
+
+function setupReconciliationFormListener() {
+    document.getElementById("reconciliationUploadForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById("reconciliationFile");
+        const errorDiv = document.getElementById("reconciliationError");
+        errorDiv.classList.add("hidden");
+        if (!fileInput.files.length) { alert("Seleccione un archivo Excel"); return; }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        try {
+            const res = await api("/employees/reconcile/", { method: "POST", body: formData });
+            if (!res.ok) {
+                const err = await res.json().catch(()=>({detail:"Error desconocido"}));
+                errorDiv.textContent = "Error: " + (err.detail || "No se pudo procesar");
+                errorDiv.classList.remove("hidden");
+                return;
+            }
+            document.getElementById("reconciliationForm").classList.add("hidden");
+            loadReconciliationStatus();
+        } catch (e) {
+            errorDiv.textContent = "Error de conexion: " + e.message;
+            errorDiv.classList.remove("hidden");
+        }
+    });
+}
+
+function reconciliationCheckin(assetId, departedAssetId, assetTag) {
+    window.__reconciliationAfterCheckin = { assetId: assetId, departedAssetId: departedAssetId };
+    openModal(assetId, assetTag, "checkin");
+}
+
+function processReconciliationAfterCheckin() {
+    if (!window.__reconciliationAfterCheckin) return;
+    const { assetId, departedAssetId } = window.__reconciliationAfterCheckin;
+    window.__reconciliationAfterCheckin = null;
+
+    api("/employees/reconciliation/" + departedAssetId + "/clear/", { method: "POST" }).then(res => {
+        if (res.ok) loadReconciliationStatus();
+    }).catch(() => {});
+}
+
+function toggleSessionAssetList(sessionId) {
+    const body = document.getElementById("sessionAssets-" + sessionId);
+    const icon = document.getElementById("sessionToggleIcon-" + sessionId);
+    if (!body) return;
+    body.classList.toggle("hidden");
+    if (icon) icon.style.transform = body.classList.contains("hidden") ? "" : "rotate(90deg)";
 }

@@ -1886,17 +1886,28 @@ async function loadDeliveryBoard() {
             container.innerHTML = '<p class="text-center text-gray-400 italic py-8">No hay entregas pendientes activas.</p>';
             return;
         }
+        const palette = [
+            { bg: "bg-blue-50", border: "border-blue-200", title: "text-blue-800" },
+            { bg: "bg-green-50", border: "border-green-200", title: "text-green-800" },
+            { bg: "bg-purple-50", border: "border-purple-200", title: "text-purple-800" },
+            { bg: "bg-amber-50", border: "border-amber-200", title: "text-amber-800" },
+            { bg: "bg-pink-50", border: "border-pink-200", title: "text-pink-800" },
+            { bg: "bg-teal-50", border: "border-teal-200", title: "text-teal-800" },
+            { bg: "bg-indigo-50", border: "border-indigo-200", title: "text-indigo-800" },
+            { bg: "bg-orange-50", border: "border-orange-200", title: "text-orange-800" },
+        ];
         const wrapper = document.createElement("div");
         wrapper.className = "grid grid-cols-1 md:grid-cols-2 gap-4";
-        data.forEach(cat => {
+        data.forEach((cat, i) => {
+            const c = palette[i % palette.length];
             const col = document.createElement("div");
             col.className = "w-full";
             const pendingCount = cat.total_pending;
             const availCount = cat.available;
             col.innerHTML = `
-                <div class="bg-gray-50 rounded-lg border border-gray-200 p-3">
+                <div class="${c.bg} ${c.border} rounded-lg border p-3">
                     <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-sm font-bold text-gray-700">${cat.category}</h3>
+                        <h3 class="text-sm font-bold ${c.title}">${cat.category}</h3>
                         <span class="text-xs font-bold text-gray-500">${pendingCount} pendiente${pendingCount !== 1 ? 's' : ''}</span>
                     </div>
                     <div class="text-xs text-gray-400 mb-2">${availCount} disponible${availCount !== 1 ? 's' : ''} en almacen</div>

@@ -448,6 +448,14 @@ function toggleEditRepairFields() {
         document.getElementById("edit_repair_tech_search").value = "";
         document.getElementById("edit_repair_tech_id").value = "";
     }
+    if (status === "Checkout") {
+        var assetId = document.getElementById("edit_asset_id").value;
+        var assetTag = document.getElementById("edit_asset_tag_id").value;
+        if (assetId) {
+            closeEditAssetModal();
+            openModal(assetId, assetTag, 'checkout');
+        }
+    }
 }
 
 async function openEditAssetModal(assetId) {
@@ -465,7 +473,18 @@ async function openEditAssetModal(assetId) {
     document.getElementById("edit_serial_no").value = asset.serial_no;
     document.getElementById("edit_asset_category").value = asset.category || "";
     document.getElementById("edit_asset_site_id").value = asset.site_id;
-    
+
+    const assignedPerson = globalPersons.find(p => p.id === asset.person_id);
+    const assignedContainer = document.getElementById("editAssetAssignedContainer");
+    const assignedName = document.getElementById("editAssetAssignedName");
+    if (asset.status === "Checkout" && assignedPerson) {
+        assignedContainer.classList.remove("hidden");
+        assignedName.textContent = assignedPerson.full_name + (assignedPerson.title ? " (" + assignedPerson.title + ")" : "");
+    } else {
+        assignedContainer.classList.add("hidden");
+        assignedName.textContent = "";
+    }
+
     document.getElementById("edit_asset_status").value = asset.status;
 
     var isRepair = asset.status === "Under repair" || asset.status === "GarantiaSD";
@@ -502,6 +521,8 @@ function closeEditAssetModal() {
     document.getElementById("edit_repair_left_by_id").value = "";
     document.getElementById("edit_repair_tech_search").value = "";
     document.getElementById("edit_repair_tech_id").value = "";
+    document.getElementById("editAssetAssignedContainer").classList.add("hidden");
+    document.getElementById("editAssetAssignedName").textContent = "";
 }
 
 function setupEditAssetFormListener() {
@@ -602,7 +623,7 @@ async function loadHistory() {
             detailSpan.textContent = detail;
             detailSpan.onclick = function() { showDetailModal(detail); };
             detailCell.appendChild(detailSpan);
-            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${item.tipo_accion}</td><td class="px-4 py-2 font-bold text-gray-700 align-top">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="px-4 py-2 text-gray-600 align-top">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
+            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${item.tipo_accion}</td><td class="px-4 py-2 font-bold text-gray-700 align-top cursor-pointer hover:text-blue-600" onclick="openDetailsModal(${item.asset_id})">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="px-4 py-2 text-gray-600 align-top">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
             row.appendChild(detailCell);
             historyBody.appendChild(row);
         });
@@ -1152,9 +1173,57 @@ function toggleCollapse(id) {
     const el = document.getElementById(id);
     const chevronId = id.replace("Submenu", "Chevron");
     const chevron = document.getElementById(chevronId);
+    if (!el) return;
+    const isOpening = el.classList.contains("hidden");
+    if (isOpening) closeAllTopLevel(id);
+    el.classList.toggle("hidden");
+    if (chevron) chevron.classList.toggle("open");
+}
+
+function closeAllTopLevel(exceptId) {
+    const groups = ["inventarioSubmenu","inactivosSubmenu","directorioSubmenu","adminSubmenu"];
+    groups.forEach(gid => {
+        if (gid === exceptId) return;
+        const g = document.getElementById(gid);
+        const gc = document.getElementById(gid.replace("Submenu","Chevron"));
+        if (g) g.classList.add("hidden");
+        if (gc) gc.classList.remove("open");
+    });
+}
+
+function toggleNested(id) {
+    const el = document.getElementById(id);
+    const chevronId = id.replace("Submenu", "Chevron");
+    const chevron = document.getElementById(chevronId);
     if (el) {
         el.classList.toggle("hidden");
         if (chevron) chevron.classList.toggle("open");
+    }
+}
+
+function switchCatalogTab(tab) {
+    showSection('catalogs');
+    const ids = { sites: 'siteCount', categories: 'catCount', departments: 'deptCount' };
+    const el = document.getElementById(ids[tab]);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function switchImportTab(tab) {
+    ['import-tab-import','import-tab-export','import-tab-template'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+    });
+    document.getElementById('import-tab-'+tab).classList.remove('hidden');
+    ['import','export','template'].forEach(t => {
+        const btn = document.getElementById(t+'-tab-btn');
+        if (btn) {
+            btn.classList.remove('bg-blue-600','text-white');
+            btn.classList.add('bg-gray-100','text-gray-600');
+        }
+    });
+    const activeBtn = document.getElementById(tab+'-tab-btn');
+    if (activeBtn) {
+        activeBtn.classList.remove('bg-gray-100','text-gray-600');
+        activeBtn.classList.add('bg-blue-600','text-white');
     }
 }
 
@@ -1208,7 +1277,7 @@ async function loadStatusReport() {
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1233,15 +1302,16 @@ function showSection(name) {
     if (name === 'soldAssets') loadAssetsByStatus('Sold');
     if (name === 'listadoInactivos') loadListadoInactivos();
     if (name === 'enReparacion') loadRepairAssets();
+    if (name === 'importExport') { switchImportTab('import'); }
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
     // highlight active sidebar item
-    document.querySelectorAll('.sidebar-item[data-section], .sidebar-sub-item[data-section]').forEach(el => el.classList.remove('active'));
-    const active = document.querySelector(`.sidebar-item[data-section="${name}"]`) || document.querySelector(`.sidebar-sub-item[data-section="${name}"]`);
+    document.querySelectorAll('.sidebar-item[data-section], .sidebar-sub-item[data-section], .sidebar-nested-item[data-section]').forEach(el => el.classList.remove('active'));
+    const active = document.querySelector(`.sidebar-item[data-section="${name}"]`) || document.querySelector(`.sidebar-sub-item[data-section="${name}"]`) || document.querySelector(`.sidebar-nested-item[data-section="${name}"]`);
     if (active) active.classList.add('active');
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1472,9 +1542,6 @@ function goToAssetsFiltered(filterKey, filterValue) {
 function toggleDashCategoryBreakdown() {
     document.getElementById("dashCategoryBreakdown").classList.toggle("hidden");
 }
-
-function openImportModal() { document.getElementById("importModal").classList.remove("hidden"); document.getElementById("importResult").classList.add("hidden"); document.getElementById("importForm").reset(); }
-function closeImportModal() { document.getElementById("importModal").classList.add("hidden"); document.getElementById("importResult").classList.add("hidden"); }
 
 async function exportEntity(entity) {
     if (!getToken()) { alert("Debe iniciar sesion"); return; }

@@ -17,13 +17,32 @@
     border-right-color: #60a5fa;
 }
 
-/* Submenu items (no border indicator) */
+/* Submenu items (second level) */
 .sidebar-sub-item {
     transition: background 0.15s;
     border-right: 3px solid transparent;
 }
 .sidebar-sub-item:hover {
     background: rgba(59, 130, 246, 0.12);
+}
+.sidebar-sub-item.active {
+    background: rgba(59, 130, 246, 0.18);
+    font-weight: 700;
+    border-right-color: #60a5fa;
+}
+
+/* Deep nested items (third level) */
+.sidebar-nested-item {
+    transition: background 0.15s;
+    border-right: 3px solid transparent;
+}
+.sidebar-nested-item:hover {
+    background: rgba(59, 130, 246, 0.12);
+}
+.sidebar-nested-item.active {
+    background: rgba(59, 130, 246, 0.18);
+    font-weight: 700;
+    border-right-color: #60a5fa;
 }
 
 /* Collapse chevron rotation */

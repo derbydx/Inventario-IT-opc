@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import List
 from datetime import datetime, date
 import traceback, os
@@ -329,7 +330,7 @@ def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), admi
 def list_assets(
     search: str = None,
     search_condition: str = "contains",
-    search_field: str = None,
+    search_fields: List[str] = Query(None),
     status: str = None,
     category: str = None,
     site_id: int = None,
@@ -344,17 +345,21 @@ def list_assets(
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Asset)
-    if search and search_field:
-        column = getattr(models.Asset, search_field, None)
-        if column:
-            if search_condition == "exact":
-                query = query.filter(column == search)
-            elif search_condition == "startswith":
-                query = query.filter(column.like(f"{search}%"))
-            elif search_condition == "endswith":
-                query = query.filter(column.like(f"%{search}"))
-            else:
-                query = query.filter(column.like(f"%{search}%"))
+    if search and search_fields:
+        filters = []
+        for field_name in search_fields:
+            column = getattr(models.Asset, field_name, None)
+            if column:
+                if search_condition == "exact":
+                    filters.append(column == search)
+                elif search_condition == "startswith":
+                    filters.append(column.like(f"{search}%"))
+                elif search_condition == "endswith":
+                    filters.append(column.like(f"%{search}"))
+                else:
+                    filters.append(column.like(f"%{search}%"))
+        if filters:
+            query = query.filter(or_(*filters))
     elif search:
         like = f"%{search}%"
         query = query.filter(
@@ -399,7 +404,7 @@ def list_assets(
 def count_assets(
     search: str = None,
     search_condition: str = "contains",
-    search_field: str = None,
+    search_fields: List[str] = Query(None),
     status: str = None,
     category: str = None,
     site_id: int = None,
@@ -412,17 +417,21 @@ def count_assets(
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Asset)
-    if search and search_field:
-        column = getattr(models.Asset, search_field, None)
-        if column:
-            if search_condition == "exact":
-                query = query.filter(column == search)
-            elif search_condition == "startswith":
-                query = query.filter(column.like(f"{search}%"))
-            elif search_condition == "endswith":
-                query = query.filter(column.like(f"%{search}"))
-            else:
-                query = query.filter(column.like(f"%{search}%"))
+    if search and search_fields:
+        filters = []
+        for field_name in search_fields:
+            column = getattr(models.Asset, field_name, None)
+            if column:
+                if search_condition == "exact":
+                    filters.append(column == search)
+                elif search_condition == "startswith":
+                    filters.append(column.like(f"{search}%"))
+                elif search_condition == "endswith":
+                    filters.append(column.like(f"%{search}"))
+                else:
+                    filters.append(column.like(f"%{search}%"))
+        if filters:
+            query = query.filter(or_(*filters))
     elif search:
         like = f"%{search}%"
         query = query.filter(

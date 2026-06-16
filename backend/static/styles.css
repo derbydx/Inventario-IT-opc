@@ -113,3 +113,7 @@ main section table thead td {
 
 /* Hide login overlay by default after auth */
 #loginOverlay.hidden { display: none; }
+
+/* Sort indicator arrows */
+#assetsSection thead tr th.sort-asc::after { content: " ▲"; margin-left: 4px; font-size: 10px; }
+#assetsSection thead tr th.sort-desc::after { content: " ▼"; margin-left: 4px; font-size: 10px; }

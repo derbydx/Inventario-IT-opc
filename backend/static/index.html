@@ -338,6 +338,7 @@
                             <div class="relative">
                                 <button onclick="toggleColumnPanel('assets')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Columnas</button>
                                 <div id="colPanel_assets" class="hidden absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg p-3 z-20 w-44 text-xs space-y-1.5">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="asignado" onchange="toggleColumn('assets','asignado')" checked> Asignado</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="serie" onchange="toggleColumn('assets','serie')" checked> Serie</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="category" onchange="toggleColumn('assets','category')" checked> Categoria</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="site" onchange="toggleColumn('assets','site')" checked> Sitio</label>
@@ -385,19 +386,23 @@
                             </div>
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Campo de busqueda</label>
-                                <select id="adv_field" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
-                                    <option value="asset_tag_id">Asset Tag ID</option>
-                                    <option value="asset_description">Descripcion</option>
-                                    <option value="brand">Marca</option>
-                                    <option value="model">Modelo</option>
-                                    <option value="serial_no">Serie</option>
-                                    <option value="category">Categoria</option>
-                                    <option value="notas_adicionales">Notas</option>
-                                    <option value="numero_telefono">Telefono</option>
-                                    <option value="cost">Costo</option>
-                                    <option value="purchase_date">Fecha de Compra</option>
-                                    <option value="repair_reason">Motivo de Reparacion</option>
-                                </select>
+                                <div id="adv_field_checkboxes" class="grid grid-cols-2 gap-x-3 gap-y-0.5 p-2 border border-gray-300 rounded bg-white max-h-40 overflow-y-auto">
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="asset_tag_id" checked class="cursor-pointer"> Asset Tag ID</label>
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="asset_description" checked class="cursor-pointer"> Descripcion</label>
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="brand" checked class="cursor-pointer"> Marca</label>
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="model" checked class="cursor-pointer"> Modelo</label>
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="serial_no" checked class="cursor-pointer"> Serie</label>
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="category" checked class="cursor-pointer"> Categoria</label>
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="notas_adicionales" checked class="cursor-pointer"> Notas</label>
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="numero_telefono" checked class="cursor-pointer"> Telefono</label>
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="cost" checked class="cursor-pointer"> Costo</label>
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="purchase_date" checked class="cursor-pointer"> Fecha Compra</label>
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="repair_reason" checked class="cursor-pointer"> Motivo Reparacion</label>
+                                </div>
+                                <div class="flex gap-3 mt-1">
+                                    <button type="button" onclick="checkAllFields(true)" class="text-[10px] text-blue-600 font-bold hover:text-blue-800 cursor-pointer">Seleccionar todos</button>
+                                    <button type="button" onclick="checkAllFields(false)" class="text-[10px] text-blue-600 font-bold hover:text-blue-800 cursor-pointer">Ninguno</button>
+                                </div>
                             </div>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
@@ -433,7 +438,11 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Persona asignada</label>
-                                <select id="adv_person" class="w-full p-2 border border-gray-300 rounded text-xs bg-white"><option value="">Cualquier Persona</option></select>
+                                <div class="relative">
+                                    <input type="text" id="adv_person_search" autocomplete="off" placeholder="Cualquier Persona" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <input type="hidden" id="adv_person_id" value="">
+                                    <div id="adv_person_results" class="hidden absolute z-50 top-full left-0 right-0 bg-white border border-gray-200 rounded mt-1 shadow-lg max-h-48 overflow-y-auto"></div>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Comprado a (Vendor)</label>
@@ -485,21 +494,22 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Asset Tag</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Descripcion</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Marca/Modelo</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+                                    <th data-sort="asset_tag_id" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Asset Tag</th>
+                                    <th data-sort="asset_description" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Descripcion</th>
+                                    <th data-sort="marca_modelo" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Marca/Modelo</th>
+                                    <th data-sort="status" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Estado</th>
+                                    <th data-sort="asignado" data-col="asignado" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Asignado</th>
                                     <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
-                                    <th data-col="serie" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Serie</th>
-                                    <th data-col="category" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categoria</th>
-                                    <th data-col="site" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Sitio</th>
-                                    <th data-col="phone" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Telefono</th>
-                                    <th data-col="vendor" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Vendor</th>
-                                    <th data-col="date" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha Compra</th>
+                                    <th data-sort="serial_no" data-col="serie" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Serie</th>
+                                    <th data-sort="category" data-col="category" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Categoria</th>
+                                    <th data-sort="site" data-col="site" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Sitio</th>
+                                    <th data-sort="numero_telefono" data-col="phone" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Telefono</th>
+                                    <th data-sort="purchased_from" data-col="vendor" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Vendor</th>
+                                    <th data-sort="purchase_date" data-col="date" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Fecha Compra</th>
                                 </tr>
                             </thead>
                             <tbody id="assetsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
-                                <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando activos...</td></tr>
+                                <tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">Cargando activos...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1140,6 +1150,15 @@
                             </div>
                         </form>
                         <div id="importResult" class="hidden mt-3 p-3 rounded text-xs font-bold"></div>
+                        <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800 space-y-1">
+                            <p class="font-bold mb-1">Notas importantes para importar Activos</p>
+                            <p><strong>Columnas requeridas:</strong> AssetTag, Descripcion, Marca, Modelo, Serie, Categoria</p>
+                            <p><strong>Columnas opcionales:</strong> Sitio, AsignadoA</p>
+                            <p><strong>AsignadoA</strong> debe ser el <strong>email</strong> de la persona (no el nombre ni la cedula). Si el email existe, el activo se importa con status <strong>Checkout</strong>. Si esta vacio, queda como <strong>Available</strong>.</p>
+                            <p>Los sitios y personas deben existir en el sistema antes de importar activos que los referencien.</p>
+                            <p>El archivo debe ser <strong>.xlsx</strong> (Excel). La importacion es todo o nada: si una fila falla, no se importa nada.</p>
+                            <p>Descarga una plantilla en la pestaña <strong>"Plantillas"</strong> para ver el formato exacto.</p>
+                        </div>
                     </div>
                     <div id="import-tab-export" class="import-tab-panel hidden">
                         <p class="text-xs text-gray-500 mb-3">Exporta los datos del sistema a un archivo Excel.</p>

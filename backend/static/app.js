@@ -12,6 +12,7 @@ let currentAssetPage = 1;
 let currentEmployeePage = 1;
 let currentHistoryPage = 1;
 let totalAssets = 0;
+let assetSort = { key: null, dir: null, original: [], exclude: ["Archived"] };
 
 function getToken() {
     const session = localStorage.getItem("adminSession");
@@ -68,6 +69,13 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPasswordFormListener();
     setupUserFormListener();
     setupGroupFormListener();
+    const sortHeaderRow = document.querySelector("#assetsSection thead tr");
+    if (sortHeaderRow) {
+        sortHeaderRow.addEventListener("click", function(e) {
+            const th = e.target.closest("th[data-sort]");
+            if (th) sortAssetsBy(th.getAttribute("data-sort"));
+        });
+    }
 });
 
 async function loadDropdownData() {
@@ -147,6 +155,7 @@ async function loadDropdownData() {
     initAutocomplete("report_person_search", "report_person_id", "report_person_results");
     initAutocomplete("edit_repair_left_search", "edit_repair_left_by_id", "edit_repair_left_results");
     initAutocomplete("edit_repair_tech_search", "edit_repair_tech_id", "edit_repair_tech_results", globalAdmins);
+    initAutocomplete("adv_person_search", "adv_person_id", "adv_person_results");
     document.getElementById("report_person_id").addEventListener("change", function () {
         updatePersonInfo();
         loadCheckoutReport();
@@ -197,6 +206,127 @@ function changePageSize(table) {
     }
 }
 
+function siteName(sid) {
+    const s = globalSites.find(x => x.id === sid);
+    return s ? s.site_name : '';
+}
+
+function fmtDate(d) {
+    return d ? new Date(d).toLocaleDateString('es-ES') : '';
+}
+
+function getAssetBadgeColor(status) {
+    if (status === "Checkout") return "bg-blue-100 text-blue-800";
+    if (["Broken", "Lost/Missing", "Dispose"].includes(status)) return "bg-red-100 text-red-800";
+    if (status === "Under repair" || status === "GarantiaSD") return "bg-amber-100 text-amber-800";
+    if (["Reserved"].includes(status)) return "bg-purple-100 text-purple-800";
+    return "bg-green-100 text-green-800";
+}
+
+function buildAssetRowHTML(asset, mode) {
+    const badgeColor = getAssetBadgeColor(asset.status);
+    const assignedPerson = (asset.status === "Checkout" && asset.person_id) ? globalPersons.find(p => p.id === asset.person_id) : null;
+    const assignedName = assignedPerson ? assignedPerson.full_name : '';
+    let actionButton;
+    if (mode === 'search') {
+        actionButton = `<button onclick="event.stopPropagation(); openDetailsModal(${asset.id})" class="text-[11px] font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-300 px-2.5 py-1 rounded transition-all cursor-pointer">Ver</button>`;
+    } else {
+        if (asset.status === "Checkout") {
+            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkin')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-in</button>`;
+        } else {
+            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-out</button>`;
+        }
+    }
+    return `
+        <td class="px-4 py-3 font-mono font-bold text-gray-700 group-hover:text-blue-600">${asset.asset_tag_id}</td>
+        <td class="px-4 py-3 text-gray-600">${asset.asset_description}</td>
+        <td class="px-4 py-3 text-gray-500">${asset.brand} ${asset.model}</td>
+        <td class="px-4 py-3">
+            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}">
+                ${asset.status}
+            </span>
+        </td>
+        <td data-col="asignado" class="px-4 py-3 text-gray-600 text-xs">${assignedName}</td>
+        <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">${actionButton}</td>
+        <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${asset.serial_no}</td>
+        <td data-col="category" class="px-4 py-3 text-gray-500">${asset.category || ''}</td>
+        <td data-col="site" class="px-4 py-3 text-gray-500">${siteName(asset.site_id)}</td>
+        <td data-col="phone" class="px-4 py-3 text-gray-500">${asset.numero_telefono || ''}</td>
+        <td data-col="vendor" class="px-4 py-3 text-gray-500">${asset.purchased_from || ''}</td>
+        <td data-col="date" class="px-4 py-3 text-gray-500">${fmtDate(asset.purchase_date)}</td>
+    `;
+}
+
+function renderAssetTable(assets, tableBody, mode) {
+    tableBody.innerHTML = "";
+    if (assets.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>';
+        return;
+    }
+    assets.forEach(asset => {
+        const row = document.createElement("tr");
+        row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer group";
+        row.onclick = () => openDetailsModal(asset.id);
+        row.innerHTML = buildAssetRowHTML(asset, mode || 'default');
+        tableBody.appendChild(row);
+    });
+    applyColumnPreferences();
+}
+
+function getSortValue(asset, key) {
+    switch (key) {
+        case "marca_modelo": return (asset.brand + " " + asset.model).toLowerCase();
+        case "asignado": {
+            const p = (asset.status === "Checkout" && asset.person_id) ? globalPersons.find(x => x.id === asset.person_id) : null;
+            return (p ? p.full_name : '').toLowerCase();
+        }
+        case "site": return siteName(asset.site_id).toLowerCase();
+        case "purchase_date": return asset.purchase_date ? new Date(asset.purchase_date).getTime() : 0;
+        default: return (asset[key] || '').toString().toLowerCase();
+    }
+}
+
+function sortAssetsBy(key) {
+    const thead = document.querySelector("#assetsSection thead tr");
+    if (!thead || !currentAssets.length) return;
+    if (assetSort.key === key) {
+        if (assetSort.dir === 'asc') {
+            assetSort.dir = 'desc';
+        } else {
+            assetSort.key = null;
+            assetSort.dir = null;
+            currentAssets = [...assetSort.original];
+            const tb = document.getElementById("assetsTableBody");
+            const activeAssets = currentAssets.filter(a => !assetSort.exclude.includes(a.status));
+            renderAssetTable(activeAssets, tb);
+            thead.querySelectorAll("th").forEach(th => th.classList.remove("sort-asc", "sort-desc"));
+            return;
+        }
+    } else {
+        assetSort.key = key;
+        assetSort.dir = 'asc';
+    }
+    const sorted = [...currentAssets].sort((a, b) => {
+        const va = getSortValue(a, key);
+        const vb = getSortValue(b, key);
+        if (typeof va === 'number' && typeof vb === 'number') {
+            return assetSort.dir === 'asc' ? va - vb : vb - va;
+        }
+        const cmp = String(va).localeCompare(String(vb));
+        return assetSort.dir === 'asc' ? cmp : -cmp;
+    });
+    currentAssets = sorted;
+    thead.querySelectorAll("th").forEach(th => {
+        th.classList.remove("sort-asc", "sort-desc");
+        if (th.getAttribute("data-sort") === key) {
+            th.classList.add("sort-" + assetSort.dir);
+        }
+    });
+    const tb = document.getElementById("assetsTableBody");
+    const activeAssets = currentAssets.filter(a => !assetSort.exclude.includes(a.status));
+    renderAssetTable(activeAssets, tb);
+}
+
 async function loadAssets() {
     const tableBody = document.getElementById("assetsTableBody");
     const pageInfo = document.getElementById("assetsPageInfo");
@@ -204,6 +334,7 @@ async function loadAssets() {
     const prevBtn = document.querySelector("#assetsSection .flex.justify-between button:first-child");
     const nextBtn = document.querySelector("#assetsSection .flex.justify-between button:last-child");
     const pageSize = parseInt(document.getElementById("assetsPageSize").value);
+    document.querySelectorAll("#assetsSection thead tr th").forEach(th => th.classList.remove("sort-asc", "sort-desc"));
     try {
         const query = buildAssetQuery();
         const countParams = new URLSearchParams(query.toString());
@@ -217,11 +348,14 @@ async function loadAssets() {
         const countData = await countRes.json();
         totalAssets = countData.count;
         currentAssets = await listRes.json();
+        assetSort.original = [...currentAssets];
+        assetSort.key = null;
+        assetSort.dir = null;
+        assetSort.exclude = ["Archived","Broken","Lost","Disposed","Donate","Sold"];
         tableBody.innerHTML = "";
-        const inactiveStatuses = ["Archived","Broken","Lost","Disposed","Donate","Sold"];
-        const activeAssets = currentAssets.filter(a => !inactiveStatuses.includes(a.status));
+        const activeAssets = currentAssets.filter(a => !assetSort.exclude.includes(a.status));
         if (activeAssets.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>`;
+            tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>';
             pageInfo.textContent = "mostrando 0-0 de 0";
             if (prevBtn) prevBtn.disabled = true;
             if (nextBtn) nextBtn.disabled = true;
@@ -233,47 +367,8 @@ async function loadAssets() {
         if (pageInfoAux) pageInfoAux.textContent = `Pagina ${currentAssetPage}`;
         if (prevBtn) prevBtn.disabled = currentAssetPage <= 1;
         if (nextBtn) nextBtn.disabled = activeAssets.length < pageSize;
-
-        const siteName = sid => { const s = globalSites.find(x => x.id === sid); return s ? s.site_name : ''; };
-        const fmtDate = d => d ? new Date(d).toLocaleDateString('es-ES') : '';
-        activeAssets.forEach(asset => {
-            const row = document.createElement("tr");
-            row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer group";
-            row.onclick = () => openDetailsModal(asset.id);
-            
-            let badgeColor = "bg-green-100 text-green-800";
-            if (asset.status === "Checkout") badgeColor = "bg-blue-100 text-blue-800";
-
-            const assignedPerson = (asset.status === "Checkout" && asset.person_id) ? globalPersons.find(p => p.id === asset.person_id) : null;
-            const assignedName = assignedPerson ? assignedPerson.full_name : '';
-
-            let actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-out</button>`;
-            if (asset.status === "Checkout") {
-                actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkin')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-in</button>`;
-            }
-
-            row.innerHTML = `
-                <td class="px-4 py-3 font-mono font-bold text-gray-700 group-hover:text-blue-600">${asset.asset_tag_id}</td>
-                <td class="px-4 py-3 text-gray-600">${asset.asset_description}</td>
-                <td class="px-4 py-3 text-gray-500">${asset.brand} ${asset.model}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}">
-                        ${asset.status}
-                    </span>
-                </td>
-                <td class="px-4 py-3 text-gray-600 text-xs">${assignedName}</td>
-                <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">${actionButton}</td>
-                <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${asset.serial_no}</td>
-                <td data-col="category" class="px-4 py-3 text-gray-500">${asset.category || ''}</td>
-                <td data-col="site" class="px-4 py-3 text-gray-500">${siteName(asset.site_id)}</td>
-                <td data-col="phone" class="px-4 py-3 text-gray-500">${asset.numero_telefono || ''}</td>
-                <td data-col="vendor" class="px-4 py-3 text-gray-500">${asset.purchased_from || ''}</td>
-                <td data-col="date" class="px-4 py-3 text-gray-500">${fmtDate(asset.purchase_date)}</td>
-            `;
-            tableBody.appendChild(row);
-        });
-        applyColumnPreferences();
-    } catch (e) { tableBody.innerHTML = `<tr><td colspan="12" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>`; }
+        renderAssetTable(activeAssets, tableBody);
+    } catch (e) { tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>'; }
 }
 
 async function openDetailsModal(assetId) {
@@ -1335,7 +1430,6 @@ function populateAdvancedSearchDropdowns() {
     const siteSel = document.getElementById("adv_site");
     const catSel = document.getElementById("adv_category");
     const deptSel = document.getElementById("adv_department");
-    const personSel = document.getElementById("adv_person");
     siteSel.innerHTML = '<option value="">Todos los Sitios</option>';
     globalSites.forEach(s => { siteSel.innerHTML += `<option value="${s.id}">${s.site_name}</option>`; });
     catSel.innerHTML = '<option value="">Todas las Categorias</option>';
@@ -1343,8 +1437,10 @@ function populateAdvancedSearchDropdowns() {
     cats.forEach(c => { catSel.innerHTML += `<option value="${c}">${c}</option>`; });
     deptSel.innerHTML = '<option value="">Todos los Departamentos</option>';
     globalDepartments.forEach(d => { deptSel.innerHTML += `<option value="${d.id}">${d.department_name}</option>`; });
-    personSel.innerHTML = '<option value="">Cualquier Persona</option>';
-    globalPersons.forEach(p => { personSel.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
+}
+
+function checkAllFields(select) {
+    document.querySelectorAll("#adv_field_checkboxes input[type=checkbox]").forEach(cb => { cb.checked = select; });
 }
 
 function applyQuickDateRange() {
@@ -1374,17 +1470,22 @@ async function executeAdvancedSearch() {
     const params = new URLSearchParams();
     const search = document.getElementById("adv_search").value;
     const condition = document.getElementById("adv_condition").value;
-    const field = document.getElementById("adv_field").value;
     const site = document.getElementById("adv_site").value;
     const category = document.getElementById("adv_category").value;
     const department = document.getElementById("adv_department").value;
     const status = document.getElementById("adv_status").value;
-    const person = document.getElementById("adv_person").value;
+    const person = document.getElementById("adv_person_id").value;
     const vendor = document.getElementById("adv_vendor").value;
     const limit = document.getElementById("adv_limit").value;
     const dateField = document.getElementById("adv_datefield").value;
     const dateRange = document.getElementById("adv_daterange").value;
-    if (search) { params.set("search", search); params.set("search_condition", condition); params.set("search_field", field); }
+    if (search) {
+        params.set("search", search);
+        params.set("search_condition", condition);
+        document.querySelectorAll("#adv_field_checkboxes input[type=checkbox]:checked").forEach(cb => {
+            params.append("search_fields", cb.value);
+        });
+    }
     if (site) params.set("site_id", site);
     if (category) params.set("category", category);
     if (department) params.set("department_id", department);
@@ -1401,20 +1502,25 @@ async function executeAdvancedSearch() {
             params.set("date_to", parseDate(parts[1]));
         }
     }
+    document.querySelectorAll("#assetsSection thead tr th").forEach(th => th.classList.remove("sort-asc", "sort-desc"));
     const tableBody = document.getElementById("assetsTableBody");
     const pageInfo = document.getElementById("assetsPageInfo");
-    tableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Buscando...</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">Buscando...</td></tr>';
     try {
         const response = await api(`/assets/?${params.toString()}`);
         if (!response.ok) throw new Error("Error en el servidor");
         currentAssets = await response.json();
+        assetSort.original = [...currentAssets];
+        assetSort.key = null;
+        assetSort.dir = null;
+        assetSort.exclude = ["Archived"];
         currentAssetPage = 1;
         const pageInfoAux = document.getElementById("assetsPageInfoAux");
         if (pageInfoAux) pageInfoAux.textContent = "Pagina 1";
         tableBody.innerHTML = "";
-        const activeAssets = currentAssets.filter(a => a.status !== "Archived");
+        const activeAssets = currentAssets.filter(a => !assetSort.exclude.includes(a.status));
         if (activeAssets.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Sin resultados para esta busqueda.</td></tr>`;
+            tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">Sin resultados para esta busqueda.</td></tr>';
             pageInfo.textContent = "mostrando 0-0 de 0";
             return;
         }
@@ -1422,36 +1528,9 @@ async function executeAdvancedSearch() {
         const start = 1;
         const end = activeAssets.length;
         pageInfo.textContent = `mostrando ${start}-${end} de ${totalAssets}`;
-        const siteName = sid => { const s = globalSites.find(x => x.id === sid); return s ? s.site_name : ''; };
-        const fmtDate = d => d ? new Date(d).toLocaleDateString('es-ES') : '';
-        activeAssets.forEach(asset => {
-            const row = document.createElement("tr");
-            row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer group";
-            row.onclick = () => openDetailsModal(asset.id);
-            let badgeColor = "bg-green-100 text-green-800";
-            if (asset.status === "Checkout") { badgeColor = "bg-blue-100 text-blue-800"; }
-            else if (["Broken", "Lost/Missing", "Dispose"].includes(asset.status)) { badgeColor = "bg-red-100 text-red-800"; }
-            else if (asset.status === "Under repair" || asset.status === "GarantiaSD") { badgeColor = "bg-amber-100 text-amber-800"; }
-            else if (["Reserved"].includes(asset.status)) { badgeColor = "bg-purple-100 text-purple-800"; }
-            row.innerHTML = `
-                <td class="px-4 py-3 font-mono font-bold text-blue-600">${asset.asset_tag_id}</td>
-                <td class="px-4 py-3">${asset.asset_description}</td>
-                <td class="px-4 py-3">${asset.brand} - ${asset.model}</td>
-                <td class="px-4 py-3"><span class="px-2 py-1 inline-flex text-[11px] leading-5 font-semibold rounded-full ${badgeColor}">${asset.status}</span></td>
-                <td class="px-4 py-3 text-center">
-                    <button onclick="event.stopPropagation(); openDetailsModal(${asset.id})" class="text-[11px] font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-300 px-2.5 py-1 rounded transition-all cursor-pointer">Ver</button>
-                </td>
-                <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${asset.serial_no}</td>
-                <td data-col="category" class="px-4 py-3 text-gray-500">${asset.category || ''}</td>
-                <td data-col="site" class="px-4 py-3 text-gray-500">${siteName(asset.site_id)}</td>
-                <td data-col="phone" class="px-4 py-3 text-gray-500">${asset.numero_telefono || ''}</td>
-                <td data-col="vendor" class="px-4 py-3 text-gray-500">${asset.purchased_from || ''}</td>
-                <td data-col="date" class="px-4 py-3 text-gray-500">${fmtDate(asset.purchase_date)}</td>`;
-            tableBody.appendChild(row);
-        });
-        applyColumnPreferences();
+        renderAssetTable(activeAssets, tableBody, 'search');
     } catch (e) {
-        tableBody.innerHTML = '<tr><td colspan="11" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion</td></tr>';
     }
 }
 
@@ -1459,12 +1538,13 @@ function cancelAdvancedSearch() {
     document.getElementById("advancedSearchPanel").classList.add("hidden");
     document.getElementById("adv_search").value = "";
     document.getElementById("adv_condition").value = "contains";
-    document.getElementById("adv_field").value = "asset_tag_id";
+    checkAllFields(true);
     document.getElementById("adv_site").value = "";
     document.getElementById("adv_category").value = "";
     document.getElementById("adv_department").value = "";
     document.getElementById("adv_status").value = "";
-    document.getElementById("adv_person").value = "";
+    document.getElementById("adv_person_search").value = "";
+    document.getElementById("adv_person_id").value = "";
     document.getElementById("adv_vendor").value = "";
     document.getElementById("adv_limit").value = "250";
     document.getElementById("adv_datefield").value = "purchase_date";

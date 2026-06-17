@@ -89,6 +89,7 @@ class Asset(Base):
     
     # Llaves Foráneas
     person_id = Column(Integer, ForeignKey("persons.id"), nullable=True)
+    ultimo_asignado_id = Column(Integer, ForeignKey("persons.id"), nullable=True)
     category = Column(String(100), index=True)
     site_id = Column(Integer, ForeignKey("sites.id"), nullable=True)
 
@@ -110,7 +111,7 @@ class History(Base):
     notas_detalle = Column(Text)
     
     # Trazabilidad completa de auditoría
-    asset_id = Column(Integer, ForeignKey("assets.id"))
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=True)
     asignado_a_id = Column(Integer, ForeignKey("persons.id"), nullable=True)  # Quién recibe
     realizado_por_id = Column(Integer, ForeignKey("admins.id"))  # Qué administrador operó
 

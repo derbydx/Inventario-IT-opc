@@ -174,6 +174,7 @@ class AssetBase(BaseModel):
     repair_reason: Optional[str] = None
     repair_left_by_id: Optional[int] = None
     repair_technician_id: Optional[int] = None
+    ultimo_asignado_id: Optional[int] = None
 
 class AssetCreate(AssetBase):
     pass
@@ -194,7 +195,7 @@ class HistoryResponse(BaseModel):
     estado_anterior: str
     estado_nuevo: str
     notas_detalle: Optional[str] = None  # Mapeado con tu base de datos
-    asset_id: int
+    asset_id: Optional[int] = None
     asignado_a_id: Optional[int] = None
     realizado_por_id: int
     class Config:

@@ -37,11 +37,23 @@ async function api(url, options = {}) {
     }
     const response = await fetch(`${API_URL}${url}`, { ...options, headers });
     if (response.status === 401) {
+        showToast("Sesion expirada, inicie sesion nuevamente", "error");
         localStorage.removeItem("adminSession");
         window.location.reload();
         throw new Error("Sesion expirada");
     }
     return response;
+}
+
+function showToast(message, type) {
+    type = type || "info";
+    var container = document.getElementById("toastContainer");
+    if (!container) return;
+    var el = document.createElement("div");
+    el.className = "toast-item toast-" + type;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(function() { el.style.opacity = "0"; el.style.transition = "opacity 0.3s"; setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 300); }, 3500);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -164,7 +176,11 @@ async function loadDropdownData() {
 
 function buildAssetQuery() {
     const search = document.getElementById("searchInput").value;
-    const status = document.getElementById("filterStatus").value;
+    const tableBody = document.getElementById("assetsTableBody");
+    let status = document.getElementById("filterStatus").value;
+    if (!status && tableBody.dataset.statusFilter) {
+        status = tableBody.dataset.statusFilter;
+    }
     const category = document.getElementById("filterCategory").value;
     const pageSize = parseInt(document.getElementById("assetsPageSize").value);
     const skip = (currentAssetPage - 1) * pageSize;
@@ -242,7 +258,7 @@ function buildAssetRowHTML(asset, mode) {
         <td class="px-4 py-3 text-gray-600">${asset.asset_description}</td>
         <td class="px-4 py-3 text-gray-500">${asset.brand} ${asset.model}</td>
         <td class="px-4 py-3">
-            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}">
+            <span class="px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${badgeColor}">
                 ${asset.status}
             </span>
         </td>
@@ -430,6 +446,8 @@ async function openDetailsModal(assetId) {
         document.getElementById("det_repair_left_by").innerText = leftPerson ? leftPerson.full_name + " (" + leftPerson.employee_id + ")" : "-";
         var tech = globalAdmins.find(function (a) { return a.id === asset.repair_technician_id; });
         document.getElementById("det_repair_technician").innerText = tech ? tech.username : "-";
+        var ultimoUser = globalPersons.find(function (p) { return p.id === asset.ultimo_asignado_id; });
+        document.getElementById("det_ultimo_asignado").innerText = ultimoUser ? ultimoUser.full_name + " (" + ultimoUser.employee_id + ")" : "-";
     } else {
         repairBlock.classList.add("hidden");
     }
@@ -533,7 +551,7 @@ async function restoreAsset(assetId, assetTag) {
     const restoredData = { ...asset, status: "Available" };
     try {
         const response = await api(`/assets/${assetId}`, { method: "PUT", body: JSON.stringify(restoredData) });
-        if (response.ok) { alert(`El activo ${assetTag} ha sido restaurado exitosamente al almacen.`); closeDeletedAssetsModal(); loadAssets(); loadHistory(); }
+            if (response.ok) { showToast("Activo " + assetTag + " restaurado al almacen", "success"); closeDeletedAssetsModal(); loadAssets(); loadHistory(); }
     } catch (e) { alert("Error."); }
 }
 
@@ -658,7 +676,7 @@ function setupEditAssetFormListener() {
             });
 
             if (response.ok) {
-                alert("Modificado con exito!");
+                showToast("Modificado con exito!", "success");
                 closeEditAssetModal();
                 closeDetailsModal();
                 loadAssets();   
@@ -679,7 +697,7 @@ async function triggerDeleteAsset(assetId, assetTag) {
     if (!confirmacion) return;
     try {
         const response = await api(`/assets/${assetId}`, { method: "DELETE" });
-        if (response.ok) { alert("Movido a la papelera correctamente."); closeDetailsModal(); loadAssets(); loadHistory(); }
+        if (response.ok) { showToast("Movido a la papelera", "success"); closeDetailsModal(); loadAssets(); loadHistory(); }
     } catch (e) { alert("Error."); }
 }
 
@@ -713,7 +731,7 @@ async function loadHistory() {
             if (item.tipo_accion === "Check in") actionBadge = "text-amber-600 font-bold";
             if (item.tipo_accion === "Archived") actionBadge = "text-red-600 font-bold";
             const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
-            const assetObj = currentAssets.find(a => a.id === item.asset_id);
+            const assetObj = item.asset_id ? currentAssets.find(a => a.id === item.asset_id) : null;
             const employeeObj = globalPersons.find(p => p.id === item.asignado_a_id);
             
             const detail = (item.notas_detalle || '-');
@@ -725,7 +743,8 @@ async function loadHistory() {
             detailSpan.textContent = detail;
             detailSpan.onclick = function() { showDetailModal(detail); };
             detailCell.appendChild(detailSpan);
-            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${item.tipo_accion}</td><td class="px-4 py-2 font-bold text-gray-700 align-top cursor-pointer hover:text-blue-600" onclick="openDetailsModal(${item.asset_id})">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="px-4 py-2 text-gray-600 align-top">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
+            const assetCell = item.asset_id ? `<td class="px-4 py-2 font-bold text-gray-700 align-top cursor-pointer hover:text-blue-600" onclick="openDetailsModal(${item.asset_id})">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td>` : `<td class="px-4 py-2 text-gray-400 align-top italic">N/A</td>`;
+            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${item.tipo_accion}</td>${assetCell}<td class="px-4 py-2 text-gray-600 align-top">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
             row.appendChild(detailCell);
             historyBody.appendChild(row);
         });
@@ -911,7 +930,7 @@ function setupEditPersonFormListener() {
         try {
             const res = await api(`/persons/${id}`, { method: "PUT", body: JSON.stringify(data) });
             if (res.ok) {
-                alert("Empleado actualizado correctamente!");
+                showToast("Empleado actualizado correctamente!", "success");
                 closeEditPersonModal();
                 await loadDropdownData();
                 await loadPersons();
@@ -948,7 +967,7 @@ function setupEditSiteFormListener() {
         try {
             const res = await api(`/sites/${id}`, { method: "PUT", body: JSON.stringify(data) });
             if (res.ok) {
-                alert("Sitio actualizado!"); closeEditSiteModal();
+                showToast("Sitio actualizado!", "success"); closeEditSiteModal();
                 await loadDropdownData(); await loadCatalogs();
             } else {
                 const err = await res.json().catch(()=>({detail:"Error"}));
@@ -977,7 +996,7 @@ function setupEditDepartmentFormListener() {
         try {
             const res = await api(`/departments/${id}`, { method: "PUT", body: JSON.stringify(data) });
             if (res.ok) {
-                alert("Departamento actualizado!"); closeEditDepartmentModal();
+                showToast("Departamento actualizado!", "success"); closeEditDepartmentModal();
                 await loadDropdownData(); await loadCatalogs();
             } else {
                 const err = await res.json().catch(()=>({detail:"Error"}));
@@ -1073,7 +1092,7 @@ function setupMovementFormListener() {
         try { 
             const response = await api(url, { method: "POST" }); 
             if (response.ok) { 
-                alert("Movimiento procesado con exito!"); 
+                showToast("Movimiento procesado con exito!", "success"); 
                 processReconciliationAfterCheckin();
                 closeModal(); 
                 loadAssets(); 
@@ -1088,7 +1107,7 @@ function setupFormListener() {
         e.preventDefault();
         const siteVal = document.getElementById("asset_site_id").value;
         const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: siteVal ? parseInt(siteVal) : null, status: "Available" };
-        try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { alert("Activo registrado con exito!"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
+        try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { showToast("Activo registrado con exito!", "success"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
     });
 }
 
@@ -1096,7 +1115,7 @@ function setupPersonFormListener() {
     document.getElementById("personForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const personData = { full_name: document.getElementById("person_full_name").value, email: document.getElementById("person_email").value, employee_id: document.getElementById("person_employee_id").value, title: document.getElementById("person_title").value || null, phone: document.getElementById("person_phone").value || null, notes: document.getElementById("person_notes").value || null, site_id: parseInt(document.getElementById("person_site_id").value), department_id: parseInt(document.getElementById("person_department_id").value) };
-        try { const response = await api("/persons/", { method: "POST", body: JSON.stringify(personData) }); if (response.status === 201) { alert("Empleado dado de alta!"); closePersonModal(); loadDropdownData(); } } catch (e) { alert("Error."); }
+        try { const response = await api("/persons/", { method: "POST", body: JSON.stringify(personData) }); if (response.status === 201) { showToast("Empleado dado de alta!", "success"); closePersonModal(); loadDropdownData(); } } catch (e) { alert("Error."); }
     });
 }
 
@@ -1107,7 +1126,7 @@ function setupCatalogFormsListeners() {
             const data = { site_name: document.getElementById("site_name_input").value, city: document.getElementById("site_city_input").value || null, country: document.getElementById("site_country_input").value || null }; 
             const res = await api("/sites/", { method: "POST", body: JSON.stringify(data) }); 
             if (res.ok) { 
-                alert("Sitio creado!"); closeSiteModal(); document.getElementById("form_add_site").reset(); 
+                showToast("Sitio creado!", "success"); closeSiteModal(); document.getElementById("form_add_site").reset(); 
                 loadDropdownData(); 
             } else {
                 const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
@@ -1123,7 +1142,7 @@ function setupCatalogFormsListeners() {
             if (!name.trim()) { alert("El nombre del departamento es obligatorio"); return; }
             const res = await api("/departments/", { method: "POST", body: JSON.stringify({ department_name: name.trim() }) });
             if (res.ok) {
-                alert("Departamento creado!"); closeDepartmentModal(); document.getElementById("form_add_department").reset();
+                showToast("Departamento creado!", "success"); closeDepartmentModal(); document.getElementById("form_add_department").reset();
                 loadDropdownData();
             } else {
                 const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
@@ -1145,7 +1164,7 @@ function setupCatalogFormsListeners() {
                 res = await api("/categories/", { method: "POST", body: JSON.stringify({ name: name }) });
             }
             if (res.ok) {
-                alert(editId ? "Categoria actualizada!" : "Categoria creada!");
+                showToast("Categoria guardada!", "success");
                 closeCategoryModal();
                 loadCatalogs();
                 loadDropdownData();
@@ -1196,13 +1215,13 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
             loadHistory();
             loadPersons();
             loadCatalogs();
-            showSection('assets');
+        showSection('dashboard');
         } else {
             const err = await response.json();
-            alert(`Acceso Denegado: ${err.detail || "Verifique sus datos."}`);
+            showToast("Acceso Denegado: " + (err.detail || "Verifique sus datos."), "error");
         }
     } catch (error) {
-        alert("Error de conexion con el modulo de autenticacion.");
+        showToast("Error de conexion con el modulo de autenticacion.", "error");
     }
 });
 
@@ -1267,7 +1286,7 @@ async function deleteCategory(id, name) {
     if (!confirm('¿Eliminar la categoria "' + name + '"?')) return;
     try {
         const res = await api("/categories/" + id, { method: "DELETE" });
-        if (res.ok) { alert("Categoria eliminada"); loadCatalogs(); loadDropdownData(); }
+        if (res.ok) {             showToast("Categoria eliminada", "success"); loadCatalogs(); loadDropdownData(); }
         else { const err = await res.json().catch(()=>({detail:"Error"})); alert("Error: " + (err.detail || "No se pudo eliminar")); }
     } catch (e) { alert("Error de conexion"); }
 }
@@ -1553,62 +1572,128 @@ function cancelAdvancedSearch() {
     loadAssets();
 }
 
+function renderDashBars(assets) {
+    var statusLabels = {
+        "Available": "Disponible", "Checkout": "Asignado",
+        "Under repair": "En Reparacion", "GarantiaSD": "Garantia",
+        "Archived": "Archivado", "Broken": "Danado", "Lost": "Perdido",
+        "Disposed": "Desechado", "Donate": "Donado", "Sold": "Vendido"
+    };
+    var statusColors = {
+        "Available": "#22c55e", "Checkout": "#f59e0b",
+        "Under repair": "#f97316", "GarantiaSD": "#a855f7",
+        "Archived": "#6b7280", "Broken": "#ef4444", "Lost": "#dc2626",
+        "Disposed": "#6b7280", "Donate": "#3b82f6", "Sold": "#8b5cf6"
+    };
+    var statusCounts = {};
+    assets.forEach(function(a) {
+        var label = statusLabels[a.status] || a.status;
+        statusCounts[label] = (statusCounts[label] || 0) + 1;
+    });
+    var sEntries = Object.entries(statusCounts).sort(function(a, b) { return b[1] - a[1]; });
+    var maxStatus = sEntries.length ? sEntries[0][1] : 1;
+
+    var statusContainer = document.getElementById("dashStatusBars");
+    if (statusContainer) {
+        statusContainer.innerHTML = "";
+        sEntries.forEach(function(e) {
+            var label = e[0], count = e[1];
+            var origKey = Object.keys(statusLabels).find(function(k) { return statusLabels[k] === label; }) || label;
+            var color = statusColors[origKey] || "#6b7280";
+            var pct = (count / maxStatus * 100).toFixed(0);
+            var row = document.createElement("div");
+            row.className = "dash-bar-row";
+            row.innerHTML = '<span class="dash-bar-label">' + label + '</span><div class="dash-bar-track"><div class="dash-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div><span class="dash-bar-count">' + count + '</span><span class="dash-bar-percent">' + pct + '%</span>';
+            statusContainer.appendChild(row);
+        });
+        if (!sEntries.length) statusContainer.innerHTML = '<div class="text-gray-400 text-xs text-center py-4">Sin datos</div>';
+    }
+
+    var catCounts = {};
+    assets.forEach(function(a) { if (a.category) catCounts[a.category] = (catCounts[a.category] || 0) + 1; });
+    var sortedCats = Object.entries(catCounts).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+    var maxCat = sortedCats.length ? sortedCats[0][1] : 1;
+    var palette = ["#3b82f6","#8b5cf6","#ec4899","#f97316","#22c55e","#06b6d4","#eab308","#ef4444","#14b8a6","#6366f1"];
+
+    var catContainer = document.getElementById("dashCategoryBars");
+    if (catContainer) {
+        catContainer.innerHTML = "";
+        sortedCats.forEach(function(e, i) {
+            var label = e[0], count = e[1];
+            var pct = (count / maxCat * 100).toFixed(0);
+            var row = document.createElement("div");
+            row.className = "dash-bar-row";
+            row.innerHTML = '<span class="dash-bar-label">' + label + '</span><div class="dash-bar-track"><div class="dash-bar-fill" style="width:' + pct + '%;background:' + palette[i % palette.length] + '"></div></div><span class="dash-bar-count">' + count + '</span><span class="dash-bar-percent">' + pct + '%</span>';
+            catContainer.appendChild(row);
+        });
+        if (!sortedCats.length) catContainer.innerHTML = '<div class="text-gray-400 text-xs text-center py-4">Sin datos</div>';
+    }
+}
+
 async function updateDashboard() {
     try {
-        const resAssets = await api("/assets/?limit=9999");
-        const resPersons = await api("/persons/");
-        const resHistory = await api("/history/");
-        const resDeliveries = await api("/deliveries/pending");
+        var resAssets = await api("/assets/?limit=9999");
+        var resPersons = await api("/persons/");
+        var resHistory = await api("/history/");
+        var resDeliveries = await api("/deliveries/pending");
         if (resAssets.ok) {
-            const assets = await resAssets.json();
-            const active = assets.filter(a => !["Archived","Broken","Lost","Disposed","Donate","Sold"].includes(a.status));
+            var assets = await resAssets.json();
+            var active = assets.filter(function(a) { return !["Archived","Broken","Lost","Disposed","Donate","Sold"].includes(a.status); });
             document.getElementById("dashAssetCount").textContent = active.length;
-            document.getElementById("dashCheckoutCount").textContent = active.filter(a => a.status === "Checkout").length;
-            document.getElementById("dashCheckinCount").textContent = active.filter(a => a.status === "Available").length;
-            const cats = {};
-            active.forEach(a => { if (a.category) { cats[a.category] = (cats[a.category] || 0) + 1; } });
-            const catKeys = Object.keys(cats);
+            document.getElementById("dashCheckoutCount").textContent = active.filter(function(a) { return a.status === "Checkout"; }).length;
+            document.getElementById("dashCheckinCount").textContent = active.filter(function(a) { return a.status === "Available"; }).length;
+            var repairCount = active.filter(function(a) { return a.status === "Under repair" || a.status === "GarantiaSD"; }).length;
+            document.getElementById("dashRepairCount").textContent = repairCount;
+            var cats = {};
+            active.forEach(function(a) { if (a.category) cats[a.category] = (cats[a.category] || 0) + 1; });
+            var catKeys = Object.keys(cats);
             document.getElementById("dashCategoryCount").textContent = catKeys.length;
-            const catBody = document.getElementById("dashCategoryBody");
+            var catBody = document.getElementById("dashCategoryBody");
             catBody.innerHTML = "";
-            catKeys.sort().forEach(c => {
-                const row = document.createElement("tr");
+            catKeys.sort().forEach(function(c) {
+                var row = document.createElement("tr");
                 row.className = "border-b border-gray-100 hover:bg-gray-100 cursor-pointer";
-                row.onclick = () => goToAssetsFiltered("category", c);
-                row.innerHTML = `<td class="py-1.5 px-2 text-gray-700">${c}</td><td class="py-1.5 px-2 text-gray-700 text-right font-bold">${cats[c]}</td>`;
+                row.onclick = function() { goToAssetsFiltered("category", c); };
+                row.innerHTML = '<td class="py-1.5 px-2 text-gray-700">' + c + '</td><td class="py-1.5 px-2 text-gray-700 text-right font-bold">' + cats[c] + '</td>';
                 catBody.appendChild(row);
+            });
+            renderDashBars(assets);
+            // stagger entrance for dashboard cards
+            document.querySelectorAll('.dash-card').forEach(function(c, i) {
+                c.style.animationDelay = (i * 0.05) + 's';
             });
         }
         if (resPersons.ok) {
-            const persons = await resPersons.json();
+            var persons = await resPersons.json();
             document.getElementById("dashPersonCount").textContent = persons.length;
         }
         if (resHistory.ok) {
-            const history = await resHistory.json();
-            const recent = history.slice(-5).reverse();
-            const tbody = document.getElementById("dashRecentActivity");
+            var history = await resHistory.json();
+            var recent = history.slice(-10).reverse();
+            var tbody = document.getElementById("dashRecentActivity");
             tbody.innerHTML = "";
             if (recent.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-center text-gray-400 italic">Sin actividad.</td></tr>';
             } else {
-                recent.forEach(item => {
-                    const row = document.createElement("tr");
+                recent.forEach(function(item) {
+                    var row = document.createElement("tr");
                     row.className = "hover:bg-gray-50 cursor-pointer";
-                    row.onclick = () => { showSection("history"); };
-                    const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
-                    const assetObj = (typeof currentAssets !== 'undefined' ? currentAssets : []).find(a => a.id === item.asset_id);
-                    const employeeObj = (typeof globalPersons !== 'undefined' ? globalPersons : []).find(p => p.id === item.asignado_a_id);
-                    let badge = "text-blue-600 font-bold";
+                    row.onclick = function() { showSection("history"); };
+                    var fecha = new Date(item.fecha_accion).toLocaleString("es-ES");
+                    var assetObj = item.asset_id ? (typeof currentAssets !== "undefined" ? currentAssets : []).find(function(a) { return a.id === item.asset_id; }) : null;
+                    var employeeObj = (typeof globalPersons !== "undefined" ? globalPersons : []).find(function(p) { return p.id === item.asignado_a_id; });
+                    var badge = "text-blue-600 font-bold";
                     if (item.tipo_accion === "Check in") badge = "text-amber-600 font-bold";
                     if (item.tipo_accion === "Archived") badge = "text-red-600 font-bold";
-                    row.innerHTML = `<td class="py-2 px-3 text-gray-500 whitespace-nowrap">${fecha}</td><td class="py-2 px-3 uppercase ${badge}">${item.tipo_accion}</td><td class="py-2 px-3 font-bold text-gray-700">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="py-2 px-3 text-gray-600">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td>`;
+                    var assetDisplay = item.asset_id ? (assetObj ? assetObj.asset_tag_id : "ID: " + item.asset_id) : '<span class="text-gray-400 italic">N/A</span>';
+                    row.innerHTML = '<td class="py-2 px-3 text-gray-500 whitespace-nowrap">' + fecha + '</td><td class="py-2 px-3 uppercase ' + badge + '">' + item.tipo_accion + '</td><td class="py-2 px-3 font-bold text-gray-700">' + assetDisplay + '</td><td class="py-2 px-3 text-gray-600">' + (employeeObj ? employeeObj.full_name : (item.asignado_a_id ? "ID: " + item.asignado_a_id : "Almacen")) + '</td>';
                     tbody.appendChild(row);
                 });
             }
         }
         if (resDeliveries.ok) {
-            const deliveries = await resDeliveries.json();
-            const activePendings = deliveries.filter(d => d.status === "Active");
+            var deliveries = await resDeliveries.json();
+            var activePendings = deliveries.filter(function(d) { return d.status === "Active"; });
             document.getElementById("dashPendingCount").textContent = activePendings.length;
         }
     } catch (e) { console.error(e); }
@@ -1617,10 +1702,16 @@ async function updateDashboard() {
 function goToAssetsFiltered(filterKey, filterValue) {
     showSection('assets');
     currentAssetPage = 1;
-    const statusSel = document.getElementById("filterStatus");
-    const catSel = document.getElementById("filterCategory");
+    var statusSel = document.getElementById("filterStatus");
+    var catSel = document.getElementById("filterCategory");
     if (filterKey === 'status' && statusSel) {
-        statusSel.value = filterValue;
+        if (filterValue.indexOf(",") !== -1) {
+            statusSel.value = "";
+            document.getElementById("assetsTableBody").dataset.statusFilter = filterValue;
+        } else {
+            statusSel.value = filterValue;
+            delete document.getElementById("assetsTableBody").dataset.statusFilter;
+        }
     }
     if (filterKey === 'category' && catSel) {
         catSel.value = filterValue;
@@ -1863,7 +1954,7 @@ async function submitNewPending() {
         } catch (e) { /* continue */ }
     }
     if (successCount > 0) {
-        alert(successCount + " entrega(s) pendiente(s) agregada(s) correctamente!");
+        showToast(successCount + " entrega(s) pendiente(s) agregada(s)!", "success");
         document.getElementById("deliveryForm").reset();
         document.querySelectorAll('.delivery-cat-qty').forEach(function (q) { q.disabled = true; });
         loadDeliveryBoard();
@@ -2021,7 +2112,7 @@ async function submitFulfill() {
         });
         if (res.ok) {
             const data = await res.json();
-            alert(`Activo ${data.asset_tag} asignado exitosamente! (${data.fulfilled_count}/${data.total})`);
+            showToast("Activo " + data.asset_tag + " asignado! (" + data.fulfilled_count + "/" + data.total + ")", "success");
             closeFulfillModal();
             loadDeliveryBoard();
         } else {
@@ -2036,7 +2127,7 @@ async function cancelPending(deliveryId) {
     try {
         const res = await api(`/deliveries/pending/${deliveryId}`, { method: "DELETE" });
         if (res.ok) {
-            alert("Entrega cancelada");
+            showToast("Entrega cancelada", "success");
             loadDeliveryBoard();
             loadDeliveryEmployees();
         } else {

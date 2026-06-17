@@ -40,6 +40,8 @@ def seed_groups_and_admin():
             db.execute(text("ALTER TABLE assets ADD COLUMN repair_left_by_id INTEGER REFERENCES persons(id)"))
         if "repair_technician_id" not in assets_cols:
             db.execute(text("ALTER TABLE assets ADD COLUMN repair_technician_id INTEGER REFERENCES admins(id)"))
+        if "ultimo_asignado_id" not in assets_cols:
+            db.execute(text("ALTER TABLE assets ADD COLUMN ultimo_asignado_id INTEGER REFERENCES persons(id)"))
         db.commit()
         
         # Crear grupos por defecto si no existen
@@ -371,7 +373,11 @@ def list_assets(
             models.Asset.category.like(like)
         )
     if status:
-        query = query.filter(models.Asset.status == status)
+        if "," in status:
+            status_list = [s.strip() for s in status.split(",")]
+            query = query.filter(models.Asset.status.in_(status_list))
+        else:
+            query = query.filter(models.Asset.status == status)
     if category:
         query = query.filter(models.Asset.category == category)
     if site_id:
@@ -443,7 +449,11 @@ def count_assets(
             models.Asset.category.like(like)
         )
     if status:
-        query = query.filter(models.Asset.status == status)
+        if "," in status:
+            status_list = [s.strip() for s in status.split(",")]
+            query = query.filter(models.Asset.status.in_(status_list))
+        else:
+            query = query.filter(models.Asset.status == status)
     if category:
         query = query.filter(models.Asset.category == category)
     if site_id:
@@ -498,6 +508,7 @@ def asset_checkout(asset_id: int, person_id: int, notas: str = None, db: Session
     estado_anterior = asset.status
     asset.status = "Checkout"
     asset.person_id = person_id
+    asset.ultimo_asignado_id = person_id
     
     registro_historial = models.History(
         asset_id=asset.id,
@@ -522,6 +533,7 @@ def asset_checkin(asset_id: int, nuevo_estado: str = "Available", notas: str = N
 
     estado_anterior = asset.status
     persona_que_devuelve = asset.person_id
+    asset.ultimo_asignado_id = persona_que_devuelve
 
     asset.status = nuevo_estado
     asset.person_id = None 
@@ -597,11 +609,13 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
         db_asset.repair_technician_id = None
 
     for key, value in datos_nuevos.items():
-        if key in ("repair_reason", "repair_left_by_id", "repair_technician_id"):
+        if key in ("repair_reason", "repair_left_by_id", "repair_technician_id", "ultimo_asignado_id"):
             continue
         setattr(db_asset, key, value)
 
     if db_asset.status not in ("Checkout", "Reserved"):
+        if db_asset.person_id is not None:
+            db_asset.ultimo_asignado_id = db_asset.person_id
         db_asset.person_id = None
 
     if lista_cambios:
@@ -1241,6 +1255,7 @@ def fulfill_pending_delivery(delivery_id: int, body: schemas.PendingFulfillReque
     estado_anterior = asset.status
     asset.status = "Checkout"
     asset.person_id = d.person_id
+    asset.ultimo_asignado_id = d.person_id
 
     person = db.query(models.Person).filter(models.Person.id == d.person_id).first()
     person_name = person.full_name if person else ""

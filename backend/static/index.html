@@ -6,29 +6,35 @@
     <title>IT Asset Manager - Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Sora:wght@600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-900">
 
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <!-- LOGIN OVERLAY -->
-    <div id="loginOverlay" class="fixed inset-0 bg-gradient-to-br from-gray-800 to-gray-950 flex items-center justify-center p-4 z-[100] transition-opacity duration-300">
-        <div class="bg-white rounded-xl p-8 max-w-sm w-full shadow-2xl border-t-4 border-t-blue-700 space-y-6">
+    <div id="loginOverlay" class="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950 flex items-center justify-center p-4 z-[100] transition-opacity duration-300 login-pattern">
+        <div class="relative bg-white/95 backdrop-blur-sm rounded-2xl p-8 max-w-sm w-full shadow-2xl border border-amber-200/50 space-y-6 animate-[dashFadeUp_0.5s_ease-out]">
             <div class="text-center">
-                <h2 class="text-2xl font-black text-gray-800 tracking-tight">IT Asset Manager</h2>
-                <p class="text-xs text-gray-400 mt-1 uppercase font-bold tracking-wider">Control de Seguridad de Infraestructura</p>
+                <div class="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg rotate-3">
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight font-display">IT Asset Manager</h2>
+                <p class="text-xs text-slate-400 mt-1 uppercase font-bold tracking-wider">Control de Seguridad de Infraestructura</p>
             </div>
             <form id="loginForm" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-600 uppercase">Usuario Administrador</label>
-                    <input type="text" id="login_username" required placeholder="Ej: derby_admin" class="w-full mt-1 p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    <label class="block text-xs font-bold text-slate-600 uppercase">Usuario Administrador</label>
+                    <input type="text" id="login_username" required placeholder="Ej: derby_admin" class="w-full mt-1 p-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition-all">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-600 uppercase">Contrasena</label>
-                    <input type="password" id="login_password" required placeholder="******" class="w-full mt-1 p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    <label class="block text-xs font-bold text-slate-600 uppercase">Contrasena</label>
+                    <input type="password" id="login_password" required placeholder="******" class="w-full mt-1 p-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition-all">
                 </div>
-                <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm shadow-md transition-all transform active:scale-[0.98] cursor-pointer">
+                <button type="submit" class="w-full py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold rounded-lg text-sm shadow-md transition-all transform active:scale-[0.98] cursor-pointer">
                     Ingresar al Panel
                 </button>
             </form>
@@ -287,29 +293,33 @@
                         <h2 class="text-lg font-bold text-gray-800">Dashboard del Inventario</h2>
                         <button onclick="updateDashboard()" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Actualizar</button>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div onclick="showSection('assets')" class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center hover:bg-blue-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
-                            <p class="text-3xl font-black text-blue-700" id="dashAssetCount">0</p>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div onclick="showSection('assets')" class="dash-card bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200 rounded-xl p-4 text-center hover:shadow-lg cursor-pointer transition-all active:scale-[0.98]" style="animation-delay:0s">
+                            <p class="text-3xl font-black text-blue-700 font-display" id="dashAssetCount">0</p>
                             <p class="text-xs text-blue-600 font-bold uppercase mt-1">Total Activos</p>
                         </div>
-                        <div onclick="showSection('employees')" class="bg-teal-50 border border-teal-200 rounded-lg p-4 text-center hover:bg-teal-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
-                            <p class="text-3xl font-black text-teal-700" id="dashPersonCount">0</p>
+                        <div onclick="showSection('employees')" class="dash-card bg-gradient-to-br from-teal-50 to-teal-100/50 border border-teal-200 rounded-xl p-4 text-center hover:shadow-lg cursor-pointer transition-all active:scale-[0.98]" style="animation-delay:0.05s">
+                            <p class="text-3xl font-black text-teal-700 font-display" id="dashPersonCount">0</p>
                             <p class="text-xs text-teal-600 font-bold uppercase mt-1">Total Empleados</p>
                         </div>
-                        <div onclick="goToAssetsFiltered('status','Checkout')" class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center hover:bg-amber-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
-                            <p class="text-3xl font-black text-amber-700" id="dashCheckoutCount">0</p>
+                        <div onclick="goToAssetsFiltered('status','Checkout')" class="dash-card bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200 rounded-xl p-4 text-center hover:shadow-lg cursor-pointer transition-all active:scale-[0.98]" style="animation-delay:0.1s">
+                            <p class="text-3xl font-black text-amber-700 font-display" id="dashCheckoutCount">0</p>
                             <p class="text-xs text-amber-600 font-bold uppercase mt-1">Equipos Asignados</p>
                         </div>
-                        <div onclick="goToAssetsFiltered('status','Available')" class="bg-green-50 border border-green-200 rounded-lg p-4 text-center hover:bg-green-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
-                            <p class="text-3xl font-black text-green-700" id="dashCheckinCount">0</p>
+                        <div onclick="goToAssetsFiltered('status','Available')" class="dash-card bg-gradient-to-br from-green-50 to-green-100/50 border border-green-200 rounded-xl p-4 text-center hover:shadow-lg cursor-pointer transition-all active:scale-[0.98]" style="animation-delay:0.15s">
+                            <p class="text-3xl font-black text-green-700 font-display" id="dashCheckinCount">0</p>
                             <p class="text-xs text-green-600 font-bold uppercase mt-1">En Almacen</p>
                         </div>
-                        <div onclick="toggleDashCategoryBreakdown()" class="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center hover:bg-purple-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
-                            <p class="text-3xl font-black text-purple-700" id="dashCategoryCount">0</p>
+                        <div onclick="goToAssetsFiltered('status','Under repair,GarantiaSD')" class="dash-card bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-200 rounded-xl p-4 text-center hover:shadow-lg cursor-pointer transition-all active:scale-[0.98]" style="animation-delay:0.2s">
+                            <p class="text-3xl font-black text-orange-700 font-display" id="dashRepairCount">0</p>
+                            <p class="text-xs text-orange-600 font-bold uppercase mt-1">En Reparacion</p>
+                        </div>
+                        <div onclick="toggleDashCategoryBreakdown()" class="dash-card bg-gradient-to-br from-purple-50 to-purple-100/50 border border-purple-200 rounded-xl p-4 text-center hover:shadow-lg cursor-pointer transition-all active:scale-[0.98]" style="animation-delay:0.25s">
+                            <p class="text-3xl font-black text-purple-700 font-display" id="dashCategoryCount">0</p>
                             <p class="text-xs text-purple-600 font-bold uppercase mt-1">Categorias</p>
                         </div>
-                        <div onclick="showSection('deliveryBoard')" class="bg-red-50 border border-red-200 rounded-lg p-4 text-center hover:bg-red-100 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]">
-                            <p class="text-3xl font-black text-red-700" id="dashPendingCount">0</p>
+                        <div onclick="showSection('deliveryBoard')" class="dash-card bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200 rounded-xl p-4 text-center hover:shadow-lg cursor-pointer transition-all active:scale-[0.98]" style="animation-delay:0.3s">
+                            <p class="text-3xl font-black text-red-700 font-display" id="dashPendingCount">0</p>
                             <p class="text-xs text-red-600 font-bold uppercase mt-1">Entregas Pendientes</p>
                         </div>
                     </div>
@@ -324,6 +334,31 @@
                             <table class="w-full text-xs">
                                 <thead><tr class="border-b border-gray-200"><th class="text-left py-1.5 px-2 text-gray-500 font-bold uppercase">Categoria</th><th class="text-right py-1.5 px-2 text-gray-500 font-bold uppercase">Cantidad</th></tr></thead>
                                 <tbody id="dashCategoryBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Graficos: CSS Bars -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div class="bg-white border border-gray-200 rounded-xl p-4">
+                            <h4 class="text-xs font-bold text-gray-600 uppercase mb-3 font-display">Estado de Activos</h4>
+                            <div id="dashStatusBars" class="dash-bar-container"></div>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-xl p-4">
+                            <h4 class="text-xs font-bold text-gray-600 uppercase mb-3 font-display">Top Categorias</h4>
+                            <div id="dashCategoryBars" class="dash-bar-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- Actividad Reciente -->
+                    <div class="mt-4 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                        <div class="p-3 border-b border-gray-200">
+                            <h3 class="text-xs font-bold text-gray-600 uppercase font-display">Actividad Reciente</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs">
+                                <thead><tr class="border-b border-gray-200 bg-gray-50"><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Fecha</th><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Accion</th><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Activo</th><th class="text-left py-2 px-3 text-gray-500 font-bold uppercase">Persona</th></tr></thead>
+                                <tbody id="dashRecentActivity"></tbody>
                             </table>
                         </div>
                     </div>
@@ -1447,6 +1482,7 @@
                     <div id="det_assigned_container" class="mt-1"></div>
                 </div>
                 <div id="det_repair_block" class="hidden md:col-span-2 bg-amber-50 border border-amber-200 rounded p-3 text-xs space-y-1">
+                    <div><span class="font-bold text-amber-800">Ultimo usuario asignado:</span> <span id="det_ultimo_asignado" class="text-gray-700">-</span></div>
                     <div><span class="font-bold text-amber-800">Motivo de reparacion:</span> <span id="det_repair_reason" class="text-gray-700">-</span></div>
                     <div><span class="font-bold text-amber-800">Dejado por:</span> <span id="det_repair_left_by" class="text-gray-700">-</span></div>
                     <div><span class="font-bold text-amber-800">Tecnico encargado:</span> <span id="det_repair_technician" class="text-gray-700">-</span></div>

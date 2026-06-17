@@ -1175,19 +1175,16 @@ def report_department_summary(db: Session = Depends(get_db)):
         assigned = db.query(models.Asset).join(models.Person, models.Asset.person_id == models.Person.id).filter(
             models.Person.department_id == d.id, models.Asset.status == "Checkout"
         ).count()
-        total = db.query(models.Asset).join(models.Person, models.Asset.person_id == models.Person.id).filter(
-            models.Person.department_id == d.id
-        ).count()
         results.append(schemas.DepartmentSummaryItem(
             dept_id=d.id, dept_name=d.department_name,
-            employee_count=emp_count, assigned_assets=assigned, total_assets=total
+            employee_count=emp_count, assigned_assets=assigned
         ))
     return results
 
 @app.get("/reports/department-assets/{dept_id}", response_model=List[schemas.DepartmentAssetItem], tags=["Reportes"])
 def report_department_assets(dept_id: int, db: Session = Depends(get_db)):
     assets = db.query(models.Asset).join(models.Person, models.Asset.person_id == models.Person.id).filter(
-        models.Person.department_id == dept_id
+        models.Person.department_id == dept_id, models.Asset.status == "Checkout"
     ).order_by(models.Asset.asset_tag_id).all()
     results = []
     for a in assets:

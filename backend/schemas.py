@@ -280,7 +280,6 @@ class DepartmentSummaryItem(BaseModel):
     dept_name: str
     employee_count: int
     assigned_assets: int
-    total_assets: int
 
 class DepartmentAssetItem(BaseModel):
     asset_id: int

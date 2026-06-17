@@ -1902,7 +1902,7 @@ async function loadCheckoutTimeframeReport() {
 
 async function loadDepartmentReport() {
     var tbody = document.getElementById("deptReportBody");
-    tbody.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
     try {
         var res = await api("/reports/department-summary/");
         if (!res.ok) throw new Error("Error del servidor");
@@ -1911,7 +1911,7 @@ async function loadDepartmentReport() {
         currentDeptSummary = data;
         tbody.innerHTML = "";
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-gray-400 italic">No hay departamentos registrados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">No hay departamentos registrados.</td></tr>';
             return;
         }
         data.forEach(function(d) {
@@ -1923,14 +1923,13 @@ async function loadDepartmentReport() {
                 '<td class="px-3 py-2 font-semibold text-gray-800">' + escapeHtml(d.dept_name) + '</td>' +
                 '<td class="px-3 py-2">' + d.employee_count + '</td>' +
                 '<td class="px-3 py-2 ' + assignedBadge + '">' + d.assigned_assets + '</td>' +
-                '<td class="px-3 py-2">' + d.total_assets + '</td>' +
                 '<td class="px-3 py-2 text-center"><button onclick="toggleDeptAssets(' + d.dept_id + ')" class="text-[11px] bg-blue-100 hover:bg-blue-200 border border-blue-300 px-2.5 py-1 rounded font-bold text-blue-700 transition-colors cursor-pointer">Detalle</button></td>';
             tbody.appendChild(row);
             // hidden detail row
             var detailRow = document.createElement("tr");
             detailRow.id = "deptDetail-" + d.dept_id;
             detailRow.className = "hidden";
-            detailRow.innerHTML = '<td colspan="5" class="px-3 py-0"><div id="deptAssets-' + d.dept_id + '" class="py-2"><div class="text-center text-gray-400 italic text-xs py-3">Cargando activos...</div></div></td>';
+            detailRow.innerHTML = '<td colspan="4" class="px-3 py-0"><div id="deptAssets-' + d.dept_id + '" class="py-2"><div class="text-center text-gray-400 italic text-xs py-3">Cargando activos...</div></div></td>';
             tbody.appendChild(detailRow);
         });
     } catch (e) {
@@ -2000,9 +1999,9 @@ async function exportDeptExcel(deptId) {
 
 function exportDeptReportCSV() {
     if (currentDeptSummary.length === 0) { alert("No hay datos para exportar"); return; }
-    var headers = ["Departamento", "Empleados", "Activos Asignados", "Total Activos"];
+    var headers = ["Departamento", "Empleados", "Activos Asignados"];
     var rows = currentDeptSummary.map(function(d) {
-        return [d.dept_name, d.employee_count, d.assigned_assets, d.total_assets].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(",");
+        return [d.dept_name, d.employee_count, d.assigned_assets].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(",");
     });
     var csv = "\uFEFF" + headers.join(",") + "\n" + rows.join("\n");
     var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });

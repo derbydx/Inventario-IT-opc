@@ -2816,99 +2816,124 @@ function renderReconciliationStatus(data) {
     const container = document.getElementById("recSessionList");
     container.innerHTML = "";
     if (data.sessions.length === 0) {
-        container.innerHTML = '<p class="text-xs text-gray-400 italic py-4 text-center">No hay sesiones de conciliacion. Haz clic en "+ Nueva Conciliacion" para comenzar.</p>';
+        container.innerHTML = '<div class="text-xs text-gray-400 italic py-6 text-center">No hay sesiones de conciliacion. Haz clic en "+ Nueva Conciliacion" para comenzar.</div>';
         return;
     }
-    data.sessions.forEach((session) => {
+    data.sessions.forEach((session, idx) => {
         const sessionId = session.session_id;
         const dateStr = session.uploaded_at ? new Date(session.uploaded_at).toLocaleDateString("es-DO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-";
         const pendingCount = session.pending_count;
+        const clearedCount = session.cleared_count || 0;
         const hasPending = pendingCount > 0;
 
         const card = document.createElement("div");
-        card.className = "border border-gray-200 rounded overflow-hidden";
+        card.className = "border border-gray-200 rounded-lg overflow-hidden bg-white rec-session-card";
+        card.style.animationDelay = (idx * 0.06) + "s";
 
         const header = document.createElement("button");
-        header.className = "w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-left cursor-pointer";
+        header.className = "w-full flex items-center justify-between px-4 py-3 text-left cursor-pointer hover:bg-gray-50/80 transition-colors relative";
+        header.style.borderLeft = "4px solid " + (hasPending ? "#d97706" : "#22c55e");
         header.setAttribute("onclick", "toggleSessionAssetList(" + sessionId + ")");
+
+        var badgeHtml = hasPending
+            ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>' + pendingCount + ' pendiente(s)</span>'
+            : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-200"><span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Completado</span>';
+
         header.innerHTML = `
             <div class="flex items-center gap-3 min-w-0">
-                <svg class="w-4 h-4 shrink-0 ${hasPending ? 'text-amber-400' : 'text-green-400'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z"/></svg>
+                <div class="w-8 h-8 rounded-lg ${hasPending ? 'bg-amber-50' : 'bg-green-50'} flex items-center justify-center shrink-0">
+                    <svg class="w-4 h-4 ${hasPending ? 'text-amber-500' : 'text-green-500'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+                </div>
                 <div class="min-w-0">
-                    <span class="font-bold text-sm text-gray-800">Sesion del ${dateStr}</span>
-                    <span class="text-xs text-gray-400 ml-2">${session.filename}</span>
-                    <div class="text-[11px] text-gray-500">Subido por: ${session.uploaded_by} &middot; ${session.matched_count} coincidencias &middot; ${session.imported_count} importados</div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-bold text-sm text-gray-800" style="font-family:'Sora',sans-serif">Sesion del ${dateStr}</span>
+                        <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-mono">${session.filename}</span>
+                    </div>
+                    <div class="text-[11px] text-gray-500 mt-0.5">
+                        <span class="font-medium text-gray-600">${session.uploaded_by}</span>
+                        <span class="mx-1">&middot;</span>
+                        ${session.matched_count} coincidencias
+                        ${session.imported_count > 0 ? '<span class="mx-1">&middot;</span><span class="text-teal-600 font-medium">' + session.imported_count + ' importados</span>' : ''}
+                        <span class="mx-1">&middot;</span>
+                        <span class="text-gray-400">BD: ${session.total_db} / Archivo: ${session.total_file}</span>
+                    </div>
                 </div>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-                <span class="text-[10px] font-bold ${hasPending ? 'text-amber-600 bg-amber-50' : 'text-green-700 bg-green-100'} px-2 py-0.5 rounded-full">${pendingCount} pendiente(s)</span>
-                <svg id="sessionToggleIcon-${sessionId}" class="w-3 h-3 text-gray-400 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+                ${badgeHtml}
+                <svg id="sessionToggleIcon-${sessionId}" class="w-3 h-3 text-gray-400 transition-transform duration-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
             </div>
         `;
         card.appendChild(header);
 
         const body = document.createElement("div");
         body.id = "sessionAssets-" + sessionId;
-        body.className = "hidden";
+        body.className = "rec-session-body";
+        body.style.maxHeight = "0px";
 
         if (session.departed.length === 0) {
-            body.innerHTML = '<div class="px-4 py-3 text-xs text-gray-400 italic border-t border-gray-200">Sin empleados ausentes con activos en esta sesion.</div>';
+            body.innerHTML = '<div class="px-4 py-4 text-xs text-gray-400 italic border-t border-gray-100">Sin empleados ausentes con activos en esta sesion.</div>';
         } else {
             const wrapper = document.createElement("div");
-            wrapper.className = "border-t border-gray-200 divide-y divide-gray-100";
+            wrapper.className = "border-t border-gray-100";
             session.departed.forEach((item) => {
                 const p = item.person;
                 const assets = item.assets;
-                const pIsComplete = assets.length === 0;
+                var clearedCount_p = 0;
+                assets.forEach(function(aa) { if (aa.reconciliation_status === "cleared") clearedCount_p++; });
+                var pendingCount_p = assets.length - clearedCount_p;
+                var pct = assets.length > 0 ? Math.round((clearedCount_p / assets.length) * 100) : 100;
+
                 const personBlock = document.createElement("div");
-                personBlock.className = "px-4 py-2";
+                personBlock.className = "px-4 py-3 border-b border-gray-50 last:border-b-0";
 
                 const personHeader = document.createElement("div");
-                personHeader.className = "flex items-center justify-between py-1";
+                personHeader.className = "flex items-center justify-between flex-wrap gap-2";
                 personHeader.innerHTML = `
                     <div class="flex items-center gap-2">
-                        <svg class="w-3.5 h-3.5 ${pIsComplete ? 'text-green-400' : 'text-red-400'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
-                        <span class="font-bold text-xs text-gray-800">${p.full_name}</span>
-                        <span class="text-[10px] text-gray-400">${p.employee_id}</span>
+                        <div class="w-7 h-7 rounded-full ${pendingCount_p > 0 ? 'bg-amber-50' : 'bg-green-50'} flex items-center justify-center">
+                            <svg class="w-3.5 h-3.5 ${pendingCount_p > 0 ? 'text-amber-500' : 'text-green-500'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+                        </div>
+                        <div>
+                            <span class="font-bold text-xs text-gray-800">${escapeHtml(p.full_name)}</span>
+                            <span class="text-[10px] text-gray-400 ml-1">${p.employee_id}</span>
+                        </div>
                     </div>
-                    ${pIsComplete ? '<span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Completado</span>' : '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">' + assets.length + ' activo(s)</span>'}
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-gray-500 font-medium">${clearedCount_p}/${assets.length}</span>
+                        ${pendingCount_p === 0
+                            ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-200"><span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Completado</span>'
+                            : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>' + pendingCount_p + ' pendiente</span>'}
+                    </div>
                 `;
                 personBlock.appendChild(personHeader);
 
-                if (!pIsComplete) {
-                    const table = document.createElement("table");
-                    table.className = "min-w-full divide-y divide-gray-200 text-xs mt-2";
-                    table.innerHTML = `
-                        <thead class="bg-gray-100 text-gray-500">
-                            <tr>
-                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Tag</th>
-                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Descripcion</th>
-                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Modelo</th>
-                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Serie</th>
-                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Estado</th>
-                                <th class="px-3 py-1.5 text-center font-bold uppercase text-[10px]">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200 text-gray-700"></tbody>
-                    `;
-                    const tbody = table.querySelector("tbody");
-                    assets.forEach((a) => {
-                        const tr = document.createElement("tr");
-                        tr.innerHTML = `
-                            <td class="px-3 py-1.5 font-mono font-bold">${a.asset_tag_id}</td>
-                            <td class="px-3 py-1.5">${a.asset_description || '-'}</td>
-                            <td class="px-3 py-1.5">${a.model || '-'}</td>
-                            <td class="px-3 py-1.5 font-mono">${a.serial_no || '-'}</td>
-                            <td class="px-3 py-1.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${a.status === 'Checkout' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}">${a.status}</span></td>
-                            <td class="px-3 py-1.5 text-center">
-                                <div class="flex items-center justify-center gap-1">
-                                    <button onclick="reconciliationCheckin(${a.id}, ${a.departed_asset_id}, '${a.asset_tag_id}')" class="px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-[10px] font-bold cursor-pointer">Checkin</button>
-                                    <button onclick="openDetailsModal(${a.id})" class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-[10px] font-bold cursor-pointer">Detalle</button>
-                                </div>
-                            </td>
-                        `;
+                // Progress bar
+                if (assets.length > 0) {
+                    var barContainer = document.createElement("div");
+                    barContainer.className = "mt-2 mb-2";
+                    barContainer.innerHTML = '<div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full rounded-full transition-all duration-500 ' + (pct === 100 ? 'bg-green-400' : 'bg-amber-400') + '" style="width:' + pct + '%"></div></div>';
+                    personBlock.appendChild(barContainer);
+                }
+
+                if (pendingCount_p > 0) {
+                    var table = document.createElement("table");
+                    table.className = "min-w-full divide-y divide-gray-100 text-xs mt-1";
+                    var thead = document.createElement("thead");
+                    thead.className = "bg-gray-50/80 text-gray-500";
+                    thead.innerHTML = '<tr><th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Tag</th><th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Descripcion</th><th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Modelo</th><th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Serie</th><th class="px-3 py-1.5 text-center font-bold uppercase text-[10px]">Status</th><th class="px-3 py-1.5 text-center font-bold uppercase text-[10px]">Accion</th></tr>';
+                    table.appendChild(thead);
+                    var tbody = document.createElement("tbody");
+                    tbody.className = "bg-white divide-y divide-gray-50 text-gray-700";
+                    assets.forEach(function(a) {
+                        if (a.reconciliation_status === "cleared") return;
+                        var statusColor = a.status === "Checkout" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-green-50 text-green-700 border-green-200";
+                        var tr = document.createElement("tr");
+                        tr.className = "hover:bg-gray-50/50 transition-colors";
+                        tr.innerHTML = '<td class="px-3 py-1.5 font-mono font-bold text-gray-800">' + escapeHtml(a.asset_tag_id) + '</td><td class="px-3 py-1.5 text-gray-600">' + escapeHtml(a.asset_description || '-') + '</td><td class="px-3 py-1.5 text-gray-500">' + escapeHtml(a.model || '-') + '</td><td class="px-3 py-1.5 font-mono text-gray-500">' + escapeHtml(a.serial_no || '-') + '</td><td class="px-3 py-1.5 text-center"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ' + statusColor + ' border"><span class="w-1.5 h-1.5 rounded-full ' + (a.status === "Checkout" ? 'bg-amber-500' : 'bg-green-500') + ' inline-block"></span>' + a.status + '</span></td><td class="px-3 py-1.5 text-center"><button onclick="reconciliationCheckin(' + a.id + ',' + a.departed_asset_id + ",'" + a.asset_tag_id + "')" + '" class="px-2 py-1 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded text-[10px] font-bold border border-teal-200 transition-colors cursor-pointer">Checkin</button></td>';
                         tbody.appendChild(tr);
                     });
+                    table.appendChild(tbody);
                     personBlock.appendChild(table);
                 }
                 wrapper.appendChild(personBlock);
@@ -2980,8 +3005,13 @@ function toggleSessionAssetList(sessionId) {
     const body = document.getElementById("sessionAssets-" + sessionId);
     const icon = document.getElementById("sessionToggleIcon-" + sessionId);
     if (!body) return;
-    body.classList.toggle("hidden");
-    if (icon) icon.style.transform = body.classList.contains("hidden") ? "" : "rotate(90deg)";
+    if (body.style.maxHeight === "0px" || !body.style.maxHeight || body.style.maxHeight === "") {
+        body.style.maxHeight = body.scrollHeight + "px";
+        if (icon) icon.style.transform = "rotate(90deg)";
+    } else {
+        body.style.maxHeight = "0px";
+        if (icon) icon.style.transform = "";
+    }
 }
 
 async function refreshReconciliation() {

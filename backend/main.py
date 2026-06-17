@@ -838,8 +838,6 @@ def reconcile_employees(file: UploadFile = File(...), db: Session = Depends(get_
     matched_ids = file_eids & set(db_by_eid.keys())
     for eid in matched_ids:
         db_by_eid[eid].is_active = True
-    for eid in departed_db_ids:
-        db_by_eid[eid].is_active = False
     db.commit()
 
     # Auto-import new employees
@@ -901,6 +899,7 @@ def reconcile_employees(file: UploadFile = File(...), db: Session = Depends(get_
                 status="pending"
             ))
         if checkout_assets:
+            p.is_active = False
             departed.append({
                 "person": {
                     "id": p.id, "full_name": p.full_name, "email": p.email,

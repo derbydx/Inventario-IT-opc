@@ -234,3 +234,30 @@ html.dark .sidebar-nested-item.active { border-right-color: #f59e0b; }
     #sidebar .p-4 h1::after { content: "IT"; font-size: 14px; font-weight: 800; }
     main { margin-left: 64px !important; }
 }
+
+/* ===== RECONCILIATION ===== */
+
+/* Session card stagger entrance */
+.rec-session-card {
+    animation: recFadeUp 0.4s ease both;
+}
+
+@keyframes recFadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Stat card stagger */
+#recStatCards .rec-stat-card {
+    animation: recFadeUp 0.35s ease both;
+}
+#recStatCards .rec-stat-card:nth-child(1) { animation-delay: 0s; }
+#recStatCards .rec-stat-card:nth-child(2) { animation-delay: 0.06s; }
+#recStatCards .rec-stat-card:nth-child(3) { animation-delay: 0.12s; }
+#recStatCards .rec-stat-card:nth-child(4) { animation-delay: 0.18s; }
+
+/* Session body slide */
+.rec-session-body {
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+}

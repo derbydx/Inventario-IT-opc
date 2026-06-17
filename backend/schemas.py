@@ -274,3 +274,21 @@ class CheckoutTimeframeItem(BaseModel):
     admin_name: str
     checkout_date: datetime
     current_status: str
+
+class DepartmentSummaryItem(BaseModel):
+    dept_id: int
+    dept_name: str
+    employee_count: int
+    assigned_assets: int
+    total_assets: int
+
+class DepartmentAssetItem(BaseModel):
+    asset_id: int
+    asset_tag_id: str
+    asset_description: str
+    brand: str
+    model: str
+    serial_no: str
+    category: str
+    status: str
+    assigned_person: str = ""

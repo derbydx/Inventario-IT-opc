@@ -1166,6 +1166,56 @@ def report_checkout_timeframe(
         ))
     return results
 
+@app.get("/reports/department-summary/", response_model=List[schemas.DepartmentSummaryItem], tags=["Reportes"])
+def report_department_summary(db: Session = Depends(get_db)):
+    depts = db.query(models.Department).order_by(models.Department.department_name).all()
+    results = []
+    for d in depts:
+        emp_count = db.query(models.Person).filter(models.Person.department_id == d.id).count()
+        assigned = db.query(models.Asset).join(models.Person, models.Asset.person_id == models.Person.id).filter(
+            models.Person.department_id == d.id, models.Asset.status == "Checkout"
+        ).count()
+        total = db.query(models.Asset).join(models.Person, models.Asset.person_id == models.Person.id).filter(
+            models.Person.department_id == d.id
+        ).count()
+        results.append(schemas.DepartmentSummaryItem(
+            dept_id=d.id, dept_name=d.department_name,
+            employee_count=emp_count, assigned_assets=assigned, total_assets=total
+        ))
+    return results
+
+@app.get("/reports/department-assets/{dept_id}", response_model=List[schemas.DepartmentAssetItem], tags=["Reportes"])
+def report_department_assets(dept_id: int, db: Session = Depends(get_db)):
+    assets = db.query(models.Asset).join(models.Person, models.Asset.person_id == models.Person.id).filter(
+        models.Person.department_id == dept_id
+    ).order_by(models.Asset.asset_tag_id).all()
+    results = []
+    for a in assets:
+        p = db.query(models.Person).filter(models.Person.id == a.person_id).first() if a.person_id else None
+        results.append(schemas.DepartmentAssetItem(
+            asset_id=a.id, asset_tag_id=a.asset_tag_id,
+            asset_description=a.asset_description, brand=a.brand, model=a.model,
+            serial_no=a.serial_no, category=a.category or "", status=a.status,
+            assigned_person=p.full_name if p else ""
+        ))
+    return results
+
+@app.get("/export/department/{dept_id}/", tags=["Import/Export"])
+def export_department(dept_id: int, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
+    dept = db.query(models.Department).filter(models.Department.id == dept_id).first()
+    if not dept:
+        raise HTTPException(404, "Departamento no encontrado")
+    assets = db.query(models.Asset).join(models.Person, models.Asset.person_id == models.Person.id).filter(
+        models.Person.department_id == dept_id
+    ).order_by(models.Asset.asset_tag_id).all()
+    rows = []
+    for a in assets:
+        p = db.query(models.Person).filter(models.Person.id == a.person_id).first() if a.person_id else None
+        rows.append((a.asset_tag_id, a.asset_description, a.brand, a.model, a.serial_no, a.category or "", a.status, p.full_name if p else ""))
+    name_clean = dept.department_name.replace(" ", "_").replace("/", "-")
+    buf = _make_excel(["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Status", "AsignadoA"], rows)
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename=departamento_{name_clean}.xlsx"})
+
 # ==========================================
 # 13. ENDPOINTS DE ENTREGAS PENDIENTES
 # ==========================================

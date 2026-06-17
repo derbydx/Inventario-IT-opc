@@ -8,6 +8,8 @@ let globalDepartments = [];
 let currentReportResults = [];
 let currentCtfResults = [];
 let currentSrResults = [];
+let currentDeptSummary = [];
+let currentDeptAssets = {};
 let currentAssetPage = 1;
 let currentEmployeePage = 1;
 let currentHistoryPage = 1;
@@ -1399,7 +1401,7 @@ async function loadStatusReport() {
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1426,6 +1428,7 @@ function showSection(name) {
     if (name === 'enReparacion') loadRepairAssets();
     if (name === 'importExport') { switchImportTab('import'); }
     if (name === 'employeeReconciliation') { showReconciliationView(); }
+    if (name === 'deptReport') loadDepartmentReport();
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
     // highlight active sidebar item
     document.querySelectorAll('.sidebar-item[data-section], .sidebar-sub-item[data-section], .sidebar-nested-item[data-section]').forEach(el => el.classList.remove('active'));
@@ -1434,7 +1437,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1895,6 +1898,144 @@ async function loadCheckoutTimeframeReport() {
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>';
     }
+}
+
+async function loadDepartmentReport() {
+    var tbody = document.getElementById("deptReportBody");
+    tbody.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        var res = await api("/reports/department-summary/");
+        if (!res.ok) throw new Error("Error del servidor");
+        var data = await res.json();
+        document.getElementById("deptReportCount").textContent = data.length + " Departamentos";
+        currentDeptSummary = data;
+        tbody.innerHTML = "";
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-gray-400 italic">No hay departamentos registrados.</td></tr>';
+            return;
+        }
+        data.forEach(function(d) {
+            var row = document.createElement("tr");
+            row.className = "hover:bg-gray-50 transition-colors";
+            row.id = "deptRow-" + d.dept_id;
+            var assignedBadge = d.assigned_assets > 0 ? "font-bold text-blue-700" : "text-gray-500";
+            row.innerHTML =
+                '<td class="px-3 py-2 font-semibold text-gray-800">' + escapeHtml(d.dept_name) + '</td>' +
+                '<td class="px-3 py-2">' + d.employee_count + '</td>' +
+                '<td class="px-3 py-2 ' + assignedBadge + '">' + d.assigned_assets + '</td>' +
+                '<td class="px-3 py-2">' + d.total_assets + '</td>' +
+                '<td class="px-3 py-2 text-center"><button onclick="toggleDeptAssets(' + d.dept_id + ')" class="text-[11px] bg-blue-100 hover:bg-blue-200 border border-blue-300 px-2.5 py-1 rounded font-bold text-blue-700 transition-colors cursor-pointer">Detalle</button></td>';
+            tbody.appendChild(row);
+            // hidden detail row
+            var detailRow = document.createElement("tr");
+            detailRow.id = "deptDetail-" + d.dept_id;
+            detailRow.className = "hidden";
+            detailRow.innerHTML = '<td colspan="5" class="px-3 py-0"><div id="deptAssets-' + d.dept_id + '" class="py-2"><div class="text-center text-gray-400 italic text-xs py-3">Cargando activos...</div></div></td>';
+            tbody.appendChild(detailRow);
+        });
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-red-500 font-medium">Error de conexion con el servidor</td></tr>';
+    }
+}
+
+async function toggleDeptAssets(deptId) {
+    var detailRow = document.getElementById("deptDetail-" + deptId);
+    var container = document.getElementById("deptAssets-" + deptId);
+    if (!detailRow || !container) return;
+    if (!detailRow.classList.contains("hidden")) {
+        detailRow.classList.add("hidden");
+        return;
+    }
+    detailRow.classList.remove("hidden");
+    if (currentDeptAssets[deptId]) {
+        renderDeptAssets(deptId);
+        return;
+    }
+    try {
+        var res = await api("/reports/department-assets/" + deptId);
+        if (!res.ok) throw new Error("Error del servidor");
+        var data = await res.json();
+        currentDeptAssets[deptId] = data;
+        renderDeptAssets(deptId);
+    } catch (e) {
+        container.innerHTML = '<div class="text-center text-red-500 text-xs py-3">Error al cargar activos</div>';
+    }
+}
+
+function renderDeptAssets(deptId) {
+    var container = document.getElementById("deptAssets-" + deptId);
+    var data = currentDeptAssets[deptId] || [];
+    if (!container) return;
+    if (data.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400 italic text-xs py-3">Sin activos vinculados a este departamento.</div>';
+        return;
+    }
+    var count = data.length;
+    var assigned = data.filter(function(a) { return a.status === "Checkout"; }).length;
+    var html = '<div class="flex items-center justify-between mb-2 px-1"><span class="text-xs font-bold text-gray-600">Total: ' + count + ' activos | Asignados: ' + assigned + '</span><div class="flex gap-1"><button onclick="exportDeptCSV(' + deptId + ')" class="text-[11px] bg-green-100 hover:bg-green-200 border border-green-300 px-2 py-0.5 rounded font-bold text-green-800 cursor-pointer">CSV</button><button onclick="exportDeptExcel(' + deptId + ')" class="text-[11px] bg-blue-100 hover:bg-blue-200 border border-blue-300 px-2 py-0.5 rounded font-bold text-blue-700 cursor-pointer">Excel</button></div></div>';
+    html += '<div class="overflow-x-auto max-h-64 overflow-y-auto"><table class="min-w-full text-xs border border-gray-200"><thead class="bg-gray-100 text-gray-500"><tr><th class="px-2 py-1 text-left font-bold uppercase">Asset Tag</th><th class="px-2 py-1 text-left font-bold uppercase">Descripcion</th><th class="px-2 py-1 text-left font-bold uppercase">Marca/Modelo</th><th class="px-2 py-1 text-left font-bold uppercase">Serie</th><th class="px-2 py-1 text-left font-bold uppercase">Categoria</th><th class="px-2 py-1 text-left font-bold uppercase">Status</th><th class="px-2 py-1 text-left font-bold uppercase">Asignado A</th></tr></thead><tbody>';
+    data.forEach(function(a) {
+        var badge = getAssetBadgeColor(a.status);
+        html += '<tr class="border-t border-gray-100 hover:bg-gray-50 cursor-pointer" onclick="openAssetModalById(' + a.asset_id + ')"><td class="px-2 py-1 font-mono font-bold text-blue-600">' + escapeHtml(a.asset_tag_id) + '</td><td class="px-2 py-1">' + escapeHtml(a.asset_description) + '</td><td class="px-2 py-1">' + escapeHtml(a.brand) + ' ' + escapeHtml(a.model) + '</td><td class="px-2 py-1 font-mono">' + escapeHtml(a.serial_no) + '</td><td class="px-2 py-1">' + escapeHtml(a.category) + '</td><td class="px-2 py-1"><span class="px-1.5 py-0.5 inline-flex items-center text-[10px] font-semibold rounded-full ' + badge + '">' + escapeHtml(a.status) + '</span></td><td class="px-2 py-1">' + escapeHtml(a.assigned_person) + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+async function exportDeptExcel(deptId) {
+    if (!getToken()) { showToast("Debe iniciar sesion", "error"); return; }
+    try {
+        var res = await api("/export/department/" + deptId + "/");
+        if (!res.ok) { showToast("Error al exportar", "error"); return; }
+        var blob = await res.blob();
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        var dept = currentDeptSummary.find(function(d) { return d.dept_id === deptId; });
+        var name = dept ? dept.dept_name.replace(/[^a-zA-Z0-9]/g, "_") : "departamento_" + deptId;
+        a.download = "departamento_" + name + "_" + new Date().toISOString().slice(0,10) + ".xlsx";
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch(e) { showToast("Error de conexion al exportar", "error"); }
+}
+
+function exportDeptReportCSV() {
+    if (currentDeptSummary.length === 0) { alert("No hay datos para exportar"); return; }
+    var headers = ["Departamento", "Empleados", "Activos Asignados", "Total Activos"];
+    var rows = currentDeptSummary.map(function(d) {
+        return [d.dept_name, d.employee_count, d.assigned_assets, d.total_assets].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(",");
+    });
+    var csv = "\uFEFF" + headers.join(",") + "\n" + rows.join("\n");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "resumen_departamentos_" + new Date().toISOString().slice(0,10) + ".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function exportDeptCSV(deptId) {
+    var data = currentDeptAssets[deptId];
+    if (!data || data.length === 0) { alert("No hay datos para exportar"); return; }
+    var deptName = "";
+    var dept = currentDeptSummary.find(function(d) { return d.dept_id === deptId; });
+    if (dept) deptName = dept.dept_name;
+    var headers = ["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Status", "AsignadoA"];
+    var rows = data.map(function(a) {
+        return [a.asset_tag_id, a.asset_description, a.brand, a.model, a.serial_no, a.category, a.status, a.assigned_person].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(",");
+    });
+    var csv = "\uFEFF" + headers.join(",") + "\n" + rows.join("\n");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    var name = deptName ? deptName.replace(/[^a-zA-Z0-9]/g, "_") : "departamento_" + deptId;
+    a.download = name + "_" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 async function openAssetModalById(assetId) {

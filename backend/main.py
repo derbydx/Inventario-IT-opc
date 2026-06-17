@@ -43,6 +43,11 @@ def seed_groups_and_admin():
         if "ultimo_asignado_id" not in assets_cols:
             db.execute(text("ALTER TABLE assets ADD COLUMN ultimo_asignado_id INTEGER REFERENCES persons(id)"))
         db.commit()
+
+        persons_cols = [c["name"] for c in inspector.get_columns("persons")]
+        if "is_active" not in persons_cols:
+            db.execute(text("ALTER TABLE persons ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+        db.commit()
         
         # Crear grupos por defecto si no existen
         default_groups = [
@@ -504,6 +509,8 @@ def asset_checkout(asset_id: int, person_id: int, notas: str = None, db: Session
     person = db.query(models.Person).filter(models.Person.id == person_id).first()
     if not person:
         raise HTTPException(status_code=404, detail="Empleado no encontrado")
+    if not person.is_active:
+        raise HTTPException(status_code=400, detail="No se puede asignar un activo a un empleado inactivo")
 
     estado_anterior = asset.status
     asset.status = "Checkout"
@@ -826,6 +833,14 @@ def reconcile_employees(file: UploadFile = File(...), db: Session = Depends(get_
 
     departed_db_ids = set(db_by_eid.keys()) - file_eids
     new_file_ids = file_eids - set(db_by_eid.keys())
+
+    # Mark active/inactive based on file presence
+    matched_ids = file_eids & set(db_by_eid.keys())
+    for eid in matched_ids:
+        db_by_eid[eid].is_active = True
+    for eid in departed_db_ids:
+        db_by_eid[eid].is_active = False
+    db.commit()
 
     # Auto-import new employees
     imported = []
@@ -1305,7 +1320,11 @@ def fulfill_pending_delivery(delivery_id: int, body: schemas.PendingFulfillReque
     asset.ultimo_asignado_id = d.person_id
 
     person = db.query(models.Person).filter(models.Person.id == d.person_id).first()
-    person_name = person.full_name if person else ""
+    if not person:
+        raise HTTPException(404, "Empleado no encontrado")
+    if not person.is_active:
+        raise HTTPException(400, "No se puede asignar un activo a un empleado inactivo")
+    person_name = person.full_name
     db.add(models.History(
         asset_id=asset.id, asignado_a_id=d.person_id, realizado_por_id=admin.id,
         tipo_accion="Checkout", estado_anterior=estado_anterior, estado_nuevo="Checkout",

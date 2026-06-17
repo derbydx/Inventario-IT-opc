@@ -584,6 +584,7 @@
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="site" onchange="toggleColumn('employees','site')" checked> Sitio</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="phone" onchange="toggleColumn('employees','phone')" checked> Telefono</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="notes" onchange="toggleColumn('employees','notes')" checked> Notas</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="status" onchange="toggleColumn('employees','status')" checked> Estado</label>
                                 </div>
                             </div>
                             <button onclick="exportVisibleCSV('employees')" class="text-[11px] bg-green-100 hover:bg-green-200 border border-green-300 px-2.5 py-1 rounded font-bold text-green-800 cursor-pointer">Exportar</button>
@@ -600,11 +601,12 @@
                                     <th data-col="site" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Sitio</th>
                                     <th data-col="phone" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Telefono</th>
                                     <th data-col="notes" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Notas</th>
+                                    <th data-col="status" class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
                                     <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="personsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
-                                <tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 italic">Cargando empleados...</td></tr>
+                                <tr><td colspan="9" class="px-4 py-6 text-center text-gray-400 italic">Cargando empleados...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1759,6 +1761,13 @@
                 <div>
                     <label class="block text-xs font-bold text-gray-600 uppercase">Notas</label>
                     <textarea id="edit_person_notes" rows="2" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm"></textarea>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="edit_person_is_active" class="sr-only peer" checked>
+                        <div class="w-9 h-5 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
+                    </label>
+                    <span class="text-xs font-bold text-gray-600 uppercase">Empleado Activo</span>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeEditPersonModal()" class="px-4 py-2 bg-gray-200 rounded text-xs font-bold">Cancelar</button>

@@ -774,7 +774,7 @@ async function loadPersons() {
         if (!res.ok) throw new Error("Error");
         globalPersons = await res.json();
         renderEmployeesPage();
-    } catch (e) { document.getElementById("personsTableBody").innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-500 font-medium">Error al cargar empleados</td></tr>'; }
+    } catch (e) { document.getElementById("personsTableBody").innerHTML = '<tr><td colspan="9" class="px-4 py-6 text-center text-red-500 font-medium">Error al cargar empleados</td></tr>'; }
 }
 
 function renderEmployeesPage() {
@@ -787,7 +787,7 @@ function renderEmployeesPage() {
     const persons = globalPersons;
     tableBody.innerHTML = "";
     if (persons.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados registrados.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="9" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados registrados.</td></tr>';
         pageInfo.textContent = "mostrando 0-0 de 0";
         if (pageInfoAux) pageInfoAux.textContent = "Pagina 1";
         if (prevBtn) prevBtn.disabled = true;
@@ -807,7 +807,11 @@ function renderEmployeesPage() {
         const dept = globalDepartments.find(d => d.id === p.department_id);
         const site = globalSites.find(s => s.id === p.site_id);
         const row = document.createElement("tr");
-        row.className = "hover:bg-teal-50/50 transition-colors";
+        var isActive = p.is_active !== false;
+        row.className = isActive ? "hover:bg-teal-50/50 transition-colors" : "hover:bg-gray-100/50 transition-colors opacity-60";
+        var statusBadge = isActive
+            ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-800 border border-green-300"><span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Activo</span>'
+            : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-300"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Inactivo</span>';
             row.innerHTML = `
                 <td class="px-4 py-3 font-medium text-gray-800">${p.full_name}</td>
                 <td class="px-4 py-3 text-gray-500">${p.email}</td>
@@ -816,6 +820,7 @@ function renderEmployeesPage() {
                 <td data-col="site" class="px-4 py-3 text-gray-600">${site ? site.site_name : '-'}</td>
                 <td data-col="phone" class="px-4 py-3 text-gray-500">${p.phone || '-'}</td>
                 <td data-col="notes" class="px-4 py-3 text-gray-500">${p.notes || '-'}</td>
+                <td data-col="status" class="px-4 py-3 text-center">${statusBadge}</td>
                 <td class="px-4 py-3 text-center">
                     <button onclick="openEditPersonModal(${p.id})" class="bg-teal-100 hover:bg-teal-200 text-teal-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-teal-300 transition-colors cursor-pointer">Editar</button>
                 </td>`;
@@ -894,6 +899,7 @@ async function openEditPersonModal(personId) {
     document.getElementById("edit_person_email").value = p.email;
     document.getElementById("edit_person_phone").value = p.phone || "";
     document.getElementById("edit_person_notes").value = p.notes || "";
+    document.getElementById("edit_person_is_active").checked = p.is_active !== false;
     const fillEditSelect = (id, items) => {
         const sel = document.getElementById(id);
         sel.innerHTML = "";
@@ -927,7 +933,8 @@ function setupEditPersonFormListener() {
             phone: document.getElementById("edit_person_phone").value || null,
             notes: document.getElementById("edit_person_notes").value || null,
             department_id: parseInt(document.getElementById("edit_person_department_id").value),
-            site_id: parseInt(document.getElementById("edit_person_site_id").value)
+            site_id: parseInt(document.getElementById("edit_person_site_id").value),
+            is_active: document.getElementById("edit_person_is_active").checked
         };
         try {
             const res = await api(`/persons/${id}`, { method: "PUT", body: JSON.stringify(data) });
@@ -2355,7 +2362,8 @@ function exportVisibleCSV(section) {
             { key: "dept", label: "Departamento", col: "dept", fn: p => { const d = globalDepartments.find(x => x.id === p.department_id); return d ? d.department_name : ''; } },
             { key: "site", label: "Sitio", col: "site", fn: p => { const s = globalSites.find(x => x.id === p.site_id); return s ? s.site_name : ''; } },
             { key: "phone", label: "Telefono", col: "phone" },
-            { key: "notes", label: "Notas", col: "notes" }
+            { key: "notes", label: "Notas", col: "notes" },
+            { key: "is_active", label: "Estado", col: "status", fn: p => p.is_active !== false ? "Activo" : "Inactivo" }
         ];
         headers = colMap.filter(c => !c.col || localStorage.getItem(`col_employees_${c.col}`) !== "0").map(c => c.label);
         rows = data.map(p => colMap.filter(c => !c.col || localStorage.getItem(`col_employees_${c.col}`) !== "0").map(c => csvEscape(c.fn ? c.fn(p) : p[c.key])));

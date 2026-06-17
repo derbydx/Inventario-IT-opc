@@ -58,6 +58,7 @@ class PersonBase(BaseModel):
     notes: Optional[str] = None
     site_id: int
     department_id: int
+    is_active: bool = True
 
 class PersonCreate(PersonBase):
     pass
@@ -71,6 +72,7 @@ class PersonUpdate(BaseModel):
     notes: Optional[str] = None
     site_id: Optional[int] = None
     department_id: Optional[int] = None
+    is_active: Optional[bool] = None
 
 class PersonResponse(PersonBase):
     id: int

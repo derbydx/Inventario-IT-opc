@@ -52,6 +52,7 @@ class Person(Base):
     title = Column(String(100))
     phone = Column(String(50))
     notes = Column(Text)
+    is_active = Column(Boolean, default=True)
     
     # Conexiones geográficas y organizacionales
     site_id = Column(Integer, ForeignKey("sites.id"))

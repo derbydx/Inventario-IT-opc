@@ -388,10 +388,11 @@ async function loadHistory() {
             if (item.tipo_accion === "Check in") actionBadge = "text-amber-600 font-bold";
             if (item.tipo_accion === "Archived") actionBadge = "text-red-600 font-bold";
             const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
-            const assetObj = currentAssets.find(a => a.id === item.asset_id);
+            const assetObj = item.asset_id ? currentAssets.find(a => a.id === item.asset_id) : null;
             const employeeObj = globalPersons.find(p => p.id === item.asignado_a_id);
             
-            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge}">${item.tipo_accion}</td><td class="px-4 py-2 font-bold text-gray-700">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="px-4 py-2 text-gray-600">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600">Admin_${item.realizado_por_id}</td><td class="px-4 py-2 text-gray-500 italic max-w-xs truncate">${item.notas_detalle || '-'}</td>`;
+            const assetDisplay = item.asset_id ? (assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id) : '<span class="text-gray-400 italic">N/A</span>';
+            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge}">${item.tipo_accion}</td><td class="px-4 py-2 font-bold text-gray-700">${assetDisplay}</td><td class="px-4 py-2 text-gray-600">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600">Admin_${item.realizado_por_id}</td><td class="px-4 py-2 text-gray-500 italic max-w-xs truncate">${item.notas_detalle || '-'}</td>`;
             historyBody.appendChild(row);
         });
     } catch (e) { console.error(e); }

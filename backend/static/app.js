@@ -6,10 +6,13 @@ let globalPersons = [];
 let globalAdmins = [];
 let globalDepartments = [];
 let currentReportResults = [];
+let currentCtfResults = [];
+let currentSrResults = [];
 let currentAssetPage = 1;
 let currentEmployeePage = 1;
 let currentHistoryPage = 1;
 let totalAssets = 0;
+let assetSort = { key: null, dir: null, original: [], exclude: ["Archived"] };
 
 function getToken() {
     const session = localStorage.getItem("adminSession");
@@ -34,11 +37,23 @@ async function api(url, options = {}) {
     }
     const response = await fetch(`${API_URL}${url}`, { ...options, headers });
     if (response.status === 401) {
+        showToast("Sesion expirada, inicie sesion nuevamente", "error");
         localStorage.removeItem("adminSession");
         window.location.reload();
         throw new Error("Sesion expirada");
     }
     return response;
+}
+
+function showToast(message, type) {
+    type = type || "info";
+    var container = document.getElementById("toastContainer");
+    if (!container) return;
+    var el = document.createElement("div");
+    el.className = "toast-item toast-" + type;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(function() { el.style.opacity = "0"; el.style.transition = "opacity 0.3s"; setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 300); }, 3500);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -59,12 +74,20 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPersonFormListener();
     setupEditAssetFormListener();
     setupImportFormListener();
+    setupReconciliationFormListener();
     setupEditPersonFormListener();
     setupEditSiteFormListener();
     setupEditDepartmentFormListener();
     setupPasswordFormListener();
     setupUserFormListener();
     setupGroupFormListener();
+    const sortHeaderRow = document.querySelector("#assetsSection thead tr");
+    if (sortHeaderRow) {
+        sortHeaderRow.addEventListener("click", function(e) {
+            const th = e.target.closest("th[data-sort]");
+            if (th) sortAssetsBy(th.getAttribute("data-sort"));
+        });
+    }
 });
 
 async function loadDropdownData() {
@@ -134,14 +157,30 @@ async function loadDropdownData() {
             personDeptSelect.innerHTML = '<option value="">-- Seleccione Departamento --</option>';
             globalDepartments.forEach(d => { personDeptSelect.innerHTML += `<option value="${d.id}">${d.department_name}</option>`; });
         }
+        const resAdmins = await api("/admins/");
+        if (resAdmins.ok) {
+            globalAdmins = await resAdmins.json();
+        }
     } catch (e) { console.error(e); }
     initAutocomplete("modal_person_search", "modal_person_id", "modal_person_results");
     initAutocomplete("delivery_person_search", "delivery_person_id", "delivery_person_results");
+    initAutocomplete("report_person_search", "report_person_id", "report_person_results");
+    initAutocomplete("edit_repair_left_search", "edit_repair_left_by_id", "edit_repair_left_results");
+    initAutocomplete("edit_repair_tech_search", "edit_repair_tech_id", "edit_repair_tech_results", globalAdmins);
+    initAutocomplete("adv_person_search", "adv_person_id", "adv_person_results");
+    document.getElementById("report_person_id").addEventListener("change", function () {
+        updatePersonInfo();
+        loadCheckoutReport();
+    });
 }
 
 function buildAssetQuery() {
     const search = document.getElementById("searchInput").value;
-    const status = document.getElementById("filterStatus").value;
+    const tableBody = document.getElementById("assetsTableBody");
+    let status = document.getElementById("filterStatus").value;
+    if (!status && tableBody.dataset.statusFilter) {
+        status = tableBody.dataset.statusFilter;
+    }
     const category = document.getElementById("filterCategory").value;
     const pageSize = parseInt(document.getElementById("assetsPageSize").value);
     const skip = (currentAssetPage - 1) * pageSize;
@@ -183,6 +222,127 @@ function changePageSize(table) {
     }
 }
 
+function siteName(sid) {
+    const s = globalSites.find(x => x.id === sid);
+    return s ? s.site_name : '';
+}
+
+function fmtDate(d) {
+    return d ? new Date(d).toLocaleDateString('es-ES') : '';
+}
+
+function getAssetBadgeColor(status) {
+    if (status === "Checkout") return "bg-blue-100 text-blue-800";
+    if (["Broken", "Lost/Missing", "Dispose"].includes(status)) return "bg-red-100 text-red-800";
+    if (status === "Under repair" || status === "GarantiaSD") return "bg-amber-100 text-amber-800";
+    if (["Reserved"].includes(status)) return "bg-purple-100 text-purple-800";
+    return "bg-green-100 text-green-800";
+}
+
+function buildAssetRowHTML(asset, mode) {
+    const badgeColor = getAssetBadgeColor(asset.status);
+    const assignedPerson = (asset.status === "Checkout" && asset.person_id) ? globalPersons.find(p => p.id === asset.person_id) : null;
+    const assignedName = assignedPerson ? assignedPerson.full_name : '';
+    let actionButton;
+    if (mode === 'search') {
+        actionButton = `<button onclick="event.stopPropagation(); openDetailsModal(${asset.id})" class="text-[11px] font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-300 px-2.5 py-1 rounded transition-all cursor-pointer">Ver</button>`;
+    } else {
+        if (asset.status === "Checkout") {
+            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkin')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-in</button>`;
+        } else {
+            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-out</button>`;
+        }
+    }
+    return `
+        <td class="px-4 py-3 font-mono font-bold text-gray-700 group-hover:text-blue-600">${asset.asset_tag_id}</td>
+        <td class="px-4 py-3 text-gray-600">${asset.asset_description}</td>
+        <td class="px-4 py-3 text-gray-500">${asset.brand} ${asset.model}</td>
+        <td class="px-4 py-3">
+            <span class="px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${badgeColor}">
+                ${asset.status}
+            </span>
+        </td>
+        <td data-col="asignado" class="px-4 py-3 text-gray-600 text-xs">${assignedName}</td>
+        <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">${actionButton}</td>
+        <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${asset.serial_no}</td>
+        <td data-col="category" class="px-4 py-3 text-gray-500">${asset.category || ''}</td>
+        <td data-col="site" class="px-4 py-3 text-gray-500">${siteName(asset.site_id)}</td>
+        <td data-col="phone" class="px-4 py-3 text-gray-500">${asset.numero_telefono || ''}</td>
+        <td data-col="vendor" class="px-4 py-3 text-gray-500">${asset.purchased_from || ''}</td>
+        <td data-col="date" class="px-4 py-3 text-gray-500">${fmtDate(asset.purchase_date)}</td>
+    `;
+}
+
+function renderAssetTable(assets, tableBody, mode) {
+    tableBody.innerHTML = "";
+    if (assets.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>';
+        return;
+    }
+    assets.forEach(asset => {
+        const row = document.createElement("tr");
+        row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer group";
+        row.onclick = () => openDetailsModal(asset.id);
+        row.innerHTML = buildAssetRowHTML(asset, mode || 'default');
+        tableBody.appendChild(row);
+    });
+    applyColumnPreferences();
+}
+
+function getSortValue(asset, key) {
+    switch (key) {
+        case "marca_modelo": return (asset.brand + " " + asset.model).toLowerCase();
+        case "asignado": {
+            const p = (asset.status === "Checkout" && asset.person_id) ? globalPersons.find(x => x.id === asset.person_id) : null;
+            return (p ? p.full_name : '').toLowerCase();
+        }
+        case "site": return siteName(asset.site_id).toLowerCase();
+        case "purchase_date": return asset.purchase_date ? new Date(asset.purchase_date).getTime() : 0;
+        default: return (asset[key] || '').toString().toLowerCase();
+    }
+}
+
+function sortAssetsBy(key) {
+    const thead = document.querySelector("#assetsSection thead tr");
+    if (!thead || !currentAssets.length) return;
+    if (assetSort.key === key) {
+        if (assetSort.dir === 'asc') {
+            assetSort.dir = 'desc';
+        } else {
+            assetSort.key = null;
+            assetSort.dir = null;
+            currentAssets = [...assetSort.original];
+            const tb = document.getElementById("assetsTableBody");
+            const activeAssets = currentAssets.filter(a => !assetSort.exclude.includes(a.status));
+            renderAssetTable(activeAssets, tb);
+            thead.querySelectorAll("th").forEach(th => th.classList.remove("sort-asc", "sort-desc"));
+            return;
+        }
+    } else {
+        assetSort.key = key;
+        assetSort.dir = 'asc';
+    }
+    const sorted = [...currentAssets].sort((a, b) => {
+        const va = getSortValue(a, key);
+        const vb = getSortValue(b, key);
+        if (typeof va === 'number' && typeof vb === 'number') {
+            return assetSort.dir === 'asc' ? va - vb : vb - va;
+        }
+        const cmp = String(va).localeCompare(String(vb));
+        return assetSort.dir === 'asc' ? cmp : -cmp;
+    });
+    currentAssets = sorted;
+    thead.querySelectorAll("th").forEach(th => {
+        th.classList.remove("sort-asc", "sort-desc");
+        if (th.getAttribute("data-sort") === key) {
+            th.classList.add("sort-" + assetSort.dir);
+        }
+    });
+    const tb = document.getElementById("assetsTableBody");
+    const activeAssets = currentAssets.filter(a => !assetSort.exclude.includes(a.status));
+    renderAssetTable(activeAssets, tb);
+}
+
 async function loadAssets() {
     const tableBody = document.getElementById("assetsTableBody");
     const pageInfo = document.getElementById("assetsPageInfo");
@@ -190,6 +350,7 @@ async function loadAssets() {
     const prevBtn = document.querySelector("#assetsSection .flex.justify-between button:first-child");
     const nextBtn = document.querySelector("#assetsSection .flex.justify-between button:last-child");
     const pageSize = parseInt(document.getElementById("assetsPageSize").value);
+    document.querySelectorAll("#assetsSection thead tr th").forEach(th => th.classList.remove("sort-asc", "sort-desc"));
     try {
         const query = buildAssetQuery();
         const countParams = new URLSearchParams(query.toString());
@@ -203,11 +364,14 @@ async function loadAssets() {
         const countData = await countRes.json();
         totalAssets = countData.count;
         currentAssets = await listRes.json();
+        assetSort.original = [...currentAssets];
+        assetSort.key = null;
+        assetSort.dir = null;
+        assetSort.exclude = ["Archived","Broken","Lost","Disposed","Donate","Sold"];
         tableBody.innerHTML = "";
-        const inactiveStatuses = ["Archived","Broken","Lost","Disposed","Donate","Sold"];
-        const activeAssets = currentAssets.filter(a => !inactiveStatuses.includes(a.status));
+        const activeAssets = currentAssets.filter(a => !assetSort.exclude.includes(a.status));
         if (activeAssets.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>`;
+            tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>';
             pageInfo.textContent = "mostrando 0-0 de 0";
             if (prevBtn) prevBtn.disabled = true;
             if (nextBtn) nextBtn.disabled = true;
@@ -219,58 +383,17 @@ async function loadAssets() {
         if (pageInfoAux) pageInfoAux.textContent = `Pagina ${currentAssetPage}`;
         if (prevBtn) prevBtn.disabled = currentAssetPage <= 1;
         if (nextBtn) nextBtn.disabled = activeAssets.length < pageSize;
-
-        const siteName = sid => { const s = globalSites.find(x => x.id === sid); return s ? s.site_name : ''; };
-        const fmtDate = d => d ? new Date(d).toLocaleDateString('es-ES') : '';
-        activeAssets.forEach(asset => {
-            const row = document.createElement("tr");
-            row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer group";
-            row.onclick = () => openDetailsModal(asset.id);
-            
-            let badgeColor = "bg-green-100 text-green-800";
-            if (asset.status === "Checkout") badgeColor = "bg-blue-100 text-blue-800";
-
-            const assignedPerson = (asset.status === "Checkout" && asset.person_id) ? globalPersons.find(p => p.id === asset.person_id) : null;
-            const assignedName = assignedPerson ? assignedPerson.full_name : '';
-
-            let actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-out</button>`;
-            if (asset.status === "Checkout") {
-                actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkin')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-in</button>`;
-            }
-
-            row.innerHTML = `
-                <td class="px-4 py-3 font-mono font-bold text-gray-700 group-hover:text-blue-600">${asset.asset_tag_id}</td>
-                <td class="px-4 py-3 text-gray-600">${asset.asset_description}</td>
-                <td class="px-4 py-3 text-gray-500">${asset.brand} ${asset.model}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}">
-                        ${asset.status}
-                    </span>
-                </td>
-                <td class="px-4 py-3 text-gray-600 text-xs">${assignedName}</td>
-                <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">${actionButton}</td>
-                <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${asset.serial_no}</td>
-                <td data-col="category" class="px-4 py-3 text-gray-500">${asset.category || ''}</td>
-                <td data-col="site" class="px-4 py-3 text-gray-500">${siteName(asset.site_id)}</td>
-                <td data-col="phone" class="px-4 py-3 text-gray-500">${asset.numero_telefono || ''}</td>
-                <td data-col="vendor" class="px-4 py-3 text-gray-500">${asset.purchased_from || ''}</td>
-                <td data-col="date" class="px-4 py-3 text-gray-500">${fmtDate(asset.purchase_date)}</td>
-            `;
-            tableBody.appendChild(row);
-        });
-        applyColumnPreferences();
-    } catch (e) { tableBody.innerHTML = `<tr><td colspan="12" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>`; }
+        renderAssetTable(activeAssets, tableBody);
+    } catch (e) { tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>'; }
 }
 
 async function openDetailsModal(assetId) {
-    let asset = currentAssets.find(a => a.id === parseInt(assetId));
-    if (!asset) {
-        try {
-            const res = await api(`/assets/${assetId}`);
-            if (res.ok) asset = await res.json();
-        } catch (e) {}
-        if (!asset) return;
-    }
+    let asset;
+    try {
+        const res = await api(`/assets/${assetId}`);
+        if (res.ok) asset = await res.json();
+    } catch (e) {}
+    if (!asset) return;
 
     document.getElementById("assetSpecificHistoryWrapper").classList.add("hidden");
     document.getElementById("historyToggleIcon").innerText = "Mostrar";
@@ -315,6 +438,20 @@ async function openDetailsModal(assetId) {
         containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded">Disponible en Almacen</p>`;
     }
 
+    var repairBlock = document.getElementById("det_repair_block");
+    if (asset.status === "Under repair" || asset.status === "GarantiaSD") {
+        repairBlock.classList.remove("hidden");
+        document.getElementById("det_repair_reason").innerText = asset.repair_reason || "-";
+        var leftPerson = globalPersons.find(function (p) { return p.id === asset.repair_left_by_id; });
+        document.getElementById("det_repair_left_by").innerText = leftPerson ? leftPerson.full_name + " (" + leftPerson.employee_id + ")" : "-";
+        var tech = globalAdmins.find(function (a) { return a.id === asset.repair_technician_id; });
+        document.getElementById("det_repair_technician").innerText = tech ? tech.username : "-";
+        var ultimoUser = globalPersons.find(function (p) { return p.id === asset.ultimo_asignado_id; });
+        document.getElementById("det_ultimo_asignado").innerText = ultimoUser ? ultimoUser.full_name + " (" + ultimoUser.employee_id + ")" : "-";
+    } else {
+        repairBlock.classList.add("hidden");
+    }
+
     document.getElementById("btn_delete_asset").onclick = () => triggerDeleteAsset(asset.id, asset.asset_tag_id);
     document.getElementById("btn_edit_asset").onclick = () => openEditAssetModal(asset.id);
 
@@ -357,19 +494,25 @@ function toggleSpecificHistory() {
 function openUserAssetsModal(personId, personName) {
     document.getElementById("userAssetsModalSubtitle").innerText = `Empleado: ${personName}`;
     const tableBody = document.getElementById("userAssetsTableBody");
-    tableBody.innerHTML = "";
-    const assignedDevices = currentAssets.filter(a => a.person_id === parseInt(personId));
-
-    if (assignedDevices.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">No registra activos en custodia.</td></tr>`;
-    } else {
-        assignedDevices.forEach(dev => {
-            const row = document.createElement("tr");
-            row.innerHTML = `<td class="px-3 py-2 font-bold text-blue-600">${dev.asset_tag_id}</td><td class="px-3 py-2 text-gray-600">${dev.asset_description}</td><td class="px-3 py-2 text-gray-500">${dev.brand} ${dev.model}</td><td class="px-3 py-2 font-bold text-gray-400">${dev.serial_no}</td>`;
-            tableBody.appendChild(row);
-        });
-    }
+    tableBody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
     document.getElementById("userAssetsModal").classList.remove("hidden");
+    api("/reports/person-checkouts/" + personId + "?mode=current").then(res => {
+        if (!res.ok) throw new Error("Error");
+        return res.json();
+    }).then(assignedDevices => {
+        tableBody.innerHTML = "";
+        if (assignedDevices.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">No registra activos en custodia.</td></tr>';
+        } else {
+            assignedDevices.forEach(dev => {
+                const row = document.createElement("tr");
+                row.innerHTML = '<td class="px-3 py-2 font-bold text-blue-600">' + dev.asset_tag_id + '</td><td class="px-3 py-2 text-gray-600">' + (dev.asset_description || "-") + '</td><td class="px-3 py-2 text-gray-500">' + (dev.brand || "") + " " + (dev.model || "") + '</td><td class="px-3 py-2 font-bold text-gray-400">' + (dev.serial_no || "-") + '</td>';
+                tableBody.appendChild(row);
+            });
+        }
+    }).catch(() => {
+        tableBody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-red-400 italic">Error al cargar.</td></tr>';
+    });
 }
 function closeUserAssetsModal() { document.getElementById("userAssetsModal").classList.add("hidden"); }
 
@@ -408,12 +551,39 @@ async function restoreAsset(assetId, assetTag) {
     const restoredData = { ...asset, status: "Available" };
     try {
         const response = await api(`/assets/${assetId}`, { method: "PUT", body: JSON.stringify(restoredData) });
-        if (response.ok) { alert(`El activo ${assetTag} ha sido restaurado exitosamente al almacen.`); closeDeletedAssetsModal(); loadAssets(); loadHistory(); }
+            if (response.ok) { showToast("Activo " + assetTag + " restaurado al almacen", "success"); closeDeletedAssetsModal(); loadAssets(); loadHistory(); }
     } catch (e) { alert("Error."); }
 }
 
-function openEditAssetModal(assetId) {
-    const asset = currentAssets.find(a => a.id === parseInt(assetId));
+function toggleEditRepairFields() {
+    var status = document.getElementById("edit_asset_status").value;
+    var block = document.getElementById("editRepairFields");
+    if (status === "Under repair" || status === "GarantiaSD") {
+        block.classList.remove("hidden");
+    } else {
+        block.classList.add("hidden");
+        document.getElementById("edit_repair_reason").value = "";
+        document.getElementById("edit_repair_left_search").value = "";
+        document.getElementById("edit_repair_left_by_id").value = "";
+        document.getElementById("edit_repair_tech_search").value = "";
+        document.getElementById("edit_repair_tech_id").value = "";
+    }
+    if (status === "Checkout") {
+        var assetId = document.getElementById("edit_asset_id").value;
+        var assetTag = document.getElementById("edit_asset_tag_id").value;
+        if (assetId) {
+            closeEditAssetModal();
+            openModal(assetId, assetTag, 'checkout');
+        }
+    }
+}
+
+async function openEditAssetModal(assetId) {
+    let asset;
+    try {
+        const res = await api(`/assets/${assetId}`);
+        if (res.ok) asset = await res.json();
+    } catch (e) {}
     if (!asset) return;
     document.getElementById("edit_asset_id").value = asset.id;
     document.getElementById("edit_asset_tag_id").value = asset.asset_tag_id;
@@ -423,12 +593,57 @@ function openEditAssetModal(assetId) {
     document.getElementById("edit_serial_no").value = asset.serial_no;
     document.getElementById("edit_asset_category").value = asset.category || "";
     document.getElementById("edit_asset_site_id").value = asset.site_id;
-    
+
+    const assignedPerson = globalPersons.find(p => p.id === asset.person_id);
+    const assignedContainer = document.getElementById("editAssetAssignedContainer");
+    const assignedName = document.getElementById("editAssetAssignedName");
+    if (asset.status === "Checkout" && assignedPerson) {
+        assignedContainer.classList.remove("hidden");
+        assignedName.textContent = assignedPerson.full_name + (assignedPerson.title ? " (" + assignedPerson.title + ")" : "");
+    } else {
+        assignedContainer.classList.add("hidden");
+        assignedName.textContent = "";
+    }
+
     document.getElementById("edit_asset_status").value = asset.status;
+
+    var isRepair = asset.status === "Under repair" || asset.status === "GarantiaSD";
+    var block = document.getElementById("editRepairFields");
+    if (isRepair) {
+        block.classList.remove("hidden");
+        document.getElementById("edit_repair_reason").value = asset.repair_reason || "";
+        var leftPerson = globalPersons.find(function (p) { return p.id === asset.repair_left_by_id; });
+        if (leftPerson) {
+            document.getElementById("edit_repair_left_search").value = leftPerson.full_name + " (" + leftPerson.employee_id + ")";
+            document.getElementById("edit_repair_left_by_id").value = leftPerson.id;
+        }
+        var tech = globalAdmins.find(function (a) { return a.id === asset.repair_technician_id; });
+        if (tech) {
+            document.getElementById("edit_repair_tech_search").value = tech.username;
+            document.getElementById("edit_repair_tech_id").value = tech.id;
+        }
+    } else {
+        block.classList.add("hidden");
+        document.getElementById("edit_repair_reason").value = "";
+        document.getElementById("edit_repair_left_search").value = "";
+        document.getElementById("edit_repair_left_by_id").value = "";
+        document.getElementById("edit_repair_tech_search").value = "";
+        document.getElementById("edit_repair_tech_id").value = "";
+    }
 
     document.getElementById("editAssetModal").classList.remove("hidden");
 }
-function closeEditAssetModal() { document.getElementById("editAssetModal").classList.add("hidden"); }
+function closeEditAssetModal() {
+    document.getElementById("editAssetModal").classList.add("hidden");
+    document.getElementById("editRepairFields").classList.add("hidden");
+    document.getElementById("edit_repair_reason").value = "";
+    document.getElementById("edit_repair_left_search").value = "";
+    document.getElementById("edit_repair_left_by_id").value = "";
+    document.getElementById("edit_repair_tech_search").value = "";
+    document.getElementById("edit_repair_tech_id").value = "";
+    document.getElementById("editAssetAssignedContainer").classList.add("hidden");
+    document.getElementById("editAssetAssignedName").textContent = "";
+}
 
 function setupEditAssetFormListener() {
     const form = document.getElementById("editAssetForm");
@@ -438,6 +653,8 @@ function setupEditAssetFormListener() {
         e.preventDefault();
         const assetId = document.getElementById("edit_asset_id").value;
 
+        var repairStatus = document.getElementById("edit_asset_status").value;
+        var isRepair = repairStatus === "Under repair" || repairStatus === "GarantiaSD";
         const updatedData = {
             asset_tag_id: document.getElementById("edit_asset_tag_id").value,
             asset_description: document.getElementById("edit_asset_description").value,
@@ -446,7 +663,10 @@ function setupEditAssetFormListener() {
             serial_no: document.getElementById("edit_serial_no").value,
             category: document.getElementById("edit_asset_category").value,
             site_id: parseInt(document.getElementById("edit_asset_site_id").value),
-            status: document.getElementById("edit_asset_status").value 
+            status: repairStatus,
+            repair_reason: isRepair ? document.getElementById("edit_repair_reason").value : null,
+            repair_left_by_id: isRepair ? parseInt(document.getElementById("edit_repair_left_by_id").value) || null : null,
+            repair_technician_id: isRepair ? parseInt(document.getElementById("edit_repair_tech_id").value) || null : null
         };
 
         try {
@@ -456,7 +676,7 @@ function setupEditAssetFormListener() {
             });
 
             if (response.ok) {
-                alert("Modificado con exito!");
+                showToast("Modificado con exito!", "success");
                 closeEditAssetModal();
                 closeDetailsModal();
                 loadAssets();   
@@ -477,7 +697,7 @@ async function triggerDeleteAsset(assetId, assetTag) {
     if (!confirmacion) return;
     try {
         const response = await api(`/assets/${assetId}`, { method: "DELETE" });
-        if (response.ok) { alert("Movido a la papelera correctamente."); closeDetailsModal(); loadAssets(); loadHistory(); }
+        if (response.ok) { showToast("Movido a la papelera", "success"); closeDetailsModal(); loadAssets(); loadHistory(); }
     } catch (e) { alert("Error."); }
 }
 
@@ -511,7 +731,7 @@ async function loadHistory() {
             if (item.tipo_accion === "Check in") actionBadge = "text-amber-600 font-bold";
             if (item.tipo_accion === "Archived") actionBadge = "text-red-600 font-bold";
             const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
-            const assetObj = currentAssets.find(a => a.id === item.asset_id);
+            const assetObj = item.asset_id ? currentAssets.find(a => a.id === item.asset_id) : null;
             const employeeObj = globalPersons.find(p => p.id === item.asignado_a_id);
             
             const detail = (item.notas_detalle || '-');
@@ -523,7 +743,8 @@ async function loadHistory() {
             detailSpan.textContent = detail;
             detailSpan.onclick = function() { showDetailModal(detail); };
             detailCell.appendChild(detailSpan);
-            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${item.tipo_accion}</td><td class="px-4 py-2 font-bold text-gray-700 align-top">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="px-4 py-2 text-gray-600 align-top">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
+            const assetCell = item.asset_id ? `<td class="px-4 py-2 font-bold text-gray-700 align-top cursor-pointer hover:text-blue-600" onclick="openDetailsModal(${item.asset_id})">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td>` : `<td class="px-4 py-2 text-gray-400 align-top italic">N/A</td>`;
+            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${item.tipo_accion}</td>${assetCell}<td class="px-4 py-2 text-gray-600 align-top">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
             row.appendChild(detailCell);
             historyBody.appendChild(row);
         });
@@ -709,7 +930,7 @@ function setupEditPersonFormListener() {
         try {
             const res = await api(`/persons/${id}`, { method: "PUT", body: JSON.stringify(data) });
             if (res.ok) {
-                alert("Empleado actualizado correctamente!");
+                showToast("Empleado actualizado correctamente!", "success");
                 closeEditPersonModal();
                 await loadDropdownData();
                 await loadPersons();
@@ -746,7 +967,7 @@ function setupEditSiteFormListener() {
         try {
             const res = await api(`/sites/${id}`, { method: "PUT", body: JSON.stringify(data) });
             if (res.ok) {
-                alert("Sitio actualizado!"); closeEditSiteModal();
+                showToast("Sitio actualizado!", "success"); closeEditSiteModal();
                 await loadDropdownData(); await loadCatalogs();
             } else {
                 const err = await res.json().catch(()=>({detail:"Error"}));
@@ -775,7 +996,7 @@ function setupEditDepartmentFormListener() {
         try {
             const res = await api(`/departments/${id}`, { method: "PUT", body: JSON.stringify(data) });
             if (res.ok) {
-                alert("Departamento actualizado!"); closeEditDepartmentModal();
+                showToast("Departamento actualizado!", "success"); closeEditDepartmentModal();
                 await loadDropdownData(); await loadCatalogs();
             } else {
                 const err = await res.json().catch(()=>({detail:"Error"}));
@@ -785,11 +1006,12 @@ function setupEditDepartmentFormListener() {
     });
 }
 
-function initAutocomplete(inputId, hiddenId, resultsId) {
+function initAutocomplete(inputId, hiddenId, resultsId, dataSource) {
     const input = document.getElementById(inputId);
     const hidden = document.getElementById(hiddenId);
     const results = document.getElementById(resultsId);
     if (!input) return;
+    var source = dataSource || globalPersons;
 
     input.addEventListener("input", function () {
         const query = this.value.toLowerCase().trim();
@@ -798,23 +1020,26 @@ function initAutocomplete(inputId, hiddenId, resultsId) {
             hidden.value = "";
             return;
         }
-        const filtered = globalPersons.filter(p =>
-            p.full_name.toLowerCase().includes(query) ||
-            (p.employee_id && p.employee_id.toLowerCase().includes(query)) ||
-            (p.email && p.email.toLowerCase().includes(query))
-        );
+        var filtered = source.filter(function (p) {
+            return (p.full_name && p.full_name.toLowerCase().includes(query)) ||
+                   (p.employee_id && p.employee_id.toLowerCase().includes(query)) ||
+                   (p.username && p.username.toLowerCase().includes(query)) ||
+                   (p.email && p.email.toLowerCase().includes(query));
+        });
         if (filtered.length === 0) {
             results.innerHTML = '<div class="p-2 text-gray-400 text-sm">Sin resultados</div>';
             results.classList.remove("hidden");
             return;
         }
-        results.innerHTML = filtered.map(p =>
-            `<div class="p-2 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100" data-id="${p.id}" data-name="${p.full_name}" data-eid="${p.employee_id}">
-                <span class="font-medium">${p.full_name}</span>
-                <span class="text-gray-400 text-xs ml-1">(${p.employee_id})</span>
-                ${p.email ? `<span class="text-gray-400 text-xs ml-2">${p.email}</span>` : ''}
-            </div>`
-        ).join('');
+        results.innerHTML = filtered.map(function (p) {
+            var label = p.full_name || p.username;
+            var sub = p.employee_id || p.username;
+            return '<div class="p-2 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100" data-id="' + p.id + '" data-name="' + label + '" data-eid="' + sub + '">' +
+                '<span class="font-medium">' + label + '</span>' +
+                '<span class="text-gray-400 text-xs ml-1">(' + sub + ')</span>' +
+                (p.email ? '<span class="text-gray-400 text-xs ml-2">' + p.email + '</span>' : '') +
+            '</div>';
+        }).join('');
         results.classList.remove("hidden");
     });
 
@@ -824,6 +1049,7 @@ function initAutocomplete(inputId, hiddenId, resultsId) {
             input.value = item.dataset.name + " (" + item.dataset.eid + ")";
             hidden.value = item.dataset.id;
             results.classList.add("hidden");
+            hidden.dispatchEvent(new Event("change"));
         }
     });
 }
@@ -845,7 +1071,7 @@ function openModal(assetId, assetTag, actionType) {
     else { modalTitle.innerText = "Registrar Devolucion (Check-in)"; submitBtn.innerText = "Recibir en Almacen"; submitBtn.className = "px-4 py-2 bg-amber-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.add("hidden"); }
     document.getElementById("movementModal").classList.remove("hidden");
 }
-function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); document.getElementById("modal_person_results")?.classList.add("hidden"); }
+function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); document.getElementById("modal_person_results")?.classList.add("hidden"); window.__reconciliationAfterCheckin = null; }
 
 function setupMovementFormListener() {
     document.getElementById("movementForm").addEventListener("submit", async (e) => {
@@ -866,7 +1092,8 @@ function setupMovementFormListener() {
         try { 
             const response = await api(url, { method: "POST" }); 
             if (response.ok) { 
-                alert("Movimiento procesado con exito!"); 
+                showToast("Movimiento procesado con exito!", "success"); 
+                processReconciliationAfterCheckin();
                 closeModal(); 
                 loadAssets(); 
                 loadHistory(); 
@@ -880,7 +1107,7 @@ function setupFormListener() {
         e.preventDefault();
         const siteVal = document.getElementById("asset_site_id").value;
         const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: siteVal ? parseInt(siteVal) : null, status: "Available" };
-        try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { alert("Activo registrado con exito!"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
+        try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { showToast("Activo registrado con exito!", "success"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
     });
 }
 
@@ -888,7 +1115,7 @@ function setupPersonFormListener() {
     document.getElementById("personForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const personData = { full_name: document.getElementById("person_full_name").value, email: document.getElementById("person_email").value, employee_id: document.getElementById("person_employee_id").value, title: document.getElementById("person_title").value || null, phone: document.getElementById("person_phone").value || null, notes: document.getElementById("person_notes").value || null, site_id: parseInt(document.getElementById("person_site_id").value), department_id: parseInt(document.getElementById("person_department_id").value) };
-        try { const response = await api("/persons/", { method: "POST", body: JSON.stringify(personData) }); if (response.status === 201) { alert("Empleado dado de alta!"); closePersonModal(); loadDropdownData(); } } catch (e) { alert("Error."); }
+        try { const response = await api("/persons/", { method: "POST", body: JSON.stringify(personData) }); if (response.status === 201) { showToast("Empleado dado de alta!", "success"); closePersonModal(); loadDropdownData(); } } catch (e) { alert("Error."); }
     });
 }
 
@@ -899,7 +1126,7 @@ function setupCatalogFormsListeners() {
             const data = { site_name: document.getElementById("site_name_input").value, city: document.getElementById("site_city_input").value || null, country: document.getElementById("site_country_input").value || null }; 
             const res = await api("/sites/", { method: "POST", body: JSON.stringify(data) }); 
             if (res.ok) { 
-                alert("Sitio creado!"); closeSiteModal(); document.getElementById("form_add_site").reset(); 
+                showToast("Sitio creado!", "success"); closeSiteModal(); document.getElementById("form_add_site").reset(); 
                 loadDropdownData(); 
             } else {
                 const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
@@ -915,7 +1142,7 @@ function setupCatalogFormsListeners() {
             if (!name.trim()) { alert("El nombre del departamento es obligatorio"); return; }
             const res = await api("/departments/", { method: "POST", body: JSON.stringify({ department_name: name.trim() }) });
             if (res.ok) {
-                alert("Departamento creado!"); closeDepartmentModal(); document.getElementById("form_add_department").reset();
+                showToast("Departamento creado!", "success"); closeDepartmentModal(); document.getElementById("form_add_department").reset();
                 loadDropdownData();
             } else {
                 const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
@@ -937,7 +1164,7 @@ function setupCatalogFormsListeners() {
                 res = await api("/categories/", { method: "POST", body: JSON.stringify({ name: name }) });
             }
             if (res.ok) {
-                alert(editId ? "Categoria actualizada!" : "Categoria creada!");
+                showToast("Categoria guardada!", "success");
                 closeCategoryModal();
                 loadCatalogs();
                 loadDropdownData();
@@ -988,13 +1215,13 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
             loadHistory();
             loadPersons();
             loadCatalogs();
-            showSection('assets');
+        showSection('dashboard');
         } else {
             const err = await response.json();
-            alert(`Acceso Denegado: ${err.detail || "Verifique sus datos."}`);
+            showToast("Acceso Denegado: " + (err.detail || "Verifique sus datos."), "error");
         }
     } catch (error) {
-        alert("Error de conexion con el modulo de autenticacion.");
+        showToast("Error de conexion con el modulo de autenticacion.", "error");
     }
 });
 
@@ -1059,12 +1286,34 @@ async function deleteCategory(id, name) {
     if (!confirm('¿Eliminar la categoria "' + name + '"?')) return;
     try {
         const res = await api("/categories/" + id, { method: "DELETE" });
-        if (res.ok) { alert("Categoria eliminada"); loadCatalogs(); loadDropdownData(); }
+        if (res.ok) {             showToast("Categoria eliminada", "success"); loadCatalogs(); loadDropdownData(); }
         else { const err = await res.json().catch(()=>({detail:"Error"})); alert("Error: " + (err.detail || "No se pudo eliminar")); }
     } catch (e) { alert("Error de conexion"); }
 }
 
 function toggleCollapse(id) {
+    const el = document.getElementById(id);
+    const chevronId = id.replace("Submenu", "Chevron");
+    const chevron = document.getElementById(chevronId);
+    if (!el) return;
+    const isOpening = el.classList.contains("hidden");
+    if (isOpening) closeAllTopLevel(id);
+    el.classList.toggle("hidden");
+    if (chevron) chevron.classList.toggle("open");
+}
+
+function closeAllTopLevel(exceptId) {
+    const groups = ["inventarioSubmenu","inactivosSubmenu","directorioSubmenu","adminSubmenu"];
+    groups.forEach(gid => {
+        if (gid === exceptId) return;
+        const g = document.getElementById(gid);
+        const gc = document.getElementById(gid.replace("Submenu","Chevron"));
+        if (g) g.classList.add("hidden");
+        if (gc) gc.classList.remove("open");
+    });
+}
+
+function toggleNested(id) {
     const el = document.getElementById(id);
     const chevronId = id.replace("Submenu", "Chevron");
     const chevron = document.getElementById(chevronId);
@@ -1074,10 +1323,83 @@ function toggleCollapse(id) {
     }
 }
 
+function switchCatalogTab(tab) {
+    showSection('catalogs');
+    const ids = { sites: 'siteCount', categories: 'catCount', departments: 'deptCount' };
+    const el = document.getElementById(ids[tab]);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function switchImportTab(tab) {
+    ['import-tab-import','import-tab-export','import-tab-template'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+    });
+    document.getElementById('import-tab-'+tab).classList.remove('hidden');
+    ['import','export','template'].forEach(t => {
+        const btn = document.getElementById(t+'-tab-btn');
+        if (btn) {
+            btn.classList.remove('bg-blue-600','text-white');
+            btn.classList.add('bg-gray-100','text-gray-600');
+        }
+    });
+    const activeBtn = document.getElementById(tab+'-tab-btn');
+    if (activeBtn) {
+        activeBtn.classList.remove('bg-gray-100','text-gray-600');
+        activeBtn.classList.add('bg-blue-600','text-white');
+    }
+}
+
+async function loadStatusReport() {
+    var status = document.getElementById("sr_status").value;
+    var tbody = document.getElementById("srResultsBody");
+    if (!status) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-3 py-4 text-center text-gray-400 italic">Seleccione un status para generar el reporte.</td></tr>';
+        document.getElementById("srCount").textContent = "0 Resultados";
+        return;
+    }
+    tbody.innerHTML = '<tr><td colspan="7" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        var res = await api("/assets/?status=" + encodeURIComponent(status) + "&limit=5000");
+        if (!res.ok) throw new Error("Error");
+        var assets = await res.json();
+        document.getElementById("srCount").textContent = assets.length + " Resultados";
+        tbody.innerHTML = "";
+        if (assets.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="px-3 py-4 text-center text-gray-400 italic">Sin activos con este status.</td></tr>';
+            return;
+        }
+        currentSrResults = assets;
+        var siteName = function (sid) { var s = globalSites.find(function (x) { return x.id === sid; }); return s ? s.site_name : ""; };
+        assets.forEach(function (a) {
+            var row = document.createElement("tr");
+            row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer";
+            row.onclick = function () { openDetailsModal(a.id); };
+            var badge = "bg-green-100 text-green-800";
+            if (a.status === "Checkout") badge = "bg-blue-100 text-blue-800";
+            else if (["Broken", "Lost/Missing", "Dispose"].includes(a.status)) badge = "bg-red-100 text-red-800";
+            else if (a.status === "Under repair" || a.status === "GarantiaSD") badge = "bg-amber-100 text-amber-800";
+            else if (a.status === "Reserved") badge = "bg-purple-100 text-purple-800";
+            else if (a.status === "Archived") badge = "bg-gray-200 text-gray-700";
+            else if (a.status === "Sold") badge = "bg-yellow-100 text-yellow-800";
+            row.innerHTML =
+                '<td class="px-3 py-2 font-mono font-bold text-blue-600">' + a.asset_tag_id + '</td>' +
+                '<td class="px-3 py-2">' + (a.asset_description || "") + '</td>' +
+                '<td class="px-3 py-2">' + (a.brand || "") + " " + (a.model || "") + '</td>' +
+                '<td class="px-3 py-2 font-mono text-gray-500">' + (a.serial_no || "") + '</td>' +
+                '<td class="px-3 py-2 text-gray-500">' + (a.category || "") + '</td>' +
+                '<td class="px-3 py-2 text-gray-500">' + siteName(a.site_id) + '</td>' +
+                '<td class="px-3 py-2"><span class="px-2 py-0.5 inline-flex text-[10px] leading-5 font-semibold rounded-full ' + badge + '">' + a.status + '</span></td>';
+            tbody.appendChild(row);
+        });
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-3 py-4 text-center text-red-500 font-medium">Error de conexion</td></tr>';
+    }
+}
+
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1089,7 +1411,8 @@ function showSection(name) {
     if (name === 'history' && typeof loadHistory === 'function') loadHistory();
     if (name === 'assets' && typeof loadAssets === 'function') loadAssets();
     if (name === 'dashboard') updateDashboard();
-    if (name === 'reports') populateReportPersonSelect();
+    if (name === 'reports') { document.getElementById("report_person_search").value = ""; document.getElementById("report_person_id").value = ""; document.getElementById("reportPersonInfo").classList.add("hidden"); document.getElementById("reportCount").textContent = "0 Resultados"; document.getElementById("reportResultsBody").innerHTML = '<tr><td colspan="10" class="px-3 py-4 text-center text-gray-400 italic">Seleccione un empleado y genere el reporte.</td></tr>'; }
+    if (name === 'checkoutTimeframe') { var d = new Date(); document.getElementById("ctf_end").value = d.toISOString().split("T")[0]; d.setDate(d.getDate() - 30); document.getElementById("ctf_start").value = d.toISOString().split("T")[0]; }
     if (name === 'deliveryBoard') loadDeliveryBoard();
     if (name === 'deliveryEmployees') loadDeliveryEmployees();
     if (name === 'deliveryAdd') { document.getElementById("delivery_person_search").value = ""; document.getElementById("delivery_person_id").value = ""; document.getElementById("delivery_person_results").classList.add("hidden"); document.querySelectorAll('.delivery-cat-qty').forEach(function (q) { q.disabled = true; }); }
@@ -1100,15 +1423,18 @@ function showSection(name) {
     if (name === 'donateAssets') loadAssetsByStatus('Donate');
     if (name === 'soldAssets') loadAssetsByStatus('Sold');
     if (name === 'listadoInactivos') loadListadoInactivos();
+    if (name === 'enReparacion') loadRepairAssets();
+    if (name === 'importExport') { switchImportTab('import'); }
+    if (name === 'employeeReconciliation') { showReconciliationView(); }
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
     // highlight active sidebar item
-    document.querySelectorAll('.sidebar-item[data-section], .sidebar-sub-item[data-section]').forEach(el => el.classList.remove('active'));
-    const active = document.querySelector(`.sidebar-item[data-section="${name}"]`) || document.querySelector(`.sidebar-sub-item[data-section="${name}"]`);
+    document.querySelectorAll('.sidebar-item[data-section], .sidebar-sub-item[data-section], .sidebar-nested-item[data-section]').forEach(el => el.classList.remove('active'));
+    const active = document.querySelector(`.sidebar-item[data-section="${name}"]`) || document.querySelector(`.sidebar-sub-item[data-section="${name}"]`) || document.querySelector(`.sidebar-nested-item[data-section="${name}"]`);
     if (active) active.classList.add('active');
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1123,7 +1449,6 @@ function populateAdvancedSearchDropdowns() {
     const siteSel = document.getElementById("adv_site");
     const catSel = document.getElementById("adv_category");
     const deptSel = document.getElementById("adv_department");
-    const personSel = document.getElementById("adv_person");
     siteSel.innerHTML = '<option value="">Todos los Sitios</option>';
     globalSites.forEach(s => { siteSel.innerHTML += `<option value="${s.id}">${s.site_name}</option>`; });
     catSel.innerHTML = '<option value="">Todas las Categorias</option>';
@@ -1131,8 +1456,10 @@ function populateAdvancedSearchDropdowns() {
     cats.forEach(c => { catSel.innerHTML += `<option value="${c}">${c}</option>`; });
     deptSel.innerHTML = '<option value="">Todos los Departamentos</option>';
     globalDepartments.forEach(d => { deptSel.innerHTML += `<option value="${d.id}">${d.department_name}</option>`; });
-    personSel.innerHTML = '<option value="">Cualquier Persona</option>';
-    globalPersons.forEach(p => { personSel.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`; });
+}
+
+function checkAllFields(select) {
+    document.querySelectorAll("#adv_field_checkboxes input[type=checkbox]").forEach(cb => { cb.checked = select; });
 }
 
 function applyQuickDateRange() {
@@ -1162,25 +1489,28 @@ async function executeAdvancedSearch() {
     const params = new URLSearchParams();
     const search = document.getElementById("adv_search").value;
     const condition = document.getElementById("adv_condition").value;
-    const field = document.getElementById("adv_field").value;
     const site = document.getElementById("adv_site").value;
     const category = document.getElementById("adv_category").value;
     const department = document.getElementById("adv_department").value;
     const status = document.getElementById("adv_status").value;
-    const person = document.getElementById("adv_person").value;
+    const person = document.getElementById("adv_person_id").value;
     const vendor = document.getElementById("adv_vendor").value;
-    const group = document.getElementById("adv_group").value;
     const limit = document.getElementById("adv_limit").value;
     const dateField = document.getElementById("adv_datefield").value;
     const dateRange = document.getElementById("adv_daterange").value;
-    if (search) { params.set("search", search); params.set("search_condition", condition); params.set("search_field", field); }
+    if (search) {
+        params.set("search", search);
+        params.set("search_condition", condition);
+        document.querySelectorAll("#adv_field_checkboxes input[type=checkbox]:checked").forEach(cb => {
+            params.append("search_fields", cb.value);
+        });
+    }
     if (site) params.set("site_id", site);
     if (category) params.set("category", category);
     if (department) params.set("department_id", department);
     if (status) params.set("status", status);
     if (person) params.set("person_id", person);
     if (vendor) params.set("purchased_from", vendor);
-    if (group) params.set("group_by", group);
     params.set("limit", limit);
     if (dateField) params.set("date_field", dateField);
     if (dateRange) {
@@ -1191,20 +1521,25 @@ async function executeAdvancedSearch() {
             params.set("date_to", parseDate(parts[1]));
         }
     }
+    document.querySelectorAll("#assetsSection thead tr th").forEach(th => th.classList.remove("sort-asc", "sort-desc"));
     const tableBody = document.getElementById("assetsTableBody");
     const pageInfo = document.getElementById("assetsPageInfo");
-    tableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Buscando...</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">Buscando...</td></tr>';
     try {
         const response = await api(`/assets/?${params.toString()}`);
         if (!response.ok) throw new Error("Error en el servidor");
         currentAssets = await response.json();
+        assetSort.original = [...currentAssets];
+        assetSort.key = null;
+        assetSort.dir = null;
+        assetSort.exclude = ["Archived"];
         currentAssetPage = 1;
         const pageInfoAux = document.getElementById("assetsPageInfoAux");
         if (pageInfoAux) pageInfoAux.textContent = "Pagina 1";
         tableBody.innerHTML = "";
-        const activeAssets = currentAssets.filter(a => a.status !== "Archived");
+        const activeAssets = currentAssets.filter(a => !assetSort.exclude.includes(a.status));
         if (activeAssets.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Sin resultados para esta busqueda.</td></tr>`;
+            tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">Sin resultados para esta busqueda.</td></tr>';
             pageInfo.textContent = "mostrando 0-0 de 0";
             return;
         }
@@ -1212,36 +1547,9 @@ async function executeAdvancedSearch() {
         const start = 1;
         const end = activeAssets.length;
         pageInfo.textContent = `mostrando ${start}-${end} de ${totalAssets}`;
-        const siteName = sid => { const s = globalSites.find(x => x.id === sid); return s ? s.site_name : ''; };
-        const fmtDate = d => d ? new Date(d).toLocaleDateString('es-ES') : '';
-        activeAssets.forEach(asset => {
-            const row = document.createElement("tr");
-            row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer group";
-            row.onclick = () => openDetailsModal(asset.id);
-            let badgeColor = "bg-green-100 text-green-800";
-            if (asset.status === "Checkout") { badgeColor = "bg-blue-100 text-blue-800"; }
-            else if (["Broken", "Lost/Missing", "Dispose"].includes(asset.status)) { badgeColor = "bg-red-100 text-red-800"; }
-            else if (asset.status === "Under repair" || asset.status === "GarantiaSD") { badgeColor = "bg-amber-100 text-amber-800"; }
-            else if (["Reserved"].includes(asset.status)) { badgeColor = "bg-purple-100 text-purple-800"; }
-            row.innerHTML = `
-                <td class="px-4 py-3 font-mono font-bold text-blue-600">${asset.asset_tag_id}</td>
-                <td class="px-4 py-3">${asset.asset_description}</td>
-                <td class="px-4 py-3">${asset.brand} - ${asset.model}</td>
-                <td class="px-4 py-3"><span class="px-2 py-1 inline-flex text-[11px] leading-5 font-semibold rounded-full ${badgeColor}">${asset.status}</span></td>
-                <td class="px-4 py-3 text-center">
-                    <button onclick="event.stopPropagation(); openDetailsModal(${asset.id})" class="text-[11px] font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-300 px-2.5 py-1 rounded transition-all cursor-pointer">Ver</button>
-                </td>
-                <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${asset.serial_no}</td>
-                <td data-col="category" class="px-4 py-3 text-gray-500">${asset.category || ''}</td>
-                <td data-col="site" class="px-4 py-3 text-gray-500">${siteName(asset.site_id)}</td>
-                <td data-col="phone" class="px-4 py-3 text-gray-500">${asset.numero_telefono || ''}</td>
-                <td data-col="vendor" class="px-4 py-3 text-gray-500">${asset.purchased_from || ''}</td>
-                <td data-col="date" class="px-4 py-3 text-gray-500">${fmtDate(asset.purchase_date)}</td>`;
-            tableBody.appendChild(row);
-        });
-        applyColumnPreferences();
+        renderAssetTable(activeAssets, tableBody, 'search');
     } catch (e) {
-        tableBody.innerHTML = '<tr><td colspan="11" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion</td></tr>';
     }
 }
 
@@ -1249,14 +1557,14 @@ function cancelAdvancedSearch() {
     document.getElementById("advancedSearchPanel").classList.add("hidden");
     document.getElementById("adv_search").value = "";
     document.getElementById("adv_condition").value = "contains";
-    document.getElementById("adv_field").value = "asset_tag_id";
+    checkAllFields(true);
     document.getElementById("adv_site").value = "";
     document.getElementById("adv_category").value = "";
     document.getElementById("adv_department").value = "";
     document.getElementById("adv_status").value = "";
-    document.getElementById("adv_person").value = "";
+    document.getElementById("adv_person_search").value = "";
+    document.getElementById("adv_person_id").value = "";
     document.getElementById("adv_vendor").value = "";
-    document.getElementById("adv_group").value = "";
     document.getElementById("adv_limit").value = "250";
     document.getElementById("adv_datefield").value = "purchase_date";
     document.getElementById("adv_quickdate").value = "";
@@ -1264,62 +1572,128 @@ function cancelAdvancedSearch() {
     loadAssets();
 }
 
+function renderDashBars(assets) {
+    var statusLabels = {
+        "Available": "Disponible", "Checkout": "Asignado",
+        "Under repair": "En Reparacion", "GarantiaSD": "Garantia",
+        "Archived": "Archivado", "Broken": "Danado", "Lost": "Perdido",
+        "Disposed": "Desechado", "Donate": "Donado", "Sold": "Vendido"
+    };
+    var statusColors = {
+        "Available": "#22c55e", "Checkout": "#f59e0b",
+        "Under repair": "#f97316", "GarantiaSD": "#a855f7",
+        "Archived": "#6b7280", "Broken": "#ef4444", "Lost": "#dc2626",
+        "Disposed": "#6b7280", "Donate": "#3b82f6", "Sold": "#8b5cf6"
+    };
+    var statusCounts = {};
+    assets.forEach(function(a) {
+        var label = statusLabels[a.status] || a.status;
+        statusCounts[label] = (statusCounts[label] || 0) + 1;
+    });
+    var sEntries = Object.entries(statusCounts).sort(function(a, b) { return b[1] - a[1]; });
+    var maxStatus = sEntries.length ? sEntries[0][1] : 1;
+
+    var statusContainer = document.getElementById("dashStatusBars");
+    if (statusContainer) {
+        statusContainer.innerHTML = "";
+        sEntries.forEach(function(e) {
+            var label = e[0], count = e[1];
+            var origKey = Object.keys(statusLabels).find(function(k) { return statusLabels[k] === label; }) || label;
+            var color = statusColors[origKey] || "#6b7280";
+            var pct = (count / maxStatus * 100).toFixed(0);
+            var row = document.createElement("div");
+            row.className = "dash-bar-row";
+            row.innerHTML = '<span class="dash-bar-label">' + label + '</span><div class="dash-bar-track"><div class="dash-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div><span class="dash-bar-count">' + count + '</span><span class="dash-bar-percent">' + pct + '%</span>';
+            statusContainer.appendChild(row);
+        });
+        if (!sEntries.length) statusContainer.innerHTML = '<div class="text-gray-400 text-xs text-center py-4">Sin datos</div>';
+    }
+
+    var catCounts = {};
+    assets.forEach(function(a) { if (a.category) catCounts[a.category] = (catCounts[a.category] || 0) + 1; });
+    var sortedCats = Object.entries(catCounts).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+    var maxCat = sortedCats.length ? sortedCats[0][1] : 1;
+    var palette = ["#3b82f6","#8b5cf6","#ec4899","#f97316","#22c55e","#06b6d4","#eab308","#ef4444","#14b8a6","#6366f1"];
+
+    var catContainer = document.getElementById("dashCategoryBars");
+    if (catContainer) {
+        catContainer.innerHTML = "";
+        sortedCats.forEach(function(e, i) {
+            var label = e[0], count = e[1];
+            var pct = (count / maxCat * 100).toFixed(0);
+            var row = document.createElement("div");
+            row.className = "dash-bar-row";
+            row.innerHTML = '<span class="dash-bar-label">' + label + '</span><div class="dash-bar-track"><div class="dash-bar-fill" style="width:' + pct + '%;background:' + palette[i % palette.length] + '"></div></div><span class="dash-bar-count">' + count + '</span><span class="dash-bar-percent">' + pct + '%</span>';
+            catContainer.appendChild(row);
+        });
+        if (!sortedCats.length) catContainer.innerHTML = '<div class="text-gray-400 text-xs text-center py-4">Sin datos</div>';
+    }
+}
+
 async function updateDashboard() {
     try {
-        const resAssets = await api("/assets/?limit=9999");
-        const resPersons = await api("/persons/");
-        const resHistory = await api("/history/");
-        const resDeliveries = await api("/deliveries/pending/");
+        var resAssets = await api("/assets/?limit=9999");
+        var resPersons = await api("/persons/");
+        var resHistory = await api("/history/");
+        var resDeliveries = await api("/deliveries/pending");
         if (resAssets.ok) {
-            const assets = await resAssets.json();
-            const active = assets.filter(a => a.status !== "Archived");
+            var assets = await resAssets.json();
+            var active = assets.filter(function(a) { return !["Archived","Broken","Lost","Disposed","Donate","Sold"].includes(a.status); });
             document.getElementById("dashAssetCount").textContent = active.length;
-            document.getElementById("dashCheckoutCount").textContent = active.filter(a => a.status === "Checkout").length;
-            document.getElementById("dashCheckinCount").textContent = active.filter(a => a.status === "Available").length;
-            const cats = {};
-            active.forEach(a => { if (a.category) { cats[a.category] = (cats[a.category] || 0) + 1; } });
-            const catKeys = Object.keys(cats);
+            document.getElementById("dashCheckoutCount").textContent = active.filter(function(a) { return a.status === "Checkout"; }).length;
+            document.getElementById("dashCheckinCount").textContent = active.filter(function(a) { return a.status === "Available"; }).length;
+            var repairCount = active.filter(function(a) { return a.status === "Under repair" || a.status === "GarantiaSD"; }).length;
+            document.getElementById("dashRepairCount").textContent = repairCount;
+            var cats = {};
+            active.forEach(function(a) { if (a.category) cats[a.category] = (cats[a.category] || 0) + 1; });
+            var catKeys = Object.keys(cats);
             document.getElementById("dashCategoryCount").textContent = catKeys.length;
-            const catBody = document.getElementById("dashCategoryBody");
+            var catBody = document.getElementById("dashCategoryBody");
             catBody.innerHTML = "";
-            catKeys.sort().forEach(c => {
-                const row = document.createElement("tr");
+            catKeys.sort().forEach(function(c) {
+                var row = document.createElement("tr");
                 row.className = "border-b border-gray-100 hover:bg-gray-100 cursor-pointer";
-                row.onclick = () => goToAssetsFiltered("category", c);
-                row.innerHTML = `<td class="py-1.5 px-2 text-gray-700">${c}</td><td class="py-1.5 px-2 text-gray-700 text-right font-bold">${cats[c]}</td>`;
+                row.onclick = function() { goToAssetsFiltered("category", c); };
+                row.innerHTML = '<td class="py-1.5 px-2 text-gray-700">' + c + '</td><td class="py-1.5 px-2 text-gray-700 text-right font-bold">' + cats[c] + '</td>';
                 catBody.appendChild(row);
+            });
+            renderDashBars(assets);
+            // stagger entrance for dashboard cards
+            document.querySelectorAll('.dash-card').forEach(function(c, i) {
+                c.style.animationDelay = (i * 0.05) + 's';
             });
         }
         if (resPersons.ok) {
-            const persons = await resPersons.json();
+            var persons = await resPersons.json();
             document.getElementById("dashPersonCount").textContent = persons.length;
         }
         if (resHistory.ok) {
-            const history = await resHistory.json();
-            const recent = history.slice(-5).reverse();
-            const tbody = document.getElementById("dashRecentActivity");
+            var history = await resHistory.json();
+            var recent = history.slice(-10).reverse();
+            var tbody = document.getElementById("dashRecentActivity");
             tbody.innerHTML = "";
             if (recent.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-center text-gray-400 italic">Sin actividad.</td></tr>';
             } else {
-                recent.forEach(item => {
-                    const row = document.createElement("tr");
+                recent.forEach(function(item) {
+                    var row = document.createElement("tr");
                     row.className = "hover:bg-gray-50 cursor-pointer";
-                    row.onclick = () => { showSection("history"); };
-                    const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
-                    const assetObj = (typeof currentAssets !== 'undefined' ? currentAssets : []).find(a => a.id === item.asset_id);
-                    const employeeObj = (typeof globalPersons !== 'undefined' ? globalPersons : []).find(p => p.id === item.asignado_a_id);
-                    let badge = "text-blue-600 font-bold";
+                    row.onclick = function() { showSection("history"); };
+                    var fecha = new Date(item.fecha_accion).toLocaleString("es-ES");
+                    var assetObj = item.asset_id ? (typeof currentAssets !== "undefined" ? currentAssets : []).find(function(a) { return a.id === item.asset_id; }) : null;
+                    var employeeObj = (typeof globalPersons !== "undefined" ? globalPersons : []).find(function(p) { return p.id === item.asignado_a_id; });
+                    var badge = "text-blue-600 font-bold";
                     if (item.tipo_accion === "Check in") badge = "text-amber-600 font-bold";
                     if (item.tipo_accion === "Archived") badge = "text-red-600 font-bold";
-                    row.innerHTML = `<td class="py-2 px-3 text-gray-500 whitespace-nowrap">${fecha}</td><td class="py-2 px-3 uppercase ${badge}">${item.tipo_accion}</td><td class="py-2 px-3 font-bold text-gray-700">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td><td class="py-2 px-3 text-gray-600">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td>`;
+                    var assetDisplay = item.asset_id ? (assetObj ? assetObj.asset_tag_id : "ID: " + item.asset_id) : '<span class="text-gray-400 italic">N/A</span>';
+                    row.innerHTML = '<td class="py-2 px-3 text-gray-500 whitespace-nowrap">' + fecha + '</td><td class="py-2 px-3 uppercase ' + badge + '">' + item.tipo_accion + '</td><td class="py-2 px-3 font-bold text-gray-700">' + assetDisplay + '</td><td class="py-2 px-3 text-gray-600">' + (employeeObj ? employeeObj.full_name : (item.asignado_a_id ? "ID: " + item.asignado_a_id : "Almacen")) + '</td>';
                     tbody.appendChild(row);
                 });
             }
         }
         if (resDeliveries.ok) {
-            const deliveries = await resDeliveries.json();
-            const activePendings = deliveries.filter(d => d.status === "Active");
+            var deliveries = await resDeliveries.json();
+            var activePendings = deliveries.filter(function(d) { return d.status === "Active"; });
             document.getElementById("dashPendingCount").textContent = activePendings.length;
         }
     } catch (e) { console.error(e); }
@@ -1328,10 +1702,16 @@ async function updateDashboard() {
 function goToAssetsFiltered(filterKey, filterValue) {
     showSection('assets');
     currentAssetPage = 1;
-    const statusSel = document.getElementById("filterStatus");
-    const catSel = document.getElementById("filterCategory");
+    var statusSel = document.getElementById("filterStatus");
+    var catSel = document.getElementById("filterCategory");
     if (filterKey === 'status' && statusSel) {
-        statusSel.value = filterValue;
+        if (filterValue.indexOf(",") !== -1) {
+            statusSel.value = "";
+            document.getElementById("assetsTableBody").dataset.statusFilter = filterValue;
+        } else {
+            statusSel.value = filterValue;
+            delete document.getElementById("assetsTableBody").dataset.statusFilter;
+        }
     }
     if (filterKey === 'category' && catSel) {
         catSel.value = filterValue;
@@ -1342,9 +1722,6 @@ function goToAssetsFiltered(filterKey, filterValue) {
 function toggleDashCategoryBreakdown() {
     document.getElementById("dashCategoryBreakdown").classList.toggle("hidden");
 }
-
-function openImportModal() { document.getElementById("importModal").classList.remove("hidden"); document.getElementById("importResult").classList.add("hidden"); document.getElementById("importForm").reset(); }
-function closeImportModal() { document.getElementById("importModal").classList.add("hidden"); document.getElementById("importResult").classList.add("hidden"); }
 
 async function exportEntity(entity) {
     if (!getToken()) { alert("Debe iniciar sesion"); return; }
@@ -1360,6 +1737,22 @@ async function exportEntity(entity) {
         a.click();
         URL.revokeObjectURL(a.href);
     } catch(e) { alert("Error de conexion al exportar"); }
+}
+
+async function downloadTemplate(entity) {
+    if (!getToken()) { alert("Debe iniciar sesion"); return; }
+    const url = `/export/${entity}/template/`;
+    try {
+        const res = await api(url);
+        if (!res.ok) { const e = await res.json().catch(()=>({})); alert("Error al descargar plantilla: " + (e.detail||"Error")); return; }
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        const names = { assets:"plantilla_activos", persons:"plantilla_empleados", sites:"plantilla_sitios" };
+        a.download = names[entity]||entity+"_template.xlsx";
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch(e) { alert("Error de conexion al descargar plantilla"); }
 }
 
 function setupImportFormListener() {
@@ -1395,14 +1788,6 @@ function setupImportFormListener() {
             resultDiv.textContent = "Error de conexion: " + e.message;
             resultDiv.classList.remove("hidden");
         }
-    });
-}
-
-function populateReportPersonSelect() {
-    const sel = document.getElementById("report_person_id");
-    sel.innerHTML = '<option value="">-- Seleccione un Empleado --</option>';
-    globalPersons.forEach(p => {
-        sel.innerHTML += `<option value="${p.id}">${p.full_name} (${p.employee_id})</option>`;
     });
 }
 
@@ -1470,6 +1855,48 @@ async function loadCheckoutReport() {
     }
 }
 
+async function loadCheckoutTimeframeReport() {
+    const start = document.getElementById("ctf_start").value;
+    const end = document.getElementById("ctf_end").value;
+    const tbody = document.getElementById("ctfResultsBody");
+    if (!start || !end) { tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-amber-600 font-medium">Seleccione fecha de inicio y fin.</td></tr>'; return; }
+    tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        const res = await api("/reports/checkout-timeframe/?start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end));
+        if (!res.ok) throw new Error("Error en el servidor");
+        const data = await res.json();
+        document.getElementById("ctfCount").textContent = data.length + " Resultados";
+        tbody.innerHTML = "";
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-gray-400 italic">Sin resultados en este rango de fechas.</td></tr>';
+            return;
+        }
+        currentCtfResults = data;
+        data.forEach(function (item) {
+            var row = document.createElement("tr");
+            row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer";
+            row.onclick = function () { openAssetModalById(item.asset_id); };
+            var badge = "bg-green-100 text-green-800";
+            if (item.current_status === "Checkout") badge = "bg-blue-100 text-blue-800";
+            if (item.current_status === "Broken" || item.current_status === "Lost/Missing") badge = "bg-red-100 text-red-800";
+            if (item.current_status === "Under repair" || item.current_status === "GarantiaSD") badge = "bg-amber-100 text-amber-800";
+            row.innerHTML =
+                '<td class="px-3 py-2 font-mono font-bold text-blue-600">' + item.asset_tag_id + '</td>' +
+                '<td class="px-3 py-2">' + item.asset_description + '</td>' +
+                '<td class="px-3 py-2">' + item.brand + " " + item.model + '</td>' +
+                '<td class="px-3 py-2 font-mono">' + item.serial_no + '</td>' +
+                '<td class="px-3 py-2">' + item.category + '</td>' +
+                '<td class="px-3 py-2">' + item.employee_name + ' <span class="text-gray-400 text-[10px]">(' + item.employee_id + ')</span></td>' +
+                '<td class="px-3 py-2 text-gray-500">' + item.admin_name + '</td>' +
+                '<td class="px-3 py-2 text-gray-500 text-[10px]">' + new Date(item.checkout_date).toLocaleDateString("es-ES", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) + '</td>' +
+                '<td class="px-3 py-2"><span class="px-2 py-0.5 inline-flex text-[10px] leading-5 font-semibold rounded-full ' + badge + '">' + item.current_status + '</span></td>';
+            tbody.appendChild(row);
+        });
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-4 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>';
+    }
+}
+
 async function openAssetModalById(assetId) {
     const existing = currentAssets.find(a => a.id === parseInt(assetId));
     if (existing) {
@@ -1527,7 +1954,7 @@ async function submitNewPending() {
         } catch (e) { /* continue */ }
     }
     if (successCount > 0) {
-        alert(successCount + " entrega(s) pendiente(s) agregada(s) correctamente!");
+        showToast(successCount + " entrega(s) pendiente(s) agregada(s)!", "success");
         document.getElementById("deliveryForm").reset();
         document.querySelectorAll('.delivery-cat-qty').forEach(function (q) { q.disabled = true; });
         loadDeliveryBoard();
@@ -1550,28 +1977,42 @@ async function loadDeliveryBoard() {
             container.innerHTML = '<p class="text-center text-gray-400 italic py-8">No hay entregas pendientes activas.</p>';
             return;
         }
+        const palette = [
+            { bg: "bg-blue-50", border: "border-blue-200", title: "text-blue-800" },
+            { bg: "bg-green-50", border: "border-green-200", title: "text-green-800" },
+            { bg: "bg-purple-50", border: "border-purple-200", title: "text-purple-800" },
+            { bg: "bg-amber-50", border: "border-amber-200", title: "text-amber-800" },
+            { bg: "bg-pink-50", border: "border-pink-200", title: "text-pink-800" },
+            { bg: "bg-teal-50", border: "border-teal-200", title: "text-teal-800" },
+            { bg: "bg-indigo-50", border: "border-indigo-200", title: "text-indigo-800" },
+            { bg: "bg-orange-50", border: "border-orange-200", title: "text-orange-800" },
+        ];
         const wrapper = document.createElement("div");
-        wrapper.className = "flex gap-4 overflow-x-auto pb-4";
-        data.forEach(cat => {
+        wrapper.className = "grid grid-cols-1 md:grid-cols-2 gap-4";
+        data.forEach((cat, i) => {
+            const c = palette[i % palette.length];
             const col = document.createElement("div");
-            col.className = "min-w-[280px] max-w-[300px] flex-shrink-0";
+            col.className = "w-full";
             const pendingCount = cat.total_pending;
             const availCount = cat.available;
             col.innerHTML = `
-                <div class="bg-gray-50 rounded-lg border border-gray-200 p-3">
+                <div class="${c.bg} ${c.border} rounded-lg border p-3">
                     <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-sm font-bold text-gray-700">${cat.category}</h3>
+                        <h3 class="text-sm font-bold ${c.title}">${cat.category}</h3>
                         <span class="text-xs font-bold text-gray-500">${pendingCount} pendiente${pendingCount !== 1 ? 's' : ''}</span>
                     </div>
                     <div class="text-xs text-gray-400 mb-2">${availCount} disponible${availCount !== 1 ? 's' : ''} en almacen</div>
-                    <div class="space-y-2 max-h-[400px] overflow-y-auto">`;
+                    <div class="space-y-2 max-h-[500px] overflow-y-auto pr-1">`;
             cat.employees.forEach(emp => {
                 col.innerHTML += `
                         <div class="bg-white rounded p-2 border border-gray-200 shadow-sm">
                             <div class="font-bold text-xs text-gray-700">${emp.person_name}</div>
                             <div class="text-[10px] text-gray-400">${emp.pending} pendiente${emp.pending !== 1 ? 's' : ''}</div>
                             ${emp.notes ? `<div class="text-[10px] text-gray-400 italic mt-1">${emp.notes}</div>` : ''}
-                            <button onclick="openFulfillModal(${emp.delivery_id}, '${cat.category}', '${emp.person_name}')" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors cursor-pointer" ${availCount === 0 ? 'disabled' : ''}>Asignar</button>
+                            <div class="flex gap-1 mt-2">
+                                <button onclick="openFulfillModal(${emp.delivery_id}, '${cat.category}', '${emp.person_name}')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors cursor-pointer" ${availCount === 0 ? 'disabled' : ''}>Asignar</button>
+                                <button onclick="cancelPending(${emp.delivery_id})" class="bg-red-100 hover:bg-red-200 text-red-700 text-[10px] font-bold py-1 px-2 rounded border border-red-300 transition-colors cursor-pointer">Cancelar</button>
+                            </div>
                         </div>`;
             });
             col.innerHTML += `</div></div>`;
@@ -1671,7 +2112,7 @@ async function submitFulfill() {
         });
         if (res.ok) {
             const data = await res.json();
-            alert(`Activo ${data.asset_tag} asignado exitosamente! (${data.fulfilled_count}/${data.total})`);
+            showToast("Activo " + data.asset_tag + " asignado! (" + data.fulfilled_count + "/" + data.total + ")", "success");
             closeFulfillModal();
             loadDeliveryBoard();
         } else {
@@ -1686,7 +2127,7 @@ async function cancelPending(deliveryId) {
     try {
         const res = await api(`/deliveries/pending/${deliveryId}`, { method: "DELETE" });
         if (res.ok) {
-            alert("Entrega cancelada");
+            showToast("Entrega cancelada", "success");
             loadDeliveryBoard();
             loadDeliveryEmployees();
         } else {
@@ -1793,6 +2234,35 @@ function exportVisibleCSV(section) {
         ];
         headers = colMap.filter(c => !c.col || localStorage.getItem(`col_reports_${c.col}`) !== "0").map(c => c.label);
         rows = data.map(r => colMap.filter(c => !c.col || localStorage.getItem(`col_reports_${c.col}`) !== "0").map(c => csvEscape(c.fn ? c.fn(r) : r[c.key])));
+    } else if (section === "ctf") {
+        data = currentCtfResults;
+        const colMap = [
+            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_description", label: "Descripcion" },
+            { key: "brand", label: "Marca", fn: r => r.brand + " " + r.model },
+            { key: "serial_no", label: "Serie" },
+            { key: "category", label: "Categoria" },
+            { key: "employee_name", label: "Empleado", fn: r => r.employee_name + " (" + r.employee_id + ")" },
+            { key: "admin_name", label: "Admin" },
+            { key: "checkout_date", label: "Fecha Checkout", fn: r => new Date(r.checkout_date).toLocaleDateString("es-ES") },
+            { key: "current_status", label: "Status Actual" }
+        ];
+        headers = colMap.map(c => c.label);
+        rows = data.map(r => colMap.map(c => csvEscape(c.fn ? c.fn(r) : r[c.key])));
+    } else if (section === "sr") {
+        data = currentSrResults;
+        const siteName = function (sid) { var s = globalSites.find(function (x) { return x.id === sid; }); return s ? s.site_name : ""; };
+        const colMap = [
+            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_description", label: "Descripcion" },
+            { key: "brand_model", label: "Marca/Modelo", fn: function (a) { return a.brand + " " + a.model; } },
+            { key: "serial_no", label: "Serie" },
+            { key: "category", label: "Categoria" },
+            { key: "site", label: "Sitio", fn: function (a) { return siteName(a.site_id); } },
+            { key: "status", label: "Status" }
+        ];
+        headers = colMap.map(function (c) { return c.label; });
+        rows = data.map(function (r) { return colMap.map(function (c) { return csvEscape(c.fn ? c.fn(r) : r[c.key]); }); });
     }
 
     if (rows.length === 0) { alert("No hay datos para exportar"); return; }
@@ -1800,7 +2270,7 @@ function exportVisibleCSV(section) {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    const names = { assets: "activos", employees: "empleados", reports: "reporte_checkout" };
+    const names = { assets: "activos", employees: "empleados", reports: "reporte_checkout", ctf: "checkout_por_fecha", sr: "status_report" };
     a.download = `${names[section] || section}_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
@@ -2068,6 +2538,36 @@ async function loadAssetsByStatus(status) {
     } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
 }
 
+async function loadRepairAssets() {
+    const tbody = document.getElementById("enReparacionBody");
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        const statuses = ["Under repair", "GarantiaSD"];
+        const results = await Promise.all(statuses.map(s => api(`/assets/?status=${encodeURIComponent(s)}&limit=1000`).then(r => r.ok ? r.json() : [])));
+        const all = results.flat().sort((a, b) => a.asset_tag_id.localeCompare(b.asset_tag_id));
+        if (all.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400 italic">No hay equipos en reparacion.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = all.map(a => {
+            var leftPerson = globalPersons.find(function (p) { return p.id === a.repair_left_by_id; });
+            var tech = globalAdmins.find(function (ad) { return ad.id === a.repair_technician_id; });
+            var badgeColor = a.status === "GarantiaSD" ? "bg-amber-100 text-amber-800" : "bg-orange-100 text-orange-800";
+            return '<tr class="hover:bg-amber-50/30 transition-colors cursor-pointer" onclick="openDetailsModal(' + a.id + ')">' +
+                '<td class="px-4 py-3 font-bold text-amber-700">' + a.asset_tag_id + '</td>' +
+                '<td class="px-4 py-3 text-gray-600">' + (a.asset_description || '') + '</td>' +
+                '<td class="px-4 py-3 text-gray-500">' + (a.brand || '') + ' ' + (a.model || '') + '</td>' +
+                '<td class="px-4 py-3 font-mono text-gray-400">' + (a.serial_no || '') + '</td>' +
+                '<td class="px-4 py-3"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ' + badgeColor + '">' + a.status + '</span></td>' +
+                '<td class="px-4 py-3 text-gray-600 max-w-[200px] truncate">' + (a.repair_reason || '-') + '</td>' +
+                '<td class="px-4 py-3 text-gray-600">' + (leftPerson ? leftPerson.full_name : '-') + '</td>' +
+                '<td class="px-4 py-3 text-gray-600">' + (tech ? tech.username : '-') + '</td>' +
+            '</tr>';
+        }).join("");
+    } catch (e) { tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
+}
+
 async function loadListadoInactivos() {
     const tbody = document.getElementById("listadoInactivosBody");
     if (!tbody) return;
@@ -2141,4 +2641,206 @@ async function restoreAllByStatus(status) {
         loadAssets();
         reloadVisibleInactive();
     } catch (e) { alert("Error de conexion"); }
+}
+
+// ===== CONCILIACION DE EMPLEADOS =====
+function showReconciliationView() {
+    document.getElementById("reconciliationForm").classList.add("hidden");
+    document.getElementById("reconciliationError").classList.add("hidden");
+    document.getElementById("reconciliationFile").value = "";
+    loadReconciliationStatus();
+}
+
+function loadReconciliationStatus() {
+    const includeCleared = document.getElementById("recIncludeCleared").checked;
+    const url = "/employees/reconciliation/status/" + (includeCleared ? "?include_cleared=true" : "");
+    api(url).then(res => {
+        if (!res.ok) return;
+        res.json().then(data => renderReconciliationStatus(data));
+    }).catch(() => {});
+}
+
+function renderReconciliationStatus(data) {
+    document.getElementById("recTotalSessions").textContent = data.total_sessions;
+    document.getElementById("recTotalPending").textContent = data.total_pending;
+    document.getElementById("recTotalCleared").textContent = data.total_cleared;
+
+    const container = document.getElementById("recSessionList");
+    container.innerHTML = "";
+    if (data.sessions.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-400 italic py-4 text-center">No hay sesiones de conciliacion. Haz clic en "+ Nueva Conciliacion" para comenzar.</p>';
+        return;
+    }
+    data.sessions.forEach((session) => {
+        const sessionId = session.session_id;
+        const dateStr = session.uploaded_at ? new Date(session.uploaded_at).toLocaleDateString("es-DO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-";
+        const pendingCount = session.pending_count;
+        const hasPending = pendingCount > 0;
+
+        const card = document.createElement("div");
+        card.className = "border border-gray-200 rounded overflow-hidden";
+
+        const header = document.createElement("button");
+        header.className = "w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-left cursor-pointer";
+        header.setAttribute("onclick", "toggleSessionAssetList(" + sessionId + ")");
+        header.innerHTML = `
+            <div class="flex items-center gap-3 min-w-0">
+                <svg class="w-4 h-4 shrink-0 ${hasPending ? 'text-amber-400' : 'text-green-400'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z"/></svg>
+                <div class="min-w-0">
+                    <span class="font-bold text-sm text-gray-800">Sesion del ${dateStr}</span>
+                    <span class="text-xs text-gray-400 ml-2">${session.filename}</span>
+                    <div class="text-[11px] text-gray-500">Subido por: ${session.uploaded_by} &middot; ${session.matched_count} coincidencias &middot; ${session.imported_count} importados</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="text-[10px] font-bold ${hasPending ? 'text-amber-600 bg-amber-50' : 'text-green-700 bg-green-100'} px-2 py-0.5 rounded-full">${pendingCount} pendiente(s)</span>
+                <svg id="sessionToggleIcon-${sessionId}" class="w-3 h-3 text-gray-400 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+            </div>
+        `;
+        card.appendChild(header);
+
+        const body = document.createElement("div");
+        body.id = "sessionAssets-" + sessionId;
+        body.className = "hidden";
+
+        if (session.departed.length === 0) {
+            body.innerHTML = '<div class="px-4 py-3 text-xs text-gray-400 italic border-t border-gray-200">Sin empleados ausentes con activos en esta sesion.</div>';
+        } else {
+            const wrapper = document.createElement("div");
+            wrapper.className = "border-t border-gray-200 divide-y divide-gray-100";
+            session.departed.forEach((item) => {
+                const p = item.person;
+                const assets = item.assets;
+                const pIsComplete = assets.length === 0;
+                const personBlock = document.createElement("div");
+                personBlock.className = "px-4 py-2";
+
+                const personHeader = document.createElement("div");
+                personHeader.className = "flex items-center justify-between py-1";
+                personHeader.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 ${pIsComplete ? 'text-green-400' : 'text-red-400'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+                        <span class="font-bold text-xs text-gray-800">${p.full_name}</span>
+                        <span class="text-[10px] text-gray-400">${p.employee_id}</span>
+                    </div>
+                    ${pIsComplete ? '<span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Completado</span>' : '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">' + assets.length + ' activo(s)</span>'}
+                `;
+                personBlock.appendChild(personHeader);
+
+                if (!pIsComplete) {
+                    const table = document.createElement("table");
+                    table.className = "min-w-full divide-y divide-gray-200 text-xs mt-2";
+                    table.innerHTML = `
+                        <thead class="bg-gray-100 text-gray-500">
+                            <tr>
+                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Tag</th>
+                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Descripcion</th>
+                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Modelo</th>
+                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Serie</th>
+                                <th class="px-3 py-1.5 text-left font-bold uppercase text-[10px]">Estado</th>
+                                <th class="px-3 py-1.5 text-center font-bold uppercase text-[10px]">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200 text-gray-700"></tbody>
+                    `;
+                    const tbody = table.querySelector("tbody");
+                    assets.forEach((a) => {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td class="px-3 py-1.5 font-mono font-bold">${a.asset_tag_id}</td>
+                            <td class="px-3 py-1.5">${a.asset_description || '-'}</td>
+                            <td class="px-3 py-1.5">${a.model || '-'}</td>
+                            <td class="px-3 py-1.5 font-mono">${a.serial_no || '-'}</td>
+                            <td class="px-3 py-1.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${a.status === 'Checkout' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}">${a.status}</span></td>
+                            <td class="px-3 py-1.5 text-center">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button onclick="reconciliationCheckin(${a.id}, ${a.departed_asset_id}, '${a.asset_tag_id}')" class="px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-[10px] font-bold cursor-pointer">Checkin</button>
+                                    <button onclick="openDetailsModal(${a.id})" class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-[10px] font-bold cursor-pointer">Detalle</button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    personBlock.appendChild(table);
+                }
+                wrapper.appendChild(personBlock);
+            });
+            body.appendChild(wrapper);
+        }
+        card.appendChild(body);
+        container.appendChild(card);
+    });
+}
+
+function toggleReconciliationForm() {
+    const form = document.getElementById("reconciliationForm");
+    form.classList.toggle("hidden");
+    if (!form.classList.contains("hidden")) {
+        document.getElementById("reconciliationFile").value = "";
+        document.getElementById("reconciliationError").classList.add("hidden");
+    }
+}
+
+function cancelReconciliationUpload() {
+    document.getElementById("reconciliationForm").classList.add("hidden");
+}
+
+function setupReconciliationFormListener() {
+    document.getElementById("reconciliationUploadForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById("reconciliationFile");
+        const errorDiv = document.getElementById("reconciliationError");
+        errorDiv.classList.add("hidden");
+        if (!fileInput.files.length) { alert("Seleccione un archivo Excel"); return; }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        try {
+            const res = await api("/employees/reconcile/", { method: "POST", body: formData });
+            if (!res.ok) {
+                const err = await res.json().catch(()=>({detail:"Error desconocido"}));
+                errorDiv.textContent = "Error: " + (err.detail || "No se pudo procesar");
+                errorDiv.classList.remove("hidden");
+                return;
+            }
+            document.getElementById("reconciliationForm").classList.add("hidden");
+            loadReconciliationStatus();
+        } catch (e) {
+            errorDiv.textContent = "Error de conexion: " + e.message;
+            errorDiv.classList.remove("hidden");
+        }
+    });
+}
+
+function reconciliationCheckin(assetId, departedAssetId, assetTag) {
+    window.__reconciliationAfterCheckin = { assetId: assetId, departedAssetId: departedAssetId };
+    openModal(assetId, assetTag, "checkin");
+}
+
+function processReconciliationAfterCheckin() {
+    if (!window.__reconciliationAfterCheckin) return;
+    const { assetId, departedAssetId } = window.__reconciliationAfterCheckin;
+    window.__reconciliationAfterCheckin = null;
+
+    api("/employees/reconciliation/" + departedAssetId + "/clear/", { method: "POST" }).then(res => {
+        if (res.ok) loadReconciliationStatus();
+    }).catch(() => {});
+}
+
+function toggleSessionAssetList(sessionId) {
+    const body = document.getElementById("sessionAssets-" + sessionId);
+    const icon = document.getElementById("sessionToggleIcon-" + sessionId);
+    if (!body) return;
+    body.classList.toggle("hidden");
+    if (icon) icon.style.transform = body.classList.contains("hidden") ? "" : "rotate(90deg)";
+}
+
+async function refreshReconciliation() {
+    const res = await api("/employees/reconciliation/refresh/", { method: "POST" });
+    if (res.ok) {
+        const data = await res.json();
+        alert(data.reactivated + " registro(s) reactivado(s) por reasignacion.");
+        loadReconciliationStatus();
+    }
 }

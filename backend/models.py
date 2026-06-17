@@ -89,8 +89,14 @@ class Asset(Base):
     
     # Llaves Foráneas
     person_id = Column(Integer, ForeignKey("persons.id"), nullable=True)
+    ultimo_asignado_id = Column(Integer, ForeignKey("persons.id"), nullable=True)
     category = Column(String(100), index=True)
     site_id = Column(Integer, ForeignKey("sites.id"), nullable=True)
+
+    # Campos de reparacion
+    repair_reason = Column(Text, nullable=True)
+    repair_left_by_id = Column(Integer, ForeignKey("persons.id"), nullable=True)
+    repair_technician_id = Column(Integer, ForeignKey("admins.id"), nullable=True)
 
 # ==========================================
 # 4. TABLA DE AUDITORÍA: HISTORIAL
@@ -105,7 +111,7 @@ class History(Base):
     notas_detalle = Column(Text)
     
     # Trazabilidad completa de auditoría
-    asset_id = Column(Integer, ForeignKey("assets.id"))
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=True)
     asignado_a_id = Column(Integer, ForeignKey("persons.id"), nullable=True)  # Quién recibe
     realizado_por_id = Column(Integer, ForeignKey("admins.id"))  # Qué administrador operó
 
@@ -128,3 +134,35 @@ class Category(Base):
     __tablename__ = "categories"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
+
+# ==========================================
+# 6. CONCILIACION DE EMPLEADOS
+# ==========================================
+class ReconciliationSession(Base):
+    __tablename__ = "reconciliation_sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    uploaded_by_id = Column(Integer, ForeignKey("admins.id"))
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    filename = Column(String(255))
+    total_db = Column(Integer)
+    total_file = Column(Integer)
+    matched_count = Column(Integer)
+    imported_count = Column(Integer)
+
+    uploaded_by = relationship("Admin")
+    departed_assets = relationship("ReconciliationDepartedAsset", back_populates="session", cascade="all, delete-orphan")
+
+class ReconciliationDepartedAsset(Base):
+    __tablename__ = "reconciliation_departed_assets"
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("reconciliation_sessions.id"), nullable=False)
+    person_id = Column(Integer, ForeignKey("persons.id"), nullable=False)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
+    status = Column(String(20), default="pending")
+    cleared_at = Column(DateTime, nullable=True)
+    cleared_by_id = Column(Integer, ForeignKey("admins.id"), nullable=True)
+
+    session = relationship("ReconciliationSession", back_populates="departed_assets")
+    person = relationship("Person")
+    asset = relationship("Asset")
+    cleared_by = relationship("Admin")

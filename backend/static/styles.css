@@ -1,29 +1,63 @@
+/* Font baseline */
+body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+
+/* Headings use Sora for personality */
+h1, h2, h3, h4, h5, h6, .font-display { font-family: 'Sora', sans-serif; }
+
 /* Sidebar custom scroll */
 #sidebar nav::-webkit-scrollbar { width: 4px; }
 #sidebar nav::-webkit-scrollbar-track { background: transparent; }
 #sidebar nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
 
-/* Sidebar items */
+/* Global scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Sidebar items with animated border */
 .sidebar-item {
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s, border-color 0.2s;
     border-right: 3px solid transparent;
 }
 .sidebar-item:hover {
-    background: rgba(59, 130, 246, 0.12);
+    background: rgba(217, 119, 6, 0.12);
 }
 .sidebar-item.active {
-    background: rgba(59, 130, 246, 0.18);
+    background: rgba(217, 119, 6, 0.18);
     font-weight: 700;
-    border-right-color: #60a5fa;
+    border-right-color: #f59e0b;
+    color: #fff;
 }
 
-/* Submenu items (no border indicator) */
+/* Submenu items */
 .sidebar-sub-item {
-    transition: background 0.15s;
+    transition: background 0.15s, border-color 0.2s;
     border-right: 3px solid transparent;
 }
 .sidebar-sub-item:hover {
-    background: rgba(59, 130, 246, 0.12);
+    background: rgba(217, 119, 6, 0.12);
+}
+.sidebar-sub-item.active {
+    background: rgba(217, 119, 6, 0.18);
+    font-weight: 700;
+    border-right-color: #f59e0b;
+    color: #fff;
+}
+
+/* Nested items */
+.sidebar-nested-item {
+    transition: background 0.15s, border-color 0.2s;
+    border-right: 3px solid transparent;
+}
+.sidebar-nested-item:hover {
+    background: rgba(217, 119, 6, 0.12);
+}
+.sidebar-nested-item.active {
+    background: rgba(217, 119, 6, 0.18);
+    font-weight: 700;
+    border-right-color: #f59e0b;
+    color: #fff;
 }
 
 /* Collapse chevron rotation */
@@ -34,8 +68,169 @@
     transform: rotate(90deg);
 }
 
+/* Sidebar icon sizing */
+#sidebar .sidebar-item > span > svg:first-child { width: 1.25rem; height: 1.25rem; }
+#sidebar .sidebar-sub-item > span > svg:first-child { width: 1rem; height: 1rem; }
+#sidebar .sidebar-nested-item > span > svg:first-child { width: 0.875rem; height: 0.875rem; }
+
+/* Inputs, selects, textareas with amber focus */
+input, select, textarea, button {
+    font-family: inherit;
+}
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.35);
+    border-color: #d97706;
+}
+
+/* Botones uniformes */
+main button.py-1\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+main button.py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+
+/* Tables: striped + uniform headers */
+main section table tbody tr:nth-child(even) {
+    background: rgba(249, 250, 251, 0.7);
+}
+main section table thead th,
+main section table thead td {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.6875rem;
+    color: #6b7280;
+    background: #f9fafb;
+}
+
+/* Status badges with circle indicator */
+.badge-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+/* Modal animations */
+.modal-overlay {
+    animation: modalFadeIn 0.2s ease-out;
+}
+.modal-panel {
+    animation: modalSlideUp 0.25s ease-out;
+}
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes modalSlideUp {
+    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* Modal scroll */
 .modal-content { max-height: 90vh; overflow-y: auto; }
 
-/* Hide login overlay by default after auth */
+/* Hide login overlay after auth */
 #loginOverlay.hidden { display: none; }
+
+/* Sort indicator arrows */
+#assetsSection thead tr th.sort-asc::after { content: " ▲"; margin-left: 4px; font-size: 10px; }
+#assetsSection thead tr th.sort-desc::after { content: " ▼"; margin-left: 4px; font-size: 10px; }
+
+/* ===== DASHBOARD CSS BARS ===== */
+.dash-bar-container { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+.dash-bar-row { display: flex; align-items: center; gap: 8px; }
+.dash-bar-label { width: 100px; font-size: 11px; font-weight: 600; color: #374151; text-align: right; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-bar-track { flex: 1; height: 18px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+.dash-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease-out; min-width: 0; }
+.dash-bar-count { width: 32px; font-size: 11px; font-weight: 700; color: #374151; text-align: left; flex-shrink: 0; }
+.dash-bar-percent { width: 36px; font-size: 10px; color: #9ca3af; text-align: left; flex-shrink: 0; }
+
+/* Dashboard cards stagger entrance */
+.dash-card {
+    animation: dashFadeUp 0.4s ease-out both;
+}
+@keyframes dashFadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Toast slide-in */
+.toast-container {
+    position: fixed; top: 20px; right: 20px; z-index: 200;
+    display: flex; flex-direction: column; gap: 8px;
+    pointer-events: none;
+}
+.toast-item {
+    pointer-events: auto;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 13px; font-weight: 600;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: toastSlideIn 0.3s ease-out;
+    max-width: 360px;
+}
+.toast-item.toast-success { background: #059669; }
+.toast-item.toast-error { background: #dc2626; }
+.toast-item.toast-info { background: #2563eb; }
+@keyframes toastSlideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Section header gradient accent */
+.section-header-accent {
+    height: 3px;
+    background: linear-gradient(90deg, #d97706, #f59e0b, #fbbf24);
+    border-radius: 0 0 2px 2px;
+}
+
+/* Refresh button spin */
+.btn-spin { animation: spin 0.5s ease-in-out; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Custom checkbox */
+input[type="checkbox"].custom-checkbox {
+    appearance: none; width: 16px; height: 16px;
+    border: 2px solid #d1d5db; border-radius: 4px;
+    cursor: pointer; transition: all 0.15s;
+    vertical-align: middle; position: relative;
+}
+input[type="checkbox"].custom-checkbox:checked {
+    background: #d97706; border-color: #d97706;
+}
+input[type="checkbox"].custom-checkbox:checked::after {
+    content: "✓"; position: absolute; top: -2px; left: 1px;
+    font-size: 12px; color: white; font-weight: 700;
+}
+input[type="checkbox"].custom-checkbox:hover { border-color: #d97706; }
+
+/* Login geometric pattern overlay */
+.login-pattern {
+    background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+/* Print styles */
+@media print {
+    .no-print { display: none !important; }
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; }
+    thead { display: table-header-group; }
+    body { font-size: 9pt; }
+}
+
+/* Utility classes */
+.text-xxs { font-size: 0.625rem; }
+.transition-fast { transition: all 0.15s ease; }
+
+/* Sidebar dark mode adjustments for amber accent */
+html.dark .sidebar-item.active { border-right-color: #f59e0b; }
+html.dark .sidebar-sub-item.active { border-right-color: #f59e0b; }
+html.dark .sidebar-nested-item.active { border-right-color: #f59e0b; }
+
+/* Responsive sidebar collapse */
+@media (max-width: 768px) {
+    #sidebar { width: 64px; }
+    #sidebar .nav-label, #sidebar .sidebar-chevron,
+    #sidebar .sidebar-sub-item, #sidebar .sidebar-nested-item { display: none; }
+    #sidebar .p-4 h1 { font-size: 0; }
+    #sidebar .p-4 h1::after { content: "IT"; font-size: 14px; font-weight: 800; }
+    main { margin-left: 64px !important; }
+}

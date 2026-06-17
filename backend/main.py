@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import List
 from datetime import datetime, date
 import traceback, os
@@ -31,6 +32,16 @@ def seed_groups_and_admin():
             db.execute(text("ALTER TABLE admins ADD COLUMN group_id INTEGER REFERENCES groups(id)"))
         if "is_active" not in admins_cols:
             db.execute(text("ALTER TABLE admins ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+
+        assets_cols = [c["name"] for c in inspector.get_columns("assets")]
+        if "repair_reason" not in assets_cols:
+            db.execute(text("ALTER TABLE assets ADD COLUMN repair_reason TEXT"))
+        if "repair_left_by_id" not in assets_cols:
+            db.execute(text("ALTER TABLE assets ADD COLUMN repair_left_by_id INTEGER REFERENCES persons(id)"))
+        if "repair_technician_id" not in assets_cols:
+            db.execute(text("ALTER TABLE assets ADD COLUMN repair_technician_id INTEGER REFERENCES admins(id)"))
+        if "ultimo_asignado_id" not in assets_cols:
+            db.execute(text("ALTER TABLE assets ADD COLUMN ultimo_asignado_id INTEGER REFERENCES persons(id)"))
         db.commit()
         
         # Crear grupos por defecto si no existen
@@ -321,7 +332,7 @@ def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), admi
 def list_assets(
     search: str = None,
     search_condition: str = "contains",
-    search_field: str = None,
+    search_fields: List[str] = Query(None),
     status: str = None,
     category: str = None,
     site_id: int = None,
@@ -336,17 +347,21 @@ def list_assets(
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Asset)
-    if search and search_field:
-        column = getattr(models.Asset, search_field, None)
-        if column:
-            if search_condition == "exact":
-                query = query.filter(column == search)
-            elif search_condition == "startswith":
-                query = query.filter(column.like(f"{search}%"))
-            elif search_condition == "endswith":
-                query = query.filter(column.like(f"%{search}"))
-            else:
-                query = query.filter(column.like(f"%{search}%"))
+    if search and search_fields:
+        filters = []
+        for field_name in search_fields:
+            column = getattr(models.Asset, field_name, None)
+            if column:
+                if search_condition == "exact":
+                    filters.append(column == search)
+                elif search_condition == "startswith":
+                    filters.append(column.like(f"{search}%"))
+                elif search_condition == "endswith":
+                    filters.append(column.like(f"%{search}"))
+                else:
+                    filters.append(column.like(f"%{search}%"))
+        if filters:
+            query = query.filter(or_(*filters))
     elif search:
         like = f"%{search}%"
         query = query.filter(
@@ -358,13 +373,17 @@ def list_assets(
             models.Asset.category.like(like)
         )
     if status:
-        query = query.filter(models.Asset.status == status)
+        if "," in status:
+            status_list = [s.strip() for s in status.split(",")]
+            query = query.filter(models.Asset.status.in_(status_list))
+        else:
+            query = query.filter(models.Asset.status == status)
     if category:
         query = query.filter(models.Asset.category == category)
     if site_id:
         query = query.filter(models.Asset.site_id == site_id)
     if department_id:
-        query = query.join(models.Person).filter(models.Person.department_id == department_id)
+        query = query.join(models.Person, models.Asset.person_id == models.Person.id).filter(models.Person.department_id == department_id)
     if person_id:
         query = query.filter(models.Asset.person_id == person_id)
     if purchased_from:
@@ -391,7 +410,7 @@ def list_assets(
 def count_assets(
     search: str = None,
     search_condition: str = "contains",
-    search_field: str = None,
+    search_fields: List[str] = Query(None),
     status: str = None,
     category: str = None,
     site_id: int = None,
@@ -404,17 +423,21 @@ def count_assets(
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Asset)
-    if search and search_field:
-        column = getattr(models.Asset, search_field, None)
-        if column:
-            if search_condition == "exact":
-                query = query.filter(column == search)
-            elif search_condition == "startswith":
-                query = query.filter(column.like(f"{search}%"))
-            elif search_condition == "endswith":
-                query = query.filter(column.like(f"%{search}"))
-            else:
-                query = query.filter(column.like(f"%{search}%"))
+    if search and search_fields:
+        filters = []
+        for field_name in search_fields:
+            column = getattr(models.Asset, field_name, None)
+            if column:
+                if search_condition == "exact":
+                    filters.append(column == search)
+                elif search_condition == "startswith":
+                    filters.append(column.like(f"{search}%"))
+                elif search_condition == "endswith":
+                    filters.append(column.like(f"%{search}"))
+                else:
+                    filters.append(column.like(f"%{search}%"))
+        if filters:
+            query = query.filter(or_(*filters))
     elif search:
         like = f"%{search}%"
         query = query.filter(
@@ -426,13 +449,17 @@ def count_assets(
             models.Asset.category.like(like)
         )
     if status:
-        query = query.filter(models.Asset.status == status)
+        if "," in status:
+            status_list = [s.strip() for s in status.split(",")]
+            query = query.filter(models.Asset.status.in_(status_list))
+        else:
+            query = query.filter(models.Asset.status == status)
     if category:
         query = query.filter(models.Asset.category == category)
     if site_id:
         query = query.filter(models.Asset.site_id == site_id)
     if department_id:
-        query = query.join(models.Person).filter(models.Person.department_id == department_id)
+        query = query.join(models.Person, models.Asset.person_id == models.Person.id).filter(models.Person.department_id == department_id)
     if person_id:
         query = query.filter(models.Asset.person_id == person_id)
     if purchased_from:
@@ -481,6 +508,7 @@ def asset_checkout(asset_id: int, person_id: int, notas: str = None, db: Session
     estado_anterior = asset.status
     asset.status = "Checkout"
     asset.person_id = person_id
+    asset.ultimo_asignado_id = person_id
     
     registro_historial = models.History(
         asset_id=asset.id,
@@ -505,6 +533,7 @@ def asset_checkin(asset_id: int, nuevo_estado: str = "Available", notas: str = N
 
     estado_anterior = asset.status
     persona_que_devuelve = asset.person_id
+    asset.ultimo_asignado_id = persona_que_devuelve
 
     asset.status = nuevo_estado
     asset.person_id = None 
@@ -566,10 +595,27 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
             nombre_limpio = etiquetas.get(campo, campo)
             lista_cambios.append(f"{nombre_limpio} cambiado de '{viejo_valor}' a '{nuevo_valor}'")
             
+    repair_statuses = ("Under repair", "GarantiaSD")
+
+    if asset_update.status in repair_statuses:
+        db_asset.repair_reason = asset_update.repair_reason
+        db_asset.repair_left_by_id = asset_update.repair_left_by_id
+        db_asset.repair_technician_id = asset_update.repair_technician_id
+    elif db_asset.status not in repair_statuses and asset_update.status not in repair_statuses:
+        pass
+    else:
+        db_asset.repair_reason = None
+        db_asset.repair_left_by_id = None
+        db_asset.repair_technician_id = None
+
     for key, value in datos_nuevos.items():
+        if key in ("repair_reason", "repair_left_by_id", "repair_technician_id", "ultimo_asignado_id"):
+            continue
         setattr(db_asset, key, value)
 
     if db_asset.status not in ("Checkout", "Reserved"):
+        if db_asset.person_id is not None:
+            db_asset.ultimo_asignado_id = db_asset.person_id
         db_asset.person_id = None
 
     if lista_cambios:
@@ -577,11 +623,15 @@ def update_asset(asset_id: int, asset_update: schemas.AssetCreate, db: Session =
     else:
         nota_auditoria = "Formulario de edicion guardado sin cambios en los valores."
     
+    tipo_accion = "Modified"
+    if db_asset.status in repair_statuses:
+        tipo_accion = db_asset.status
+    
     registro_historial = models.History(
         asset_id=db_asset.id,
         asignado_a_id=db_asset.person_id,
         realizado_por_id=current_admin.id,
-        tipo_accion="Modified",
+        tipo_accion=tipo_accion,
         estado_anterior=db_asset.status,
         estado_nuevo=db_asset.status,
         notas_detalle=nota_auditoria
@@ -644,8 +694,9 @@ def export_assets(db: Session = Depends(get_db), admin: models.Admin = Depends(r
     rows = []
     for a in q:
         p = db.query(models.Person).filter(models.Person.id == a.person_id).first() if a.person_id else None
-        rows.append((a.asset_tag_id, a.asset_description, a.brand, a.model, a.serial_no, a.category or "", p.email if p else "", a.status))
-    buf = _make_excel(["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "AsignadoA", "Status"], rows)
+        s = db.query(models.Site).filter(models.Site.id == a.site_id).first() if a.site_id else None
+        rows.append((a.asset_tag_id, a.asset_description, a.brand, a.model, a.serial_no, a.category or "", s.site_name if s else "", p.email if p else ""))
+    buf = _make_excel(["AssetTag", "Descripcion", "Marca", "Modelo", "Serie", "Categoria", "Sitio", "AsignadoA"], rows)
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=activos.xlsx"})
 
 @app.get("/export/persons/", tags=["Import/Export"])
@@ -677,6 +728,8 @@ def template_persons(): return StreamingResponse(_make_excel(["Nombre", "Email",
 def template_sites(): return StreamingResponse(_make_excel(["Sitio", "Ciudad", "Pais"], []), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=plantilla_sitios.xlsx"})
 
 # ---------- IMPORTAR ----------
+def _cell(val): return str(val).strip() if val is not None else ""
+
 @app.post("/import/sites/", tags=["Import/Export"])
 def import_sites(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
     wb = openpyxl.load_workbook(file.file)
@@ -688,10 +741,10 @@ def import_sites(file: UploadFile = File(...), db: Session = Depends(get_db), ad
     ok = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
         if all(c is None for c in row): continue
-        name = (row[i_sitio] or "").strip()
+        name = _cell(row[i_sitio])
         if not name: raise HTTPException(400, f"Fila {ok+2}: Sitio vacio")
         if db.query(models.Site).filter(models.Site.site_name == name).first(): raise HTTPException(400, f"Fila {ok+2}: El sitio '{name}' ya existe")
-        db.add(models.Site(site_name=name, city=(row[i_ciudad] or "").strip() if i_ciudad is not None else None, country=(row[i_pais] or "").strip() if i_pais is not None else None))
+        db.add(models.Site(site_name=name, city=_cell(row[i_ciudad]) if i_ciudad is not None else None, country=_cell(row[i_pais]) if i_pais is not None else None))
         ok += 1
     db.commit()
     return {"importados": ok}
@@ -709,24 +762,24 @@ def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), 
     ok = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
         if all(c is None for c in row): continue
-        full_name = (row[i_fn] or "").strip()
-        email = (row[i_em] or "").strip()
-        eid = (row[i_eid] or "").strip()
+        full_name = _cell(row[i_fn])
+        email = _cell(row[i_em])
+        eid = _cell(row[i_eid])
         if not full_name: raise HTTPException(400, f"Fila {ok+2}: Nombre completo vacio")
         if not email: raise HTTPException(400, f"Fila {ok+2}: Email vacio")
         if not eid: raise HTTPException(400, f"Fila {ok+2}: EmployeeID vacio")
         if db.query(models.Person).filter(models.Person.email == email).first(): raise HTTPException(400, f"Fila {ok+2}: Email '{email}' ya existe")
         if db.query(models.Person).filter(models.Person.employee_id == eid).first(): raise HTTPException(400, f"Fila {ok+2}: EmployeeID '{eid}' ya existe")
         dept_id, site_id = None, None
-        if i_dept is not None and (row[i_dept] or "").strip():
-            dept_name = (row[i_dept] or "").strip()
+        if i_dept is not None and _cell(row[i_dept]):
+            dept_name = _cell(row[i_dept])
             d = db.query(models.Department).filter(models.Department.department_name == dept_name).first()
             if not d:
                 d = models.Department(department_name=dept_name)
                 db.add(d); db.flush()
             dept_id = d.id
-        if i_sit is not None and (row[i_sit] or "").strip():
-            sit_name = (row[i_sit] or "").strip()
+        if i_sit is not None and _cell(row[i_sit]):
+            sit_name = _cell(row[i_sit])
             s = db.query(models.Site).filter(models.Site.site_name == sit_name).first()
             if not s:
                 s = models.Site(site_name=sit_name)
@@ -734,10 +787,208 @@ def import_persons(file: UploadFile = File(...), db: Session = Depends(get_db), 
             site_id = s.id
         if dept_id is None: raise HTTPException(400, f"Fila {ok+2}: Departamento requerido")
         if site_id is None: raise HTTPException(400, f"Fila {ok+2}: Sitio requerido")
-        db.add(models.Person(full_name=full_name, email=email, employee_id=eid, title=(row[i_tit] or "").strip() if i_tit is not None else None, phone=(row[i_tel] or "").strip() if i_tel is not None else None, notes=(row[i_not] or "").strip() if i_not is not None else None, department_id=dept_id, site_id=site_id))
+        db.add(models.Person(full_name=full_name, email=email, employee_id=eid, title=_cell(row[i_tit]) if i_tit is not None else None, phone=_cell(row[i_tel]) if i_tel is not None else None, notes=_cell(row[i_not]) if i_not is not None else None, department_id=dept_id, site_id=site_id))
         ok += 1
     db.commit()
     return {"importados": ok}
+
+@app.post("/employees/reconcile/", tags=["Directorio"])
+def reconcile_employees(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
+    wb = openpyxl.load_workbook(file.file)
+    ws = wb.active
+    h = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+    for col in ["Nombre", "Email", "EmployeeID"]:
+        if col not in h: raise HTTPException(400, f"Falta columna '{col}'")
+    def _ci(name): return h.index(name) if name in h else None
+    i_fn, i_em, i_eid = h.index("Nombre"), h.index("Email"), h.index("EmployeeID")
+    i_tit, i_tel, i_not, i_dept, i_sit = _ci("Titulo"), _ci("Telefono"), _ci("Notas"), _ci("Departamento"), _ci("Sitio")
+
+    file_eids = set()
+    file_rows = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if all(c is None for c in row): continue
+        eid = _cell(row[i_eid])
+        if not eid: continue
+        file_eids.add(eid)
+        file_rows.append({
+            "full_name": _cell(row[i_fn]),
+            "email": _cell(row[i_em]),
+            "employee_id": eid,
+            "title": _cell(row[i_tit]) if i_tit is not None else None,
+            "phone": _cell(row[i_tel]) if i_tel is not None else None,
+            "notes": _cell(row[i_not]) if i_not is not None else None,
+            "dept_name": _cell(row[i_dept]) if i_dept is not None else None,
+            "site_name": _cell(row[i_sit]) if i_sit is not None else None,
+        })
+
+    all_db_persons = db.query(models.Person).all()
+    db_by_eid = {p.employee_id: p for p in all_db_persons if p.employee_id}
+
+    departed_db_ids = set(db_by_eid.keys()) - file_eids
+    new_file_ids = file_eids - set(db_by_eid.keys())
+
+    # Auto-import new employees
+    imported = []
+    for row_data in file_rows:
+        if row_data["employee_id"] not in new_file_ids: continue
+        if not row_data["full_name"] or not row_data["email"]: continue
+        dept_id, site_id = None, None
+        if row_data["dept_name"]:
+            d = db.query(models.Department).filter(models.Department.department_name == row_data["dept_name"]).first()
+            if not d:
+                d = models.Department(department_name=row_data["dept_name"])
+                db.add(d); db.flush()
+            dept_id = d.id
+        if row_data["site_name"]:
+            s = db.query(models.Site).filter(models.Site.site_name == row_data["site_name"]).first()
+            if not s:
+                s = models.Site(site_name=row_data["site_name"])
+                db.add(s); db.flush()
+            site_id = s.id
+        new_p = models.Person(
+            full_name=row_data["full_name"],
+            email=row_data["email"],
+            employee_id=row_data["employee_id"],
+            title=row_data["title"],
+            phone=row_data["phone"],
+            notes=row_data["notes"],
+            department_id=dept_id,
+            site_id=site_id
+        )
+        db.add(new_p)
+        db.flush()
+        imported.append({"id": new_p.id, "full_name": new_p.full_name, "email": new_p.email, "employee_id": new_p.employee_id})
+    db.commit()
+
+    # Create reconciliation session
+    session_rec = models.ReconciliationSession(
+        uploaded_by_id=admin.id,
+        filename=file.filename or "desconocido.xlsx",
+        total_db=len(all_db_persons),
+        total_file=len(file_eids),
+        matched_count=len(file_eids & set(db_by_eid.keys())),
+        imported_count=len(imported)
+    )
+    db.add(session_rec)
+    db.flush()
+
+    # Build departed list with only Checkout assets, save to BD
+    departed = []
+    departed_asset_records = []
+    for eid in sorted(departed_db_ids):
+        p = db_by_eid[eid]
+        checkout_assets = db.query(models.Asset).filter(models.Asset.person_id == p.id, models.Asset.status == "Checkout").all()
+        for a in checkout_assets:
+            departed_asset_records.append(models.ReconciliationDepartedAsset(
+                session_id=session_rec.id,
+                person_id=p.id,
+                asset_id=a.id,
+                status="pending"
+            ))
+        if checkout_assets:
+            departed.append({
+                "person": {
+                    "id": p.id, "full_name": p.full_name, "email": p.email,
+                    "employee_id": p.employee_id, "title": p.title, "phone": p.phone
+                },
+                "assets": [
+                    {
+                        "id": a.id, "asset_tag_id": a.asset_tag_id,
+                        "asset_description": a.asset_description, "brand": a.brand,
+                        "model": a.model, "serial_no": a.serial_no,
+                        "status": a.status, "category": a.category
+                    }
+                    for a in checkout_assets
+                ]
+            })
+    for rec in departed_asset_records:
+        db.add(rec)
+    db.commit()
+
+    return {
+        "session_id": session_rec.id,
+        "departed": departed,
+        "new_employees": imported,
+        "matched_count": session_rec.matched_count,
+        "total_db": session_rec.total_db,
+        "total_file": session_rec.total_file,
+        "imported_count": session_rec.imported_count
+    }
+
+@app.get("/employees/reconciliation/status/", tags=["Directorio"])
+def reconciliation_status(include_cleared: bool = False, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
+    sessions = db.query(models.ReconciliationSession).order_by(models.ReconciliationSession.uploaded_at.desc()).all()
+    status_filter = [models.ReconciliationDepartedAsset.status == "pending"]
+    if include_cleared:
+        status_filter = []
+    total_pending = db.query(models.ReconciliationDepartedAsset).filter(models.ReconciliationDepartedAsset.status == "pending").count()
+    total_cleared = db.query(models.ReconciliationDepartedAsset).filter(models.ReconciliationDepartedAsset.status == "cleared").count()
+
+    result = []
+    for s in sessions:
+        query = db.query(models.ReconciliationDepartedAsset).filter(models.ReconciliationDepartedAsset.session_id == s.id)
+        if not include_cleared:
+            query = query.filter(models.ReconciliationDepartedAsset.status == "pending")
+        records = query.all()
+        session_departed = {}
+        for rec in records:
+            p = rec.person
+            a = rec.asset
+            if p.id not in session_departed:
+                session_departed[p.id] = {
+                    "person": {"id": p.id, "full_name": p.full_name, "email": p.email, "employee_id": p.employee_id, "title": p.title},
+                    "assets": []
+                }
+            session_departed[p.id]["assets"].append({
+                "departed_asset_id": rec.id,
+                "id": a.id, "asset_tag_id": a.asset_tag_id,
+                "asset_description": a.asset_description, "brand": a.brand,
+                "model": a.model, "serial_no": a.serial_no,
+                "status": a.status, "category": a.category,
+                "reconciliation_status": rec.status
+            })
+        result.append({
+            "session_id": s.id,
+            "uploaded_by": s.uploaded_by.username if s.uploaded_by else "Desconocido",
+            "uploaded_at": s.uploaded_at.isoformat() if s.uploaded_at else None,
+            "filename": s.filename,
+            "total_db": s.total_db,
+            "total_file": s.total_file,
+            "matched_count": s.matched_count,
+            "imported_count": s.imported_count,
+            "departed": list(session_departed.values()),
+            "pending_count": sum(1 for r in records if r.status == "pending"),
+            "cleared_count": sum(1 for r in records if r.status == "cleared")
+        })
+
+    return {"sessions": result, "total_pending": total_pending, "total_cleared": total_cleared, "total_sessions": len(sessions)}
+
+@app.post("/employees/reconciliation/{departed_asset_id}/clear/", tags=["Directorio"])
+def reconciliation_clear(departed_asset_id: int, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
+    rec = db.query(models.ReconciliationDepartedAsset).filter(models.ReconciliationDepartedAsset.id == departed_asset_id).first()
+    if not rec:
+        raise HTTPException(404, "Registro de conciliacion no encontrado")
+    rec.status = "cleared"
+    rec.cleared_at = datetime.utcnow()
+    rec.cleared_by_id = admin.id
+    db.commit()
+    return {"message": "Registro marcado como completado"}
+
+@app.post("/employees/reconciliation/refresh/", tags=["Directorio"])
+def reconciliation_refresh(db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
+    cleared = db.query(models.ReconciliationDepartedAsset).filter(
+        models.ReconciliationDepartedAsset.status == "cleared"
+    ).all()
+    reactivated = 0
+    for rec in cleared:
+        asset = db.query(models.Asset).filter(models.Asset.id == rec.asset_id).first()
+        if asset and asset.status == "Checkout" and asset.person_id == rec.person_id:
+            rec.status = "pending"
+            rec.cleared_at = None
+            rec.cleared_by_id = None
+            reactivated += 1
+    db.commit()
+    return {"reactivated": reactivated}
 
 @app.post("/import/assets/", tags=["Import/Export"])
 def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_import_export"))):
@@ -752,13 +1003,13 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
     ok = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
         if all(c is None for c in row): continue
-        tag = (row[i_tag] or "").strip()
-        desc = (row[i_desc] or "").strip()
-        brand = (row[i_brand] or "").strip()
-        model = (row[i_model] or "").strip()
-        ser = (row[i_ser] or "").strip()
-        cat_name = (row[i_cat] or "").strip()
-        sit_name = (row[i_sit] or "").strip() if i_sit is not None else ""
+        tag = _cell(row[i_tag])
+        desc = _cell(row[i_desc])
+        brand = _cell(row[i_brand])
+        model = _cell(row[i_model])
+        ser = _cell(row[i_ser])
+        cat_name = _cell(row[i_cat])
+        sit_name = _cell(row[i_sit]) if i_sit is not None else ""
         if not tag: raise HTTPException(400, f"Fila {ok+2}: AssetTag vacio")
         if not desc: raise HTTPException(400, f"Fila {ok+2}: Descripcion vacia")
         if not brand: raise HTTPException(400, f"Fila {ok+2}: Marca vacia")
@@ -774,7 +1025,7 @@ def import_assets(file: UploadFile = File(...), db: Session = Depends(get_db), a
         status = "Available"
         notas_historial = None
         if i_asignado is not None:
-            asignado = (row[i_asignado] or "").strip()
+            asignado = _cell(row[i_asignado])
             if asignado:
                 person = db.query(models.Person).filter(models.Person.email == asignado).first()
                 if not person:
@@ -866,6 +1117,55 @@ def report_person_checkouts(person_id: int, mode: str = "current", db: Session =
             ))
         return results
 
+@app.get("/reports/checkout-timeframe/", tags=["Reportes"])
+def report_checkout_timeframe(
+    start: str,
+    end: str,
+    db: Session = Depends(get_db)
+):
+    from datetime import datetime as dt_lib
+    try:
+        start_dt = dt_lib.strptime(start, "%Y-%m-%d")
+        end_dt = dt_lib.strptime(end, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+    except ValueError:
+        raise HTTPException(400, "Formato de fecha invalido. Use YYYY-MM-DD")
+
+    history = db.query(models.History).filter(
+        models.History.tipo_accion == "Checkout",
+        models.History.fecha_accion >= start_dt,
+        models.History.fecha_accion <= end_dt
+    ).order_by(models.History.fecha_accion.desc()).all()
+
+    asset_ids = list(set(h.asset_id for h in history))
+    assets = {a.id: a for a in db.query(models.Asset).filter(models.Asset.id.in_(asset_ids)).all()}
+    person_ids = list(set(h.asignado_a_id for h in history if h.asignado_a_id))
+    persons = {p.id: p for p in db.query(models.Person).filter(models.Person.id.in_(person_ids)).all()}
+    admin_ids = list(set(h.realizado_por_id for h in history))
+    admins = {a.id: a for a in db.query(models.Admin).filter(models.Admin.id.in_(admin_ids)).all()}
+
+    results = []
+    for h in history:
+        asset = assets.get(h.asset_id)
+        if not asset:
+            continue
+        person = persons.get(h.asignado_a_id) if h.asignado_a_id else None
+        admin = admins.get(h.realizado_por_id)
+        results.append(schemas.CheckoutTimeframeItem(
+            asset_id=asset.id,
+            asset_tag_id=asset.asset_tag_id,
+            asset_description=asset.asset_description,
+            brand=asset.brand,
+            model=asset.model,
+            serial_no=asset.serial_no,
+            category=asset.category or "",
+            employee_name=person.full_name if person else "N/A",
+            employee_id=person.employee_id if person else "",
+            admin_name=admin.username if admin else "Desconocido",
+            checkout_date=h.fecha_accion,
+            current_status=asset.status
+        ))
+    return results
+
 # ==========================================
 # 13. ENDPOINTS DE ENTREGAS PENDIENTES
 # ==========================================
@@ -899,6 +1199,7 @@ def create_pending_delivery(delivery: schemas.PendingDeliveryCreate, db: Session
     resp.person_name = person.full_name
     return resp
 
+@app.get("/deliveries/pending/", response_model=List[schemas.PendingDeliveryResponse], tags=["Entregas Pendientes"], include_in_schema=False)
 @app.get("/deliveries/pending", response_model=List[schemas.PendingDeliveryResponse], tags=["Entregas Pendientes"])
 def list_pending_deliveries(status: str = None, person_id: int = None, db: Session = Depends(get_db)):
     query = db.query(models.PendingDelivery)
@@ -920,7 +1221,16 @@ def cancel_pending_delivery(delivery_id: int, db: Session = Depends(get_db), adm
     d = db.query(models.PendingDelivery).filter(models.PendingDelivery.id == delivery_id).first()
     if not d:
         raise HTTPException(404, "Entrega pendiente no encontrada")
+    person = db.query(models.Person).filter(models.Person.id == d.person_id).first()
+    person_name = person.full_name if person else "Desconocido"
     d.status = "Cancelled"
+    db.add(models.History(
+        realizado_por_id=admin.id,
+        tipo_accion="Cancelacion",
+        estado_anterior="Active",
+        estado_nuevo="Cancelled",
+        notas_detalle=f"Entrega pendiente #{delivery_id} cancelada por {admin.username}: {d.category} - {person_name}"
+    ))
     db.commit()
     return {"message": "Entrega pendiente cancelada"}
 
@@ -945,6 +1255,7 @@ def fulfill_pending_delivery(delivery_id: int, body: schemas.PendingFulfillReque
     estado_anterior = asset.status
     asset.status = "Checkout"
     asset.person_id = d.person_id
+    asset.ultimo_asignado_id = d.person_id
 
     person = db.query(models.Person).filter(models.Person.id == d.person_id).first()
     person_name = person.full_name if person else ""

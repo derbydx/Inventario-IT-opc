@@ -1,0 +1,31 @@
+Tunel activo. URL publica:
+
+https://particles-nuclear-windsor-headline.trycloudflare.com
+
+Ya puedes acceder desde cualquier dispositivo con internet.
+
+Para uso futuro
+Crea un acceso directo con este script (iniciar-tunel.ps1):
+
+cloudflared tunnel --url http://localhost:8000
+Comandos utiles
+# Ver si el tunel sigue corriendo
+Get-Job | Where-Object { $_.Name -like "*cloudflared*" }
+
+# Detener el tunel
+Stop-Job -Id <job_id>
+Remove-Job -Id <job_id>
+La URL cambia cada vez que reinicias cloudflared. Si mas adelante consigues un dominio en Cloudflare, podemos fijarla con un subdominio permanente.
+
+El background job de PowerShell se detuvo. El tunel ya no esta activo. La app sigue corriendo en el puerto 8000.
+
+El problema es que Start-Job no mantiene procesos largos de forma confiable. La solucion es correr cloudflared en una terminal dedicada.
+
+Abre una nueva terminal de PowerShell (Windows Terminal, o PowerShell ISE) y ejecuta:
+
+C:\Users\Tau0\AppData\Local\cloudflared\cloudflared.exe tunnel --url http://localhost:8000
+Dejala abierta. La URL nueva aparecera en pantalla. Esa terminal debe quedarse abierta mientras quieras que el tunel funcione.
+
+Si quieres automatizarlo para no tener que acordarte del path, ya lo agregue a tu PATH de usuario. En terminales nuevas puedes usar directamente:
+
+cloudflared tunnel --url http://localhost:8000

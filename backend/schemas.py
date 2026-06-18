@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 from enum import Enum
 
 # ==========================================
@@ -206,6 +206,50 @@ class HistoryResponse(BaseModel):
 # ==========================================
 # SCHEMAS DE REPORTES
 # ==========================================
+# ==========================================
+# SCHEMAS DE REPORTES PERSONALIZADOS
+# ==========================================
+class CustomReportField(BaseModel):
+    key: str
+    label: str
+    group: str
+
+class CustomReportRunRequest(BaseModel):
+    fields: List[str]
+    status: Optional[str] = None
+    category: Optional[str] = None
+    site_id: Optional[int] = None
+    department_id: Optional[int] = None
+    date_from: Optional[str] = None
+    date_to: Optional[str] = None
+    date_field: Optional[str] = "purchase_date"
+    text_search: Optional[str] = None
+    cost_min: Optional[float] = None
+    cost_max: Optional[float] = None
+    person_id: Optional[int] = None
+
+class SavedReportCreate(BaseModel):
+    name: str
+    fields: List[str]
+    filters: Optional[str] = None
+
+class SavedReportUpdate(BaseModel):
+    name: Optional[str] = None
+    fields: Optional[List[str]] = None
+    filters: Optional[str] = None
+
+class SavedReportResponse(BaseModel):
+    id: int
+    name: str
+    fields: str
+    filters: Optional[str] = None
+    created_by: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    created_by_id: Optional[int] = None
+    class Config:
+        from_attributes = True
+
 class PersonCheckoutReportItem(BaseModel):
     asset_id: int
     asset_tag_id: str

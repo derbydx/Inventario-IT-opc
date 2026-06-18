@@ -68,6 +68,8 @@ document.addEventListener("DOMContentLoaded", () => {
         loadHistory();
         loadPersons();
         loadCatalogs();
+        crLoadFields();
+        crLoadSavedList();
         showSection('assets');
     }
     setupFormListener();
@@ -83,6 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPasswordFormListener();
     setupUserFormListener();
     setupGroupFormListener();
+    initCrPersonAutocomplete();
     const sortHeaderRow = document.querySelector("#assetsSection thead tr");
     if (sortHeaderRow) {
         sortHeaderRow.addEventListener("click", function(e) {
@@ -1408,7 +1411,7 @@ async function loadStatusReport() {
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1436,6 +1439,7 @@ function showSection(name) {
     if (name === 'importExport') { switchImportTab('import'); }
     if (name === 'employeeReconciliation') { showReconciliationView(); }
     if (name === 'deptReport') loadDepartmentReport();
+    if (name === 'customReports') { crLoadFields(); crLoadFilterDropdowns(); crLoadSavedList(); }
     document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
     // highlight active sidebar item
     document.querySelectorAll('.sidebar-item[data-section], .sidebar-sub-item[data-section], .sidebar-nested-item[data-section]').forEach(el => el.classList.remove('active'));
@@ -1444,7 +1448,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -3012,6 +3016,269 @@ function toggleSessionAssetList(sessionId) {
         body.style.maxHeight = "0px";
         if (icon) icon.style.transform = "";
     }
+}
+
+// ==========================================
+// REPORTE PERSONALIZADO
+// ==========================================
+let crSelectedFields = [];
+let crSavedReportId = null;
+let crLastResult = { headers: [], keys: [], data: [] };
+
+function crLoadFields() {
+    api("/api/custom-reports/fields/").then(r => r.ok ? r.json() : []).then(groups => {
+        const container = document.getElementById("crFieldGroups");
+        if (!container) return;
+        container.innerHTML = "";
+        groups.forEach(g => {
+            const groupDiv = document.createElement("div");
+            groupDiv.className = "border border-gray-100 rounded p-1.5";
+            const title = document.createElement("div");
+            title.className = "text-[10px] font-bold text-gray-500 uppercase mb-1 px-1";
+            title.textContent = g.group;
+            groupDiv.appendChild(title);
+            g.fields.forEach(f => {
+                const label = document.createElement("label");
+                label.className = "flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-700 hover:text-gray-900 px-1 py-0.5 rounded hover:bg-gray-50";
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.className = "cr-field-cb";
+                cb.value = f.key;
+                cb.checked = crSelectedFields.includes(f.key);
+                cb.onchange = () => crToggleField(f.key);
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(f.label));
+                groupDiv.appendChild(label);
+            });
+            container.appendChild(groupDiv);
+        });
+    });
+}
+
+function crToggleField(key) {
+    const idx = crSelectedFields.indexOf(key);
+    if (idx >= 0) {
+        crSelectedFields.splice(idx, 1);
+    } else {
+        crSelectedFields.push(key);
+    }
+}
+
+function crGetFilterValues() {
+    return {
+        status: document.getElementById("cr_status").value || null,
+        category: document.getElementById("cr_category").value || null,
+        site_id: document.getElementById("cr_site").value ? parseInt(document.getElementById("cr_site").value) : null,
+        department_id: document.getElementById("cr_dept").value ? parseInt(document.getElementById("cr_dept").value) : null,
+        date_from: document.getElementById("cr_date_from").value || null,
+        date_to: document.getElementById("cr_date_to").value || null,
+        date_field: document.getElementById("cr_date_field").value,
+        text_search: document.getElementById("cr_text_search").value || null,
+        cost_min: document.getElementById("cr_cost_min").value ? parseFloat(document.getElementById("cr_cost_min").value) : null,
+        cost_max: document.getElementById("cr_cost_max").value ? parseFloat(document.getElementById("cr_cost_max").value) : null,
+        person_id: document.getElementById("cr_person_id").value ? parseInt(document.getElementById("cr_person_id").value) : null,
+    };
+}
+
+async function crRunReport() {
+    if (crSelectedFields.length === 0) {
+        showToast("Seleccione al menos un campo para el reporte.", "error");
+        return;
+    }
+    const filters = crGetFilterValues();
+    const body = { fields: crSelectedFields, ...filters };
+    const res = await api("/api/custom-reports/run/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) { showToast("Error al generar reporte", "error"); return; }
+    const data = await res.json();
+    crLastResult = data;
+    document.getElementById("crCount").textContent = data.count + " Resultados";
+    const thead = document.getElementById("crResultsHead");
+    const tbody = document.getElementById("crResultsBody");
+    thead.innerHTML = data.headers.map(h => `<th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase whitespace-nowrap">${h}</th>`).join("");
+    if (data.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="' + data.headers.length + '" class="px-3 py-6 text-center text-gray-400 italic">No se encontraron resultados.</td></tr>';
+    } else {
+        tbody.innerHTML = data.data.map(row => {
+            const cells = data.keys.map(k => {
+                let val = row[k];
+                if (val === null || val === undefined) return '<td class="px-3 py-2 text-gray-400">-</td>';
+                const s = String(val);
+                if (s.length > 100) return '<td class="px-3 py-2 text-gray-700 max-w-xs truncate" title="' + escapeHtml(s) + '">' + escapeHtml(s.substring(0, 100)) + '...</td>';
+                return '<td class="px-3 py-2 text-gray-700">' + escapeHtml(s) + '</td>';
+            }).join("");
+            return "<tr class='hover:bg-gray-50/50'>" + cells + "</tr>";
+        }).join("");
+    }
+}
+
+function crClearFilters() {
+    document.getElementById("cr_status").value = "";
+    document.getElementById("cr_category").value = "";
+    document.getElementById("cr_site").value = "";
+    document.getElementById("cr_dept").value = "";
+    document.getElementById("cr_text_search").value = "";
+    document.getElementById("cr_cost_min").value = "";
+    document.getElementById("cr_cost_max").value = "";
+    document.getElementById("cr_date_from").value = "";
+    document.getElementById("cr_date_to").value = "";
+    document.getElementById("cr_date_field").value = "purchase_date";
+    document.getElementById("cr_person_search").value = "";
+    document.getElementById("cr_person_id").value = "";
+}
+
+function crExportCSV() {
+    if (crSelectedFields.length === 0) { showToast("Genere un reporte primero.", "error"); return; }
+    const filters = crGetFilterValues();
+    const params = new URLSearchParams();
+    params.set("fields", crSelectedFields.join(","));
+    Object.entries(filters).forEach(([k, v]) => { if (v !== null && v !== "") params.set(k, v); });
+    const token = getToken();
+    fetch("/api/custom-reports/export-csv/?" + params.toString(), {
+        headers: token ? { "Authorization": "Bearer " + token } : {}
+    }).then(r => {
+        if (!r.ok) { showToast("Error al exportar", "error"); return; }
+        return r.blob();
+    }).then(blob => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = "reporte_personalizado.csv";
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+    });
+}
+
+function crSaveDialog() {
+    if (crSelectedFields.length === 0) { showToast("Seleccione campos para guardar.", "error"); return; }
+    const name = prompt("Nombre del reporte:", crSavedReportId ? "Reporte " + crSavedReportId : "");
+    if (!name) return;
+    const filters = JSON.stringify(crGetFilterValues());
+    const method = crSavedReportId ? "PUT" : "POST";
+    const url = crSavedReportId ? "/api/custom-reports/saved/" + crSavedReportId : "/api/custom-reports/saved/";
+    const body = crSavedReportId
+        ? JSON.stringify({ name, fields: crSelectedFields, filters })
+        : JSON.stringify({ name, fields: crSelectedFields, filters });
+    api(url, { method, headers: { "Content-Type": "application/json" }, body }).then(r => {
+        if (!r.ok) { showToast("Error al guardar", "error"); return; }
+        showToast("Reporte guardado.", "success");
+        crLoadSavedList();
+    });
+}
+
+function crDeleteSaved() {
+    const sel = document.getElementById("crSavedReports");
+    const id = parseInt(sel.value);
+    if (!id) { showToast("Seleccione un reporte guardado.", "error"); return; }
+    if (!confirm("Eliminar este reporte guardado?")) return;
+    api("/api/custom-reports/saved/" + id, { method: "DELETE" }).then(r => {
+        if (!r.ok) { showToast("Error al eliminar", "error"); return; }
+        showToast("Reporte eliminado.", "success");
+        crSavedReportId = null;
+        crLoadSavedList();
+    });
+}
+
+async function crLoadSavedList() {
+    const res = await api("/api/custom-reports/saved/");
+    if (!res.ok) return;
+    const reports = await res.json();
+    const sel = document.getElementById("crSavedReports");
+    sel.innerHTML = '<option value="">-- Seleccione --</option>';
+    reports.forEach(r => {
+        const opt = document.createElement("option");
+        opt.value = r.id;
+        opt.textContent = r.name;
+        sel.appendChild(opt);
+    });
+}
+
+function crLoadFilterDropdowns() {
+    const catSel = document.getElementById("cr_category");
+    const siteSel = document.getElementById("cr_site");
+    const deptSel = document.getElementById("cr_dept");
+    if (catSel && catSel.options.length <= 1) {
+        catSel.innerHTML = '<option value="">-- Todas --</option>';
+        const cats = [...new Set(currentAssets.filter(a => a.category).map(a => a.category))];
+        cats.sort().forEach(c => { catSel.innerHTML += `<option value="${c}">${c}</option>`; });
+    }
+    if (siteSel && siteSel.options.length <= 1) {
+        siteSel.innerHTML = '<option value="">-- Todos --</option>';
+        globalSites.forEach(s => { siteSel.innerHTML += `<option value="${s.id}">${s.site_name}</option>`; });
+    }
+    if (deptSel && deptSel.options.length <= 1) {
+        deptSel.innerHTML = '<option value="">-- Todos --</option>';
+        globalDepartments.forEach(d => { deptSel.innerHTML += `<option value="${d.id}">${d.department_name}</option>`; });
+    }
+}
+
+function initCrPersonAutocomplete() {
+    const input = document.getElementById("cr_person_search");
+    const hidden = document.getElementById("cr_person_id");
+    const results = document.getElementById("cr_person_results");
+    if (!input) return;
+    let timeout = null;
+    input.addEventListener("input", function() {
+        clearTimeout(timeout);
+        const q = this.value.trim();
+        if (q.length < 2) { results.classList.add("hidden"); results.innerHTML = ""; hidden.value = ""; return; }
+        timeout = setTimeout(() => {
+            const filtered = globalPersons.filter(p =>
+                p.full_name.toLowerCase().includes(q.toLowerCase()) ||
+                (p.email && p.email.toLowerCase().includes(q.toLowerCase())) ||
+                (p.employee_id && p.employee_id.toLowerCase().includes(q.toLowerCase()))
+            ).slice(0, 10);
+            if (filtered.length === 0) { results.classList.add("hidden"); results.innerHTML = ""; return; }
+            results.innerHTML = filtered.map(p =>
+                `<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-xs border-b border-gray-100 last:border-0" onclick="crSelectPerson(${p.id},'${escapeHtml(p.full_name)}')">${escapeHtml(p.full_name)} <span class="text-gray-400">(${escapeHtml(p.email)})</span></div>`
+            ).join("");
+            results.classList.remove("hidden");
+        }, 200);
+    });
+    input.addEventListener("blur", function() { setTimeout(() => results.classList.add("hidden"), 200); });
+    input.addEventListener("focus", function() { if (results.innerHTML) results.classList.remove("hidden"); });
+}
+
+function crSelectPerson(id, name) {
+    document.getElementById("cr_person_id").value = id;
+    document.getElementById("cr_person_search").value = name;
+    document.getElementById("cr_person_results").classList.add("hidden");
+}
+
+function crLoadSaved() {
+    const sel = document.getElementById("crSavedReports");
+    const id = parseInt(sel.value);
+    if (!id) { crSavedReportId = null; return; }
+    crSavedReportId = id;
+    api("/api/custom-reports/saved/").then(r => r.ok ? r.json() : []).then(reports => {
+        const r = reports.find(x => x.id === id);
+        if (!r) return;
+        const fields = JSON.parse(r.fields);
+        crSelectedFields = fields;
+        crRunReport();
+        crLoadFields();
+        if (r.filters) {
+            try {
+                const f = JSON.parse(r.filters);
+                document.getElementById("cr_status").value = f.status || "";
+                document.getElementById("cr_category").value = f.category || "";
+                document.getElementById("cr_site").value = f.site_id || "";
+                document.getElementById("cr_dept").value = f.department_id || "";
+                document.getElementById("cr_text_search").value = f.text_search || "";
+                document.getElementById("cr_cost_min").value = f.cost_min || "";
+                document.getElementById("cr_cost_max").value = f.cost_max || "";
+                document.getElementById("cr_date_from").value = f.date_from || "";
+                document.getElementById("cr_date_to").value = f.date_to || "";
+                document.getElementById("cr_date_field").value = f.date_field || "purchase_date";
+                if (f.person_id) {
+                    document.getElementById("cr_person_id").value = f.person_id;
+                }
+            } catch (e) {}
+        }
+    });
 }
 
 async function refreshReconciliation() {

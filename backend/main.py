@@ -11,6 +11,7 @@ import models
 import schemas
 from database import engine, get_db
 from auth import hash_password, verify_password, create_access_token, get_current_admin, require_permission
+from routers.custom_reports import router as custom_reports_router
 
 # Inicializar la base de datos SQLite
 models.Base.metadata.create_all(bind=engine)
@@ -48,6 +49,21 @@ def seed_groups_and_admin():
         if "is_active" not in persons_cols:
             db.execute(text("ALTER TABLE persons ADD COLUMN is_active BOOLEAN DEFAULT 1"))
         db.commit()
+
+        all_tables = inspector.get_table_names()
+        if "saved_reports" not in all_tables:
+            db.execute(text("""
+                CREATE TABLE saved_reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name VARCHAR(200) NOT NULL,
+                    fields TEXT NOT NULL,
+                    filters TEXT,
+                    created_by_id INTEGER REFERENCES admins(id),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            db.commit()
         
         # Crear grupos por defecto si no existen
         default_groups = [
@@ -168,6 +184,8 @@ class SPAStaticFiles(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(SPAStaticFiles)
+
+app.include_router(custom_reports_router)
 
 # ==========================================
 # 1. ENDPOINTS: SITIOS (SITES)

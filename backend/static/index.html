@@ -244,6 +244,10 @@
                                 <svg class="w-3 h-3 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z"/></svg>
                                 <span>Por Departamento</span>
                             </button>
+                            <button data-section="customReports" onclick="showSection('customReports')" class="sidebar-nested-item w-full flex items-center gap-3 px-4 py-2 pl-14 cursor-pointer">
+                                <svg class="w-3 h-3 shrink-0 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0m-9.75 0h9.75"/></svg>
+                                <span>Personalizado</span>
+                            </button>
                         </div>
                         <!-- Historial de Auditoria -->
                         <button data-section="history" onclick="showSection('history')" class="sidebar-sub-item w-full flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer">
@@ -919,6 +923,131 @@
                             <tbody id="deptReportBody" class="bg-white divide-y divide-gray-200 text-xs text-gray-700">
                                 <tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">Cargando...</td></tr>
                             </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- SECTION: REPORTE PERSONALIZADO -->
+                <section id="customReportsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800">Reporte Personalizado</h2>
+                        <div class="flex items-center gap-2">
+                            <span id="crCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Resultados</span>
+                            <button onclick="crExportCSV()" class="text-[11px] bg-green-100 hover:bg-green-200 border border-green-300 px-2.5 py-1 rounded font-bold text-green-800 cursor-pointer">Exportar CSV</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+                        <div class="lg:col-span-3">
+                            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Campos del Reporte (seleccione los que desea incluir)</label>
+                                <div id="crFieldGroups" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 bg-white rounded border border-gray-200">
+                                    <p class="text-xs text-gray-400 italic col-span-full">Cargando campos...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Reportes Guardados</label>
+                                    <select id="crSavedReports" onchange="crLoadSaved()" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                                        <option value="">-- Seleccione --</option>
+                                    </select>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="crSaveDialog()" class="flex-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded cursor-pointer">Guardar</button>
+                                    <button onclick="crDeleteSaved()" class="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded border border-red-300 cursor-pointer">Eliminar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="crFilterPanel" class="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex flex-wrap items-end gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Status</label>
+                                <select id="cr_status" class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="">-- Todos --</option>
+                                    <option value="Available">Available</option>
+                                    <option value="Checkout">Checkout</option>
+                                    <option value="Broken">Broken</option>
+                                    <option value="Under repair">Under repair</option>
+                                    <option value="GarantiaSD">GarantiaSD</option>
+                                    <option value="Reserved">Reserved</option>
+                                    <option value="Lost/Missing">Lost/Missing</option>
+                                    <option value="Dispose">Dispose</option>
+                                    <option value="Sold">Sold</option>
+                                    <option value="Donate">Donate</option>
+                                    <option value="Found">Found</option>
+                                    <option value="Archived">Archived</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categoria</label>
+                                <select id="cr_category" class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="">-- Todas --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sitio</label>
+                                <select id="cr_site" class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="">-- Todos --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Departamento</label>
+                                <select id="cr_dept" class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="">-- Todos --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Empleado</label>
+                                <div class="relative">
+                                    <input type="text" id="cr_person_search" autocomplete="off" placeholder="Nombre o email..." class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <input type="hidden" id="cr_person_id" value="">
+                                    <div id="cr_person_results" class="hidden absolute z-50 top-full left-0 right-0 bg-white border border-gray-200 rounded mt-1 shadow-lg max-h-40 overflow-y-auto"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Texto de busqueda</label>
+                                <input type="text" id="cr_text_search" placeholder="Buscar en campos..." class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Costo Min</label>
+                                <input type="number" id="cr_cost_min" step="0.01" class="w-24 p-2 border border-gray-300 rounded text-xs bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Costo Max</label>
+                                <input type="number" id="cr_cost_max" step="0.01" class="w-24 p-2 border border-gray-300 rounded text-xs bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Fecha por</label>
+                                <select id="cr_date_field" class="w-32 p-2 border border-gray-300 rounded text-xs bg-white">
+                                    <option value="purchase_date">Fecha Compra</option>
+                                    <option value="assigned_date">Fecha Asignacion</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Fecha Desde</label>
+                                <input type="date" id="cr_date_from" class="w-36 p-2 border border-gray-300 rounded text-xs bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Fecha Hasta</label>
+                                <input type="date" id="cr_date_to" class="w-36 p-2 border border-gray-300 rounded text-xs bg-white">
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="crRunReport()" class="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-white text-xs font-bold rounded shadow cursor-pointer">Generar Reporte</button>
+                                <button onclick="crClearFilters()" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded cursor-pointer">Limpiar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr id="crResultsHead"></tr>
+                            </thead>
+                            <tbody id="crResultsBody" class="bg-white divide-y divide-gray-200 text-xs text-gray-700"></tbody>
                         </table>
                     </div>
                 </section>

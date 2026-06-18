@@ -261,3 +261,20 @@ html.dark .sidebar-nested-item.active { border-right-color: #f59e0b; }
     overflow: hidden;
     transition: max-height 0.35s ease;
 }
+
+/* ===== CUSTOM REPORTS ===== */
+#crFieldGroups label:hover {
+    background: #fefce8;
+}
+#crFieldGroups input[type="checkbox"] {
+    accent-color: #d97706;
+}
+/* Filter panel date input sizing */
+#crFilterPanel input[type="date"] {
+    min-height: 34px;
+}
+/* Results table horizontal scroll for many columns */
+#customReportsSection .overflow-x-auto {
+    max-height: 500px;
+    overflow-y: auto;
+}

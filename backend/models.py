@@ -167,3 +167,18 @@ class ReconciliationDepartedAsset(Base):
     person = relationship("Person")
     asset = relationship("Asset")
     cleared_by = relationship("Admin")
+
+# ==========================================
+# 7. REPORTES PERSONALIZADOS GUARDADOS
+# ==========================================
+class SavedReport(Base):
+    __tablename__ = "saved_reports"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    fields = Column(Text, nullable=False)
+    filters = Column(Text, nullable=True)
+    created_by_id = Column(Integer, ForeignKey("admins.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = relationship("Admin")

@@ -2114,59 +2114,107 @@ async function submitNewPending() {
     }
 }
 
+function getCategoryIcon(cat) {
+    var c = cat.toLowerCase();
+    if (/laptop|portatil|notebook/i.test(c)) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M2 17v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2"/><path d="M6 17v-1h12v1"/></svg>';
+    }
+    if (/monitor|pantalla|screen/i.test(c)) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M12 17v4m-4 0h8"/></svg>';
+    }
+    if (/mouse|raton/i.test(c)) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><rect x="5" y="2" width="14" height="20" rx="7"/><path d="M12 6v4"/></svg>';
+    }
+    if (/teclado|keyboard|kbd/i.test(c)) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M10 14h.01M14 14h.01M18 14h.01"/><path d="M8 18h8"/></svg>';
+    }
+    if (/docking|base|hub/i.test(c)) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 20h10m-5-4v4"/></svg>';
+    }
+    if (/tablet|ipad/i.test(c)) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><rect x="4" y="2" width="16" height="20" rx="3"/><circle cx="12" cy="18" r="1"/></svg>';
+    }
+    if (/impresora|printer|print/i.test(c)) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>';
+    }
+    if (/telefono|phone|celular|movil/i.test(c)) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M12 18h.01"/></svg>';
+    }
+    if (/cargador|charger|power|adaptador/i.test(c)) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>';
+    }
+    if (/webcam|camara|camera/i.test(c)) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/><circle cx="8" cy="12" r="3"/></svg>';
+    }
+    if (/audifono|headset|auricular|headphone/i.test(c)) {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>';
+    }
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-6 h-6 shrink-0"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M12 22V12"/><path d="M3.3 7L12 12l8.7-5"/></svg>';
+}
+
 async function loadDeliveryBoard() {
-    const container = document.getElementById("deliveryBoardContainer");
+    var container = document.getElementById("deliveryBoardContainer");
     container.innerHTML = '<p class="text-center text-gray-400 italic py-8">Cargando tablero...</p>';
     try {
-        const res = await api("/deliveries/summary");
+        var res = await api("/deliveries/summary");
         if (!res.ok) throw new Error("Error");
-        const data = await res.json();
-        const totalItems = data.reduce((sum, cat) => sum + cat.total_pending, 0);
-        document.getElementById("deliveryBoardCount").textContent = totalItems + " Items";
+        var data = await res.json();
+        var totalItems = data.reduce(function(sum, cat) { return sum + cat.total_pending; }, 0);
+        document.getElementById("deliveryBoardCount").textContent = totalItems + " Item" + (totalItems !== 1 ? 's' : '');
         container.innerHTML = "";
         if (data.length === 0) {
             container.innerHTML = '<p class="text-center text-gray-400 italic py-8">No hay entregas pendientes activas.</p>';
             return;
         }
-        const palette = [
-            { bg: "bg-blue-50", border: "border-blue-200", title: "text-blue-800" },
-            { bg: "bg-green-50", border: "border-green-200", title: "text-green-800" },
-            { bg: "bg-purple-50", border: "border-purple-200", title: "text-purple-800" },
-            { bg: "bg-amber-50", border: "border-amber-200", title: "text-amber-800" },
-            { bg: "bg-pink-50", border: "border-pink-200", title: "text-pink-800" },
-            { bg: "bg-teal-50", border: "border-teal-200", title: "text-teal-800" },
-            { bg: "bg-indigo-50", border: "border-indigo-200", title: "text-indigo-800" },
-            { bg: "bg-orange-50", border: "border-orange-200", title: "text-orange-800" },
+        var palette = [
+            { bg: "bg-blue-100", border: "border-blue-300", accent: "border-l-blue-500", title: "text-blue-800", btn: "bg-blue-600 hover:bg-blue-700" },
+            { bg: "bg-green-100", border: "border-green-300", accent: "border-l-green-500", title: "text-green-800", btn: "bg-green-600 hover:bg-green-700" },
+            { bg: "bg-purple-100", border: "border-purple-300", accent: "border-l-purple-500", title: "text-purple-800", btn: "bg-purple-600 hover:bg-purple-700" },
+            { bg: "bg-amber-100", border: "border-amber-300", accent: "border-l-amber-500", title: "text-amber-800", btn: "bg-amber-600 hover:bg-amber-700" },
+            { bg: "bg-pink-100", border: "border-pink-300", accent: "border-l-pink-500", title: "text-pink-800", btn: "bg-pink-600 hover:bg-pink-700" },
+            { bg: "bg-teal-100", border: "border-teal-300", accent: "border-l-teal-500", title: "text-teal-800", btn: "bg-teal-600 hover:bg-teal-700" },
+            { bg: "bg-indigo-100", border: "border-indigo-300", accent: "border-l-indigo-500", title: "text-indigo-800", btn: "bg-indigo-600 hover:bg-indigo-700" },
+            { bg: "bg-orange-100", border: "border-orange-300", accent: "border-l-orange-500", title: "text-orange-800", btn: "bg-orange-600 hover:bg-orange-700" },
         ];
-        const wrapper = document.createElement("div");
-        wrapper.className = "grid grid-cols-1 md:grid-cols-2 gap-4";
-        data.forEach((cat, i) => {
-            const c = palette[i % palette.length];
-            const col = document.createElement("div");
-            col.className = "w-full";
-            const pendingCount = cat.total_pending;
-            const availCount = cat.available;
-            col.innerHTML = `
-                <div class="${c.bg} ${c.border} rounded-lg border p-3">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-sm font-bold ${c.title}">${cat.category}</h3>
-                        <span class="text-xs font-bold text-gray-500">${pendingCount} pendiente${pendingCount !== 1 ? 's' : ''}</span>
-                    </div>
-                    <div class="text-xs text-gray-400 mb-2">${availCount} disponible${availCount !== 1 ? 's' : ''} en almacen</div>
-                    <div class="space-y-2 max-h-[500px] overflow-y-auto pr-1">`;
-            cat.employees.forEach(emp => {
-                col.innerHTML += `
-                        <div class="bg-white rounded p-2 border border-gray-200 shadow-sm">
-                            <div class="font-bold text-xs text-gray-700">${emp.person_name}</div>
-                            <div class="text-[10px] text-gray-400">${emp.pending} pendiente${emp.pending !== 1 ? 's' : ''}</div>
-                            ${emp.notes ? `<div class="text-[10px] text-gray-400 italic mt-1">${emp.notes}</div>` : ''}
-                            <div class="flex gap-1 mt-2">
-                                <button onclick="openFulfillModal(${emp.delivery_id}, '${cat.category}', '${emp.person_name}')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors cursor-pointer" ${availCount === 0 ? 'disabled' : ''}>Asignar</button>
-                                <button onclick="cancelPending(${emp.delivery_id})" class="bg-red-100 hover:bg-red-200 text-red-700 text-[10px] font-bold py-1 px-2 rounded border border-red-300 transition-colors cursor-pointer">Cancelar</button>
-                            </div>
-                        </div>`;
+        var wrapper = document.createElement("div");
+        wrapper.className = "grid grid-cols-1 md:grid-cols-2 gap-5";
+        data.forEach(function(cat, i) {
+            var c = palette[i % palette.length];
+            var iconSvg = getCategoryIcon(cat.category);
+            var pendingCount = cat.total_pending;
+            var availCount = cat.available;
+            var escName = function(s) { return (s || "").replace(/'/g, "\\'"); };
+            var cardHtml = '<div class="' + c.bg + ' ' + c.border + ' ' + c.accent + ' rounded-lg border shadow-md p-4">';
+            cardHtml += '<div class="flex items-start gap-3 mb-3">';
+            cardHtml += '<div class="text-gray-600 shrink-0 mt-0.5">' + iconSvg + '</div>';
+            cardHtml += '<div class="flex-1 min-w-0">';
+            cardHtml += '<div class="flex justify-between items-start gap-2">';
+            cardHtml += '<h3 class="text-base font-bold ' + c.title + ' truncate">' + cat.category + '</h3>';
+            cardHtml += '<span class="text-xs font-bold text-gray-600 whitespace-nowrap shrink-0 bg-white/60 px-2 py-0.5 rounded">' + pendingCount + ' pendiente' + (pendingCount !== 1 ? 's' : '') + '</span>';
+            cardHtml += '</div>';
+            cardHtml += '<div class="text-xs text-gray-500 mt-0.5">' + availCount + ' disponible' + (availCount !== 1 ? 's' : '') + ' en almacen</div>';
+            cardHtml += '</div></div>';
+            cardHtml += '<div class="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">';
+            cat.employees.forEach(function(emp) {
+                var safePerson = escName(emp.person_name);
+                var safeCat = escName(cat.category);
+                cardHtml += '<div class="bg-white rounded-lg p-3 border border-gray-200 shadow-sm border-l-2 border-l-gray-300">';
+                cardHtml += '<div class="flex justify-between items-start">';
+                cardHtml += '<span class="text-sm font-bold text-gray-800">' + emp.person_name + '</span>';
+                cardHtml += '<span class="text-xs font-bold text-gray-500 whitespace-nowrap ml-2">' + emp.pending + ' pendiente' + (emp.pending !== 1 ? 's' : '') + '</span>';
+                cardHtml += '</div>';
+                if (emp.notes) {
+                    cardHtml += '<div class="text-xs text-gray-400 italic mt-1.5">' + emp.notes + '</div>';
+                }
+                cardHtml += '<div class="flex gap-1.5 mt-2.5">';
+                cardHtml += '<button onclick=\'openFulfillModal(' + emp.delivery_id + ',"' + safeCat + '","' + safePerson + '")\' class="flex-1 ' + c.btn + ' text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm transition-colors cursor-pointer"' + (availCount === 0 ? ' disabled' : '') + '>Asignar</button>';
+                cardHtml += '<button onclick="cancelPending(' + emp.delivery_id + ')" class="bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold py-1.5 px-3 rounded border border-red-300 transition-colors cursor-pointer">Cancelar</button>';
+                cardHtml += '</div></div>';
             });
-            col.innerHTML += `</div></div>`;
+            cardHtml += '</div></div>';
+            var col = document.createElement("div");
+            col.className = "w-full";
+            col.innerHTML = cardHtml;
             wrapper.appendChild(col);
         });
         container.appendChild(wrapper);

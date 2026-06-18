@@ -1,0 +1,2 @@
+Usuario 'derby_admin' detectado. Contrasena restablecida en: admin123
+INFO:     127.0.0.1:35159 - "POST /api/custom-reports/run/ HTTP/1.1" 200 OK

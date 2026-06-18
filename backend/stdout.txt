@@ -1,0 +1,1 @@
+Usuario 'derby_admin' detectado. Contrasena restablecida en: admin123

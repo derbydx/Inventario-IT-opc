@@ -13,6 +13,7 @@ Asset management system with multi-user access, role-based permissions, secure l
 - CSV export for filtered views
 - Status reports and checkout history
 - Dashboard with category breakdown and recent activity
+- Custom reports with dynamic field selection and saved presets
 
 ## Tech Stack
 
@@ -24,22 +25,36 @@ Asset management system with multi-user access, role-based permissions, secure l
 
 ## Quick Start
 
-### Local
+### Docker (recommended)
+
+Requirements: Docker Desktop (Windows) or Docker Engine (Linux).
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # Windows: .\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-cd backend
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+docker compose up -d --build
 ```
 
 Open http://localhost:8000 in your browser.
 
-### Docker
+The container restarts automatically on boot if Docker Desktop is set to launch at login (enabled by default). To stop:
 
 ```bash
-docker compose up -d
+docker compose down
+```
+
+To view logs:
+
+```bash
+docker compose logs -f
+```
+
+### Local (without Docker)
+
+```bash
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+cd backend
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Open http://localhost:8000.
@@ -52,12 +67,30 @@ Open http://localhost:8000.
 
 The admin account and default groups are seeded automatically on every startup.
 
-## Deployment
-
-PythonAnywhere Free plan is supported via the `WebProduction` branch with a `deploy_pa.py` scheduled task.
-
 ## Branches
 
 - `prueba` -- active development
 - `main` -- stable releases
 - `WebProduction` -- PythonAnywhere deployment
+
+## Project Structure
+
+```
+backend/
+  main.py              FastAPI app entry point
+  database.py          SQLAlchemy engine and session
+  models.py            Database models
+  schemas.py           Pydantic schemas
+  auth.py              JWT authentication and hashing
+  seed.py              Default data seeding
+  routers/             API route modules
+  static/              Frontend (HTML, CSS, JS)
+  it_inventario.db     SQLite database file
+Dockerfile             Docker image definition
+docker-compose.yml     Docker service configuration
+requirements.txt       Python packages
+```
+
+## Recovery
+
+If this folder is lost, see `RECOVERY_PLAN.md` for step-by-step instructions to restore the application from GitHub.

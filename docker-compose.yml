@@ -5,8 +5,5 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - inventario-data:/app/backend
+      - ./backend/it_inventario.db:/app/backend/it_inventario.db
     restart: unless-stopped
-
-volumes:
-  inventario-data:

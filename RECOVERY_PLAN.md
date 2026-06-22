@@ -1,77 +1,78 @@
 # Recovery Plan
 
-Instructions to restore Inventario IT from scratch if this folder is lost.
+Instrucciones para restaurar Inventario IT desde cero si esta carpeta se pierde.
 
-## Prerequisites
+## Requisitos
 
-- GitHub account with access to the repository
-- Git installed
-- Docker Desktop installed (or Python 3.12+ if running locally)
+- Git instalado
+- Docker Desktop instalado
+- Acceso al repositorio en GitHub
 
-## Step 1: Clone the repository
+## Restaurar desde GitHub
 
 ```bash
-git clone https://github.com/derbydx/Inventario-it.git
-cd Inventario-it
+git clone https://github.com/derbydx/Inventario-IT-opc.git
+cd Inventario-IT-opc
 ```
 
-Branches available:
-
-- `main` -- stable release
-- `prueba` -- latest development
-
-To switch to development branch:
+Por defecto quedas en la rama `main` (estable). Para la version de desarrollo:
 
 ```bash
 git checkout prueba
 ```
 
-## Step 2: Start the application
-
-### Option A: Docker (recommended)
+## Iniciar con Docker
 
 ```bash
 docker compose up -d --build
 ```
 
-Open http://localhost:8000.
+Abrir http://localhost:3131.
 
-### Option B: Local
+## Recuperar la base de datos
 
-```bash
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-cd backend
-uvicorn main:app --reload --host 127.0.0.1 --port 8000
+La base de datos (`backend/it_inventario.db`) no esta en GitHub porque contiene datos reales.
+
+Si tienes un backup del archivo `.db`:
+
+1. Coloca `it_inventario.db` dentro de la carpeta `backend/`
+2. Ejecuta `docker compose up -d --build`
+3. La app usa los datos del backup inmediatamente
+
+Si no tienes backup:
+
+1. Inicia la app -- se crea una base de datos vacia automaticamente
+2. Entra con `derby_admin` / `admin123`
+3. Re-importa activos y empleados desde Excel usando la interfaz
+
+## Como funciona el volumen
+
+El archivo `docker-compose.yml` monta la base de datos asi:
+
+```yaml
+volumes:
+  - ./backend/it_inventario.db:/app/backend/it_inventario.db
 ```
 
-## Step 3: Log in
+Esto mantiene los datos en tu PC (no dentro del contenedor). Puedes detener, borrar y recrear el contenedor sin perder informacion.
 
-- Username: `derby_admin`
-- Password: `admin123`
+## Respaldos recomendados
 
-The database is seeded with default groups and admin account on first run. If the database file is missing, it will be created automatically.
+- Copia `backend/it_inventario.db` a un USB, Google Drive o OneDrive periodicamente
+- Usa la exportacion a Excel desde la vista de Activos como respaldo portatil
+- Antes de cambios grandes, deten el contenedor con `docker compose down` y copia la base de datos
 
-## Data Recovery
+## Auto-arranque en Windows
 
-The SQLite database (`backend/it_inventario.db`) is not stored in GitHub. If lost:
+1. Abre Docker Desktop
+2. Settings > General > "Start Docker Desktop when you sign in"
+3. El contenedor tiene `restart: unless-stopped` -- arranca solo cuando Docker Desktop se inicie
 
-1. Start the application -- a fresh empty database is created automatically
-2. Log in with the default credentials above
-3. Re-import assets and employees via the Excel import feature in the UI
+## Comandos utiles
 
-If you have a database backup (`.db` file), place it at `backend/it_inventario.db` before starting the application.
-
-## Backup Recommendations
-
-- Periodically copy `backend/it_inventario.db` to a safe location (external drive, cloud storage)
-- Use Excel export from the Assets view as a portable backup format
-- Before major changes, stop the container and copy the database
-
-## Container Auto-Start on Windows
-
-1. Open Docker Desktop
-2. Go to Settings > General
-3. Ensure "Start Docker Desktop when you sign in" is checked
-4. The container has `restart: unless-stopped` configured -- it starts automatically when Docker Desktop launches
+```bash
+docker compose logs -f        # ver logs en vivo
+docker compose down           # detener el contenedor
+docker compose up -d          # iniciar de nuevo
+docker compose up -d --build  # reconstruir la imagen e iniciar
+```

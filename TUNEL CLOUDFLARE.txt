@@ -7,7 +7,7 @@ Ya puedes acceder desde cualquier dispositivo con internet.
 Para uso futuro
 Crea un acceso directo con este script (iniciar-tunel.ps1):
 
-cloudflared tunnel --url http://localhost:8000
+cloudflared tunnel --url http://localhost:3131
 Comandos utiles
 # Ver si el tunel sigue corriendo
 Get-Job | Where-Object { $_.Name -like "*cloudflared*" }
@@ -23,9 +23,9 @@ El problema es que Start-Job no mantiene procesos largos de forma confiable. La 
 
 Abre una nueva terminal de PowerShell (Windows Terminal, o PowerShell ISE) y ejecuta:
 
-C:\Users\Tau0\AppData\Local\cloudflared\cloudflared.exe tunnel --url http://localhost:8000
+C:\Users\Tau0\AppData\Local\cloudflared\cloudflared.exe tunnel --url http://localhost:3131
 Dejala abierta. La URL nueva aparecera en pantalla. Esa terminal debe quedarse abierta mientras quieras que el tunel funcione.
 
 Si quieres automatizarlo para no tener que acordarte del path, ya lo agregue a tu PATH de usuario. En terminales nuevas puedes usar directamente:
 
-cloudflared tunnel --url http://localhost:8000
+cloudflared tunnel --url http://localhost:3131

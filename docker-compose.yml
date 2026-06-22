@@ -3,7 +3,7 @@ services:
     build: .
     container_name: inventario-it
     ports:
-      - "8000:8000"
+      - "3131:8000"
     volumes:
       - ./backend/it_inventario.db:/app/backend/it_inventario.db
     restart: unless-stopped

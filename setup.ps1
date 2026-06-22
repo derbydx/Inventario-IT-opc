@@ -67,7 +67,7 @@ if (Test-Path $CfPath) {
 $Python = Join-Path $Venv "Scripts\python.exe"
 $Main = Join-Path $Backend "main.py"
 $Host = "0.0.0.0"
-$Port = 8000
+$Port = 3131
 
 Write-Host ""
 Write-Host "Iniciando servidor en http://$($Host):$($Port)" -ForegroundColor Cyan

@@ -33,7 +33,7 @@ Requirements: Docker Desktop (Windows) or Docker Engine (Linux).
 docker compose up -d --build
 ```
 
-Open http://localhost:8000 in your browser.
+Open http://localhost:3131 in your browser.
 
 The container restarts automatically on boot if Docker Desktop is set to launch at login (enabled by default). To stop:
 
@@ -54,10 +54,10 @@ python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 cd backend
-uvicorn main:app --reload --host 127.0.0.1 --port 8000
+uvicorn main:app --reload --host 127.0.0.1 --port 3131
 ```
 
-Open http://localhost:8000.
+Open http://localhost:3131.
 
 ## Default Credentials
 

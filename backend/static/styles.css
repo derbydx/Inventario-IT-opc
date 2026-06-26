@@ -220,6 +220,13 @@ input[type="checkbox"].custom-checkbox:hover { border-color: #d97706; }
 .text-xxs { font-size: 0.625rem; }
 .transition-fast { transition: all 0.15s ease; }
 
+/* Top bar */
+#topBar { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+
+/* Search results table */
+#searchResultsBody table tbody tr:nth-child(even) { background: rgba(249, 250, 251, 0.7); }
+#searchResultsBody table thead th { font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.6875rem; color: #6b7280; background: #f9fafb; }
+
 /* Sidebar dark mode adjustments for amber accent */
 html.dark .sidebar-item.active { border-right-color: #f59e0b; }
 html.dark .sidebar-sub-item.active { border-right-color: #f59e0b; }

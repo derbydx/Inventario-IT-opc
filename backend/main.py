@@ -318,8 +318,22 @@ def create_person(person: schemas.PersonCreate, db: Session = Depends(get_db), a
     return nueva_persona
 
 @app.get("/persons/", response_model=List[schemas.PersonResponse], tags=["Directorio de Personal"])
-def list_persons(db: Session = Depends(get_db)):
-    return db.query(models.Person).all()
+def list_persons(
+    search: str = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Person)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            models.Person.full_name.like(like) |
+            models.Person.email.like(like) |
+            models.Person.employee_id.like(like) |
+            models.Person.title.like(like) |
+            models.Person.phone.like(like) |
+            models.Person.notes.like(like)
+        )
+    return query.all()
 
 @app.put("/persons/{person_id}", response_model=schemas.PersonResponse, tags=["Directorio de Personal"])
 def update_person(person_id: int, person: schemas.PersonUpdate, db: Session = Depends(get_db), admin: models.Admin = Depends(require_permission("can_edit"))):
@@ -578,17 +592,75 @@ def asset_checkin(asset_id: int, nuevo_estado: str = "Available", notas: str = N
     db.refresh(asset)
     return {"message": f"Asset {asset.asset_tag_id} recibido exitosamente", "asset_status": asset.status}
 
+@app.post("/assets/{asset_id}/status", tags=["Acciones de Inventario"])
+def change_asset_status(asset_id: int, body: schemas.AssetStatusUpdate, db: Session = Depends(get_db), current_admin: models.Admin = Depends(require_permission("can_edit"))):
+    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+
+    estado_anterior = asset.status
+    repair_statuses = ("Under repair", "GarantiaSD")
+
+    if body.status in repair_statuses:
+        asset.repair_reason = body.repair_reason
+        asset.repair_left_by_id = body.repair_left_by_id
+        asset.repair_technician_id = body.repair_technician_id
+    elif estado_anterior in repair_statuses:
+        asset.repair_reason = None
+        asset.repair_left_by_id = None
+        asset.repair_technician_id = None
+
+    if body.status != "Checkout":
+        if asset.person_id is not None:
+            asset.ultimo_asignado_id = asset.person_id
+        asset.person_id = None
+
+    asset.status = body.status
+
+    registro_historial = models.History(
+        asset_id=asset.id,
+        asignado_a_id=None,
+        realizado_por_id=current_admin.id,
+        tipo_accion=body.status,
+        estado_anterior=estado_anterior,
+        estado_nuevo=body.status,
+        notas_detalle=body.notas or f"Status cambiado de {estado_anterior} a {body.status}"
+    )
+
+    db.add(registro_historial)
+    db.commit()
+    db.refresh(asset)
+    return {"message": f"Asset {asset.asset_tag_id} actualizado a {body.status}", "asset_status": asset.status}
+
 @app.get("/history/", response_model=List[schemas.HistoryResponse], tags=["Acciones de Inventario"])
 def view_history(
+    search: str = None,
     skip: int = 0,
     limit: int = 200,
     db: Session = Depends(get_db)
 ):
-    return db.query(models.History).order_by(models.History.id.desc()).offset(skip).limit(limit).all()
+    query = db.query(models.History)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            models.History.tipo_accion.like(like) |
+            models.History.notas_detalle.like(like)
+        )
+    return query.order_by(models.History.id.desc()).offset(skip).limit(limit).all()
 
 @app.get("/history/count/", tags=["Acciones de Inventario"])
-def count_history(db: Session = Depends(get_db)):
-    return {"count": db.query(models.History).count()}
+def count_history(
+    search: str = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.History)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            models.History.tipo_accion.like(like) |
+            models.History.notas_detalle.like(like)
+        )
+    return {"count": query.count()}
 
 # ==========================================
 # 9. EDICIÓN Y ELIMINACIÓN (SOFT DELETE)

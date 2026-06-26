@@ -85,6 +85,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPasswordFormListener();
     setupUserFormListener();
     setupGroupFormListener();
+    setupStatusChangeFormListener();
+    initScRepairAutocompletes();
     initCrPersonAutocomplete();
     const sortHeaderRow = document.querySelector("#assetsSection thead tr");
     if (sortHeaderRow) {
@@ -92,6 +94,18 @@ document.addEventListener("DOMContentLoaded", () => {
             const th = e.target.closest("th[data-sort]");
             if (th) sortAssetsBy(th.getAttribute("data-sort"));
         });
+    }
+
+    document.addEventListener("click", function(e) {
+        const container = document.getElementById("actionsDropdownContainer");
+        if (container && !container.contains(e.target)) {
+            document.getElementById("page_actions_dropdown")?.classList.add("hidden");
+        }
+    });
+
+    window.addEventListener("hashchange", handleHashChange);
+    if (window.location.hash) {
+        handleHashChange();
     }
 });
 
@@ -392,99 +406,23 @@ async function loadAssets() {
     } catch (e) { tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>'; }
 }
 
-async function openDetailsModal(assetId) {
-    let asset;
-    try {
-        const res = await api(`/assets/${assetId}`);
-        if (res.ok) asset = await res.json();
-    } catch (e) {}
-    if (!asset) return;
+function getHistoryBadgeClass(action) {
+    const map = {
+        "Checkout": "bg-blue-100 text-blue-800",
+        "Check in": "bg-amber-100 text-amber-800",
+        "Archived": "bg-red-100 text-red-800",
+        "Dispose": "bg-red-100 text-red-800",
+        "Donate": "bg-red-100 text-red-800",
+        "Sold": "bg-red-100 text-red-800",
+        "Under repair": "bg-amber-100 text-amber-800",
+        "GarantiaSD": "bg-amber-100 text-amber-800",
+        "Reserved": "bg-purple-100 text-purple-800"
+    };
+    return map[action] || "bg-gray-100 text-gray-800";
+}
 
-    document.getElementById("assetSpecificHistoryWrapper").classList.add("hidden");
-    document.getElementById("historyToggleIcon").innerText = "Mostrar";
-
-    const siteObj = globalSites.find(s => s.id === asset.site_id);
-    const employeeObj = globalPersons.find(p => p.id === asset.person_id);
-
-    document.getElementById("detailsTag").innerText = `Asset Tag ID: ${asset.asset_tag_id}`;
-    document.getElementById("det_description").innerText = asset.asset_description;
-    document.getElementById("det_brand_model").innerText = `${asset.brand} - ${asset.model}`;
-    document.getElementById("det_serial").innerText = asset.serial_no;
-    
-    document.getElementById("det_category").innerText = asset.category || "-";
-    
-    const statusElement = document.getElementById("det_status");
-    let badgeColor = "bg-gray-100 text-gray-800"; 
-
-    if (asset.status === "Available" || asset.status === "Found") {
-        badgeColor = "bg-green-100 text-green-800";
-    } else if (asset.status === "Checkout") {
-        badgeColor = "bg-blue-100 text-blue-800"; 
-    } else if (asset.status === "Broken" || asset.status === "Lost/Missing" || asset.status === "Dispose") {
-        badgeColor = "bg-red-100 text-red-800"; 
-    } else if (asset.status === "Under repair" || asset.status === "GarantiaSD") {
-        badgeColor = "bg-amber-100 text-amber-800"; 
-    } else if (asset.status === "Reserved") {
-        badgeColor = "bg-purple-100 text-purple-800";
-    }
-
-    statusElement.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeColor}">${asset.status}</span>`;
-
-    const containerAsignado = document.getElementById("det_assigned_container");
-    if (asset.status === "Checkout" && employeeObj) {
-        containerAsignado.innerHTML = `
-            <button onclick="openUserAssetsModal('${employeeObj.id}', '${employeeObj.full_name}')" class="w-full text-left bg-blue-50 border border-blue-200 rounded p-2 text-blue-700 font-semibold hover:bg-blue-100 transition-colors cursor-pointer block flex justify-between items-center">
-                <span>${employeeObj.full_name} (${employeeObj.title || 'Personal'})</span>
-                <span class="text-[10px] bg-blue-600 text-white font-bold py-0.5 px-1.5 rounded uppercase tracking-wide">Ver Asignados </span>
-            </button>`;
-    } else if (asset.status !== "Checkout") {
-        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded mb-2">Status: ${asset.status}</p><button onclick="closeDetailsModal();openModal('${asset.id}','${asset.asset_tag_id}','checkout')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow transition-colors cursor-pointer">Realizar Check-out</button>`;
-    } else {
-        containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded">Disponible en Almacen</p>`;
-    }
-
-    var repairBlock = document.getElementById("det_repair_block");
-    if (asset.status === "Under repair" || asset.status === "GarantiaSD") {
-        repairBlock.classList.remove("hidden");
-        document.getElementById("det_repair_reason").innerText = asset.repair_reason || "-";
-        var leftPerson = globalPersons.find(function (p) { return p.id === asset.repair_left_by_id; });
-        document.getElementById("det_repair_left_by").innerText = leftPerson ? leftPerson.full_name + " (" + leftPerson.employee_id + ")" : "-";
-        var tech = globalAdmins.find(function (a) { return a.id === asset.repair_technician_id; });
-        document.getElementById("det_repair_technician").innerText = tech ? tech.username : "-";
-        var ultimoUser = globalPersons.find(function (p) { return p.id === asset.ultimo_asignado_id; });
-        document.getElementById("det_ultimo_asignado").innerText = ultimoUser ? ultimoUser.full_name + " (" + ultimoUser.employee_id + ")" : "-";
-    } else {
-        repairBlock.classList.add("hidden");
-    }
-
-    document.getElementById("btn_delete_asset").onclick = () => triggerDeleteAsset(asset.id, asset.asset_tag_id);
-    document.getElementById("btn_edit_asset").onclick = () => openEditAssetModal(asset.id);
-
-    const historyBody = document.getElementById("assetSpecificHistoryBody");
-    historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">Buscando...</td></tr>`;
-
-    try {
-        const response = await api("/history/");
-        if (response.ok) {
-            const allHistory = await response.json();
-            const specificHistory = allHistory.filter(h => h.asset_id === asset.id);
-            historyBody.innerHTML = "";
-            if (specificHistory.length === 0) {
-                historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-3 text-center text-gray-400 italic">Sin movimientos registrados.</td></tr>`;
-            } else {
-                specificHistory.reverse();
-                specificHistory.forEach(item => {
-                    const row = document.createElement("tr");
-                    const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
-                    let actionClass = item.tipo_accion === "Checkout" ? "text-blue-600 font-bold" : (item.tipo_accion === "Archived" ? "text-red-600 font-bold" : "text-amber-600 font-bold");
-                    row.innerHTML = `<td class="px-3 py-1.5 text-gray-400 text-[11px]">${fecha}</td><td class="px-3 py-1.5 uppercase ${actionClass}">${item.tipo_accion}</td><td class="px-3 py-1.5 text-gray-500">Admin_${item.realizado_por_id}</td><td class="px-3 py-1.5 text-gray-700 italic">${item.notas_detalle || '-'}</td>`;
-                    historyBody.appendChild(row);
-                });
-            }
-        }
-    } catch (e) { console.error(e); }
-
-    document.getElementById("detailsModal").classList.remove("hidden");
+function openDetailsModal(assetId) {
+    window.location.hash = "asset/" + assetId;
 }
 
 function closeDetailsModal() { document.getElementById("detailsModal").classList.add("hidden"); }
@@ -494,6 +432,317 @@ function toggleSpecificHistory() {
     const icon = document.getElementById("historyToggleIcon");
     if (wrapper.classList.contains("hidden")) { wrapper.classList.remove("hidden"); icon.innerText = "Ocultar"; } 
     else { wrapper.classList.add("hidden"); icon.innerText = "Mostrar"; }
+}
+
+async function renderAssetDetail(assetId) {
+    let asset;
+    try {
+        const res = await api(`/assets/${assetId}`);
+        if (res.ok) asset = await res.json();
+    } catch (e) {}
+    if (!asset) { showSection('assets'); return; }
+
+    document.getElementById("page_detailsTitle").innerHTML = `Hoja de Vida del Activo <span class="text-blue-600">#${escapeHtml(asset.asset_tag_id)}</span>`;
+    document.getElementById("page_detailsTag").innerText = `Asset Tag ID: ${asset.asset_tag_id}`;
+    document.getElementById("page_description").innerText = asset.asset_description;
+    document.getElementById("page_brand_model").innerText = `${asset.brand} - ${asset.model}`;
+    document.getElementById("page_serial").innerText = asset.serial_no;
+    document.getElementById("page_category").innerText = asset.category || "-";
+
+    const statusElement = document.getElementById("page_status");
+    let badgeColor = "bg-gray-100 text-gray-800";
+    if (asset.status === "Available" || asset.status === "Found") {
+        badgeColor = "bg-green-100 text-green-800";
+    } else if (asset.status === "Checkout") {
+        badgeColor = "bg-blue-100 text-blue-800";
+    } else if (asset.status === "Broken" || asset.status === "Lost/Missing" || asset.status === "Dispose") {
+        badgeColor = "bg-red-100 text-red-800";
+    } else if (asset.status === "Under repair" || asset.status === "GarantiaSD") {
+        badgeColor = "bg-amber-100 text-amber-800";
+    } else if (asset.status === "Reserved") {
+        badgeColor = "bg-purple-100 text-purple-800";
+    }
+    statusElement.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeColor}">${asset.status}</span>`;
+
+    const employeeObj = globalPersons.find(p => p.id === asset.person_id);
+    const containerAsignado = document.getElementById("page_assigned_container");
+    if (asset.status === "Checkout" && employeeObj) {
+        const safeName = escapeHtml(employeeObj.full_name);
+        const onClickName = employeeObj.full_name.replace(/'/g, "\\'");
+        containerAsignado.innerHTML = `
+            <button onclick="openUserAssetsModal(${employeeObj.id}, '${onClickName}')" class="w-full text-left bg-blue-50 border border-blue-200 rounded p-2 text-blue-700 font-semibold hover:bg-blue-100 transition-colors cursor-pointer block flex justify-between items-center">
+                <span>${safeName} (${employeeObj.title || 'Personal'})</span>
+                <span class="text-[10px] bg-blue-600 text-white font-bold py-0.5 px-1.5 rounded uppercase tracking-wide">Ver Asignados </span>
+            </button>`;
+    } else if (asset.status !== "Checkout") {
+        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded mb-2">Status: ${escapeHtml(asset.status)}</p><button onclick="closeAssetDetail();openModal('${asset.id}','${asset.asset_tag_id}','checkout')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow transition-colors cursor-pointer">Realizar Check-out</button>`;
+    } else {
+        containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded">Disponible en Almacen</p>`;
+    }
+
+    var repairBlock = document.getElementById("page_repair_block");
+    if (asset.status === "Under repair" || asset.status === "GarantiaSD") {
+        repairBlock.classList.remove("hidden");
+        document.getElementById("page_repair_reason").innerText = asset.repair_reason || "-";
+        var leftPerson = globalPersons.find(function (p) { return p.id === asset.repair_left_by_id; });
+        document.getElementById("page_repair_left_by").innerText = leftPerson ? leftPerson.full_name + " (" + leftPerson.employee_id + ")" : "-";
+        var tech = globalAdmins.find(function (a) { return a.id === asset.repair_technician_id; });
+        document.getElementById("page_repair_technician").innerText = tech ? tech.username : "-";
+        var ultimoUser = globalPersons.find(function (p) { return p.id === asset.ultimo_asignado_id; });
+        document.getElementById("page_ultimo_asignado").innerText = ultimoUser ? ultimoUser.full_name + " (" + ultimoUser.employee_id + ")" : "-";
+    } else {
+        repairBlock.classList.add("hidden");
+    }
+
+    document.getElementById("page_btn_delete_asset").onclick = () => triggerDeleteAsset(asset.id, asset.asset_tag_id);
+    document.getElementById("page_btn_edit_asset").onclick = () => openEditAssetModal(asset.id);
+
+    const historyBody = document.getElementById("page_assetSpecificHistoryBody");
+    historyBody.innerHTML = `<tr><td colspan="5" class="px-3 py-4 text-center text-gray-400 italic">Buscando...</td></tr>`;
+
+    try {
+        const response = await api("/history/");
+        if (response.ok) {
+            const allHistory = await response.json();
+            const specificHistory = allHistory.filter(h => h.asset_id === asset.id);
+            historyBody.innerHTML = "";
+            if (specificHistory.length === 0) {
+                historyBody.innerHTML = `<tr><td colspan="5" class="px-3 py-3 text-center text-gray-400 italic">Sin movimientos registrados.</td></tr>`;
+            } else {
+                specificHistory.reverse();
+                let historyHtml = "";
+                specificHistory.forEach(item => {
+                    const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
+                    const badgeClass = getHistoryBadgeClass(item.tipo_accion);
+                    const actionBadgeHtml = `<span class="px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${badgeClass}">${escapeHtml(item.tipo_accion)}</span>`;
+
+                    const person = item.asignado_a_id ? globalPersons.find(p => p.id === item.asignado_a_id) : null;
+                    let personHtml;
+                    if (person) {
+                        const safeName = escapeHtml(person.full_name);
+                        const onClickName = person.full_name.replace(/'/g, "\\'");
+                        personHtml = `<span onclick="openUserAssetsModal(${person.id}, '${onClickName}')" class="text-blue-600 hover:underline font-medium cursor-pointer">${safeName}</span>`;
+                    } else if (item.asignado_a_id) {
+                        personHtml = `<span class="text-gray-400 italic">ID: ${item.asignado_a_id}</span>`;
+                    } else {
+                        personHtml = `<span class="text-gray-400 italic">Almacen</span>`;
+                    }
+
+                    const admin = globalAdmins.find(a => a.id === item.realizado_por_id);
+                    const operatorName = admin ? escapeHtml(admin.username) : `Admin_${item.realizado_por_id}`;
+
+                    let detailHtml;
+                    if (item.notas_detalle) {
+                        const escapedDetail = escapeHtml(item.notas_detalle);
+                        const onClickDetail = item.notas_detalle.replace(/'/g, "\\'");
+                        detailHtml = `<span class="cursor-pointer text-blue-600 underline decoration-dotted hover:text-blue-800" title="${escapedDetail}" onclick="showDetailModal('${onClickDetail}')">${escapedDetail}</span>`;
+                    } else {
+                        detailHtml = `<span class="text-gray-300 italic">-</span>`;
+                    }
+
+                    historyHtml += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 font-mono text-[11px] text-gray-500 whitespace-nowrap">${fecha}</td>
+                        <td class="px-4 py-3">${actionBadgeHtml}</td>
+                        <td class="px-4 py-3 text-sm">${personHtml}</td>
+                        <td class="px-4 py-3 text-xs text-gray-600">${operatorName}</td>
+                        <td class="px-4 py-3 text-xs text-gray-500 italic max-w-[200px] truncate">${detailHtml}</td>
+                    </tr>`;
+                });
+                historyBody.innerHTML = historyHtml;
+            }
+        }
+    } catch (e) { console.error(e); }
+
+    populateActionsDropdown(asset.status);
+    showSection('assetDetail');
+}
+
+function closeAssetDetail() {
+    window.location.hash = "";
+    showSection('assets');
+}
+
+function handleHashChange() {
+    const hash = window.location.hash.replace("#", "");
+    if (hash.startsWith("asset/")) {
+        const assetId = parseInt(hash.split("/")[1]);
+        if (!isNaN(assetId)) {
+            renderAssetDetail(assetId);
+        }
+    }
+}
+
+function populateActionsDropdown(currentStatus) {
+    const allStatuses = ["Checkout", "Available", "Broken", "Under repair", "GarantiaSD", "Reserved", "Lost/Missing", "Found", "Dispose", "Donate", "Sold"];
+    const ul = document.getElementById("page_actions_dropdown");
+    ul.innerHTML = "";
+    allStatuses.forEach(s => {
+        const li = document.createElement("li");
+        li.className = "px-3 py-2 hover:bg-gray-100 cursor-pointer";
+        if (s === currentStatus) {
+            li.className = "px-3 py-2 text-gray-300 italic cursor-not-allowed";
+            li.textContent = s + " (actual)";
+        } else {
+            const assetId = parseInt(window.location.hash.replace("#asset/", ""));
+            li.textContent = s;
+            li.onclick = () => { document.getElementById("page_actions_dropdown").classList.add("hidden"); changeAssetStatus(assetId, s); };
+        }
+        ul.appendChild(li);
+    });
+}
+
+function toggleActionsDropdown() {
+    const dd = document.getElementById("page_actions_dropdown");
+    dd.classList.toggle("hidden");
+}
+
+function changeAssetStatus(assetId, newStatus) {
+    if (newStatus === "Checkout") {
+        const tagEl = document.getElementById("page_detailsTag");
+        const tagText = tagEl ? tagEl.innerText.replace("Asset Tag ID: ", "") : "ID:" + assetId;
+        openModal(assetId, tagText, "checkout");
+        return;
+    }
+    document.getElementById("sc_asset_id").value = assetId;
+    document.getElementById("sc_new_status").value = newStatus;
+    document.getElementById("statusChangeModalTitle").innerText = "Cambiar a " + newStatus;
+    const assetTag = document.getElementById("page_detailsTag");
+    document.getElementById("sc_asset_info").innerText = "Activo: " + (assetTag ? assetTag.innerText : "ID: " + assetId);
+    document.getElementById("sc_notas").value = "";
+    document.getElementById("sc_error").classList.add("hidden");
+
+    const repairFields = document.getElementById("sc_repair_fields");
+    const repairStatuses = ["Under repair", "GarantiaSD"];
+    if (repairStatuses.includes(newStatus)) {
+        repairFields.classList.remove("hidden");
+    } else {
+        repairFields.classList.add("hidden");
+        document.getElementById("sc_repair_reason").value = "";
+        document.getElementById("sc_repair_left_by_id").value = "";
+        document.getElementById("sc_repair_left_search").value = "";
+        document.getElementById("sc_repair_tech_id").value = "";
+        document.getElementById("sc_repair_tech_search").value = "";
+    }
+
+    document.getElementById("statusChangeModal").classList.remove("hidden");
+}
+
+function closeStatusChangeModal() {
+    document.getElementById("statusChangeModal").classList.add("hidden");
+    document.getElementById("statusChangeForm").reset();
+    document.getElementById("sc_repair_fields").classList.add("hidden");
+    document.getElementById("sc_error").classList.add("hidden");
+}
+
+function setupStatusChangeFormListener() {
+    document.getElementById("statusChangeForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const assetId = document.getElementById("sc_asset_id").value;
+        const newStatus = document.getElementById("sc_new_status").value;
+        const notas = document.getElementById("sc_notas").value;
+
+        const repairStatuses = ["Under repair", "GarantiaSD"];
+        let body = { status: newStatus, notas: notas || null };
+
+        if (repairStatuses.includes(newStatus)) {
+            body.repair_reason = document.getElementById("sc_repair_reason").value || null;
+            const leftById = document.getElementById("sc_repair_left_by_id").value;
+            body.repair_left_by_id = leftById ? parseInt(leftById) : null;
+            const techId = document.getElementById("sc_repair_tech_id").value;
+            body.repair_technician_id = techId ? parseInt(techId) : null;
+        }
+
+        const simpleStatuses = ["Available", "Found", "Reserved"];
+        let url, method, options;
+
+        if (simpleStatuses.includes(newStatus)) {
+            url = `/assets/${assetId}/checkin?nuevo_estado=${encodeURIComponent(newStatus)}`;
+            if (notas) url += `&notas=${encodeURIComponent(notas)}`;
+            method = "POST";
+            options = { method };
+        } else {
+            url = `/assets/${assetId}/status`;
+            method = "POST";
+            options = { method, body: JSON.stringify(body), headers: { "Content-Type": "application/json" } };
+        }
+
+        try {
+            const res = await api(url, options);
+            if (res.ok) {
+                showToast("Status actualizado a " + newStatus, "success");
+                closeStatusChangeModal();
+                renderAssetDetail(parseInt(assetId));
+            } else {
+                const err = await res.json().catch(() => ({}));
+                document.getElementById("sc_error").innerText = err.detail || "Error al cambiar status";
+                document.getElementById("sc_error").classList.remove("hidden");
+            }
+        } catch (e) {
+            document.getElementById("sc_error").innerText = "Error de conexion";
+            document.getElementById("sc_error").classList.remove("hidden");
+        }
+    });
+}
+
+function initScRepairAutocompletes() {
+    const leftInput = document.getElementById("sc_repair_left_search");
+    const leftResults = document.getElementById("sc_repair_left_results");
+    const leftHidden = document.getElementById("sc_repair_left_by_id");
+    let leftTimer;
+
+    leftInput.addEventListener("input", function() {
+        clearTimeout(leftTimer);
+        const q = this.value.trim().toLowerCase();
+        if (q.length < 1) { leftResults.classList.add("hidden"); return; }
+        leftTimer = setTimeout(() => {
+            const matches = globalPersons.filter(p =>
+                p.is_active !== false &&
+                (p.full_name.toLowerCase().includes(q) || (p.employee_id && p.employee_id.toLowerCase().includes(q)))
+            ).slice(0, 8);
+            if (matches.length === 0) { leftResults.classList.add("hidden"); return; }
+            leftResults.innerHTML = matches.map(p =>
+                `<div class="px-3 py-2 hover:bg-amber-100 cursor-pointer text-xs" data-id="${p.id}" data-name="${p.full_name.replace(/"/g, '&quot;').replace(/'/g, "\\'")}">${p.full_name.replace(/</g, '&lt;').replace(/>/g, '&gt;')} (${p.employee_id || ''})</div>`
+            ).join("");
+            leftResults.querySelectorAll("div").forEach(div => {
+                div.addEventListener("click", function() {
+                    leftHidden.value = this.dataset.id;
+                    leftInput.value = this.dataset.name;
+                    leftResults.classList.add("hidden");
+                });
+            });
+            leftResults.classList.remove("hidden");
+        }, 200);
+    });
+    leftInput.addEventListener("blur", () => setTimeout(() => leftResults.classList.add("hidden"), 200));
+
+    const techInput = document.getElementById("sc_repair_tech_search");
+    const techResults = document.getElementById("sc_repair_tech_results");
+    const techHidden = document.getElementById("sc_repair_tech_id");
+    let techTimer;
+
+    techInput.addEventListener("input", function() {
+        clearTimeout(techTimer);
+        const q = this.value.trim().toLowerCase();
+        if (q.length < 1) { techResults.classList.add("hidden"); return; }
+        techTimer = setTimeout(() => {
+            const matches = globalAdmins.filter(a =>
+                a.username && a.username.toLowerCase().includes(q)
+            ).slice(0, 8);
+            if (matches.length === 0) { techResults.classList.add("hidden"); return; }
+            techResults.innerHTML = matches.map(a =>
+                `<div class="px-3 py-2 hover:bg-amber-100 cursor-pointer text-xs" data-id="${a.id}" data-name="${a.username.replace(/"/g, '&quot;').replace(/'/g, "\\'")}">${a.username.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`
+            ).join("");
+            techResults.querySelectorAll("div").forEach(div => {
+                div.addEventListener("click", function() {
+                    techHidden.value = this.dataset.id;
+                    techInput.value = this.dataset.name;
+                    techResults.classList.add("hidden");
+                });
+            });
+            techResults.classList.remove("hidden");
+        }, 200);
+    });
+    techInput.addEventListener("blur", () => setTimeout(() => techResults.classList.add("hidden"), 200));
 }
 
 function openUserAssetsModal(personId, personName) {
@@ -511,7 +760,9 @@ function openUserAssetsModal(personId, personName) {
         } else {
             assignedDevices.forEach(dev => {
                 const row = document.createElement("tr");
-                row.innerHTML = '<td class="px-3 py-2 font-bold text-blue-600">' + dev.asset_tag_id + '</td><td class="px-3 py-2 text-gray-600">' + (dev.asset_description || "-") + '</td><td class="px-3 py-2 text-gray-500">' + (dev.brand || "") + " " + (dev.model || "") + '</td><td class="px-3 py-2 font-bold text-gray-400">' + (dev.serial_no || "-") + '</td>';
+                row.className = "cursor-pointer hover:bg-gray-50 transition-colors";
+                row.onclick = () => { closeUserAssetsModal(); openDetailsModal(dev.asset_id); };
+                row.innerHTML = '<td class="px-3 py-2 font-bold text-blue-600">' + escapeHtml(dev.asset_tag_id) + '</td><td class="px-3 py-2 text-gray-600">' + escapeHtml(dev.asset_description || "-") + '</td><td class="px-3 py-2 text-gray-500">' + escapeHtml(dev.brand || "") + " " + escapeHtml(dev.model || "") + '</td><td class="px-3 py-2 font-bold text-gray-400">' + escapeHtml(dev.serial_no || "-") + '</td>';
                 tableBody.appendChild(row);
             });
         }
@@ -706,17 +957,18 @@ async function triggerDeleteAsset(assetId, assetTag) {
     } catch (e) { alert("Error."); }
 }
 
-async function loadHistory() {
+async function loadHistory(search) {
     const historyBody = document.getElementById("historyTableBody");
     const pageSize = parseInt(document.getElementById("historyPageSize").value);
     const pageInfo = document.getElementById("historyPageInfo");
     const pageInfoAux = document.getElementById("historyPageInfoAux");
     const prevBtn = document.querySelector("#historySection .flex.justify-between button:first-child");
     const nextBtn = document.querySelector("#historySection .flex.justify-between button:last-child");
+    const searchParam = search || "";
     try {
         const [countRes, listRes] = await Promise.all([
-            api("/history/count/"),
-            api(`/history/?skip=${(currentHistoryPage - 1) * pageSize}&limit=${pageSize}`)
+            api(`/history/count/?search=${encodeURIComponent(searchParam)}`),
+            api(`/history/?search=${encodeURIComponent(searchParam)}&skip=${(currentHistoryPage - 1) * pageSize}&limit=${pageSize}`)
         ]);
         if (!countRes.ok || !listRes.ok) throw new Error("Error");
         const countData = await countRes.json();
@@ -771,9 +1023,10 @@ function detailModalKeydown(e) {
     if (e.key === "Escape") closeDetailModal();
 }
 
-async function loadPersons() {
+async function loadPersons(search) {
     try {
-        const res = await api("/persons/");
+        const url = search ? `/persons/?search=${encodeURIComponent(search)}` : "/persons/";
+        const res = await api(url);
         if (!res.ok) throw new Error("Error");
         globalPersons = await res.json();
         renderEmployeesPage();
@@ -1258,12 +1511,8 @@ function hasPermission(perm) {
 
 function updateSidebarUserInfo() {
     const admin = getAdmin();
-    const group = getGroup();
     if (admin) {
-        document.getElementById("sidebarUserName").textContent = admin.username;
-    }
-    if (group) {
-        document.getElementById("sidebarUserGroup").textContent = group.name;
+        document.getElementById("topBarUserName").textContent = admin.username;
     }
 }
 
@@ -1411,13 +1660,14 @@ async function loadStatusReport() {
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'assetDetail'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
     });
     const target = document.getElementById(name + 'Section');
     if (target) target.classList.remove('hidden');
+    if (name !== 'assetDetail') { window.location.hash = ""; }
     if (name === 'employees' && typeof loadPersons === 'function') loadPersons();
     if (name === 'catalogs' && typeof loadCatalogs === 'function') loadCatalogs();
     if (name === 'history' && typeof loadHistory === 'function') loadHistory();
@@ -1471,6 +1721,89 @@ function populateAdvancedSearchDropdowns() {
     deptSel.innerHTML = '<option value="">Todos los Departamentos</option>';
     globalDepartments.forEach(d => { deptSel.innerHTML += `<option value="${d.id}">${d.department_name}</option>`; });
 }
+
+// Top bar search
+function executeTopSearch() {
+    const keyword = document.getElementById("topSearchInput").value.trim();
+    const section = document.getElementById("topSearchSection").value;
+    if (!keyword) { showToast("Escribe una palabra clave para buscar", "warning"); return; }
+
+    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    sections.forEach(s => {
+        const el = document.getElementById(s + 'Section');
+        if (el) el.classList.add('hidden');
+    });
+    document.getElementById("searchResultsSection").classList.remove("hidden");
+    document.querySelectorAll('.sidebar-item.active, .sidebar-sub-item.active, .sidebar-nested-item.active').forEach(el => el.classList.remove('active'));
+    document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
+
+    const title = document.getElementById("searchResultsTitle");
+    const body = document.getElementById("searchResultsBody");
+    title.textContent = `Resultados para "${keyword}" en ${section === "assets" ? "Activos" : "Empleados"}`;
+    body.innerHTML = '<p class="text-gray-400 italic text-center py-8">Buscando...</p>';
+
+    if (section === "assets") {
+        api("/assets/?search=" + encodeURIComponent(keyword)).then(res => res.json()).then(data => {
+            if (!data || !data.length) {
+                body.innerHTML = '<p class="text-gray-400 italic text-center py-8">No se encontraron resultados.</p>';
+                return;
+            }
+            let html = '<div class="text-xs text-gray-500 mb-3 font-bold">' + data.length + ' resultado(s) encontrado(s)</div>';
+            html += '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr>';
+            html += '<th class="text-left py-2 px-3">Asset Tag</th><th class="text-left py-2 px-3">Serial</th><th class="text-left py-2 px-3">Marca</th><th class="text-left py-2 px-3">Modelo</th><th class="text-left py-2 px-3">Descripcion</th><th class="text-left py-2 px-3">Status</th><th class="text-left py-2 px-3">Categoria</th><th class="text-left py-2 px-3"></th>';
+            html += '</tr></thead><tbody>';
+            data.forEach(a => {
+                html += '<tr class="border-b border-gray-100 hover:bg-gray-50">';
+                html += '<td class="py-2 px-3 font-medium">' + escapeHtml(a.asset_tag_id) + '</td>';
+                html += '<td class="py-2 px-3 text-gray-600">' + escapeHtml(a.serial_no || '-') + '</td>';
+                html += '<td class="py-2 px-3">' + escapeHtml(a.brand || '-') + '</td>';
+                html += '<td class="py-2 px-3">' + escapeHtml(a.model || '-') + '</td>';
+                html += '<td class="py-2 px-3 text-gray-600 max-w-[200px] truncate">' + escapeHtml(a.asset_description || '-') + '</td>';
+                html += '<td class="py-2 px-3"><span class="badge-dot" style="background:' + (a.status === 'Checkout' ? '#3b82f6' : a.status === 'Available' ? '#10b981' : a.status === 'Under repair' || a.status === 'GarantiaSD' ? '#f59e0b' : '#6b7280') + '"></span>' + escapeHtml(a.status) + '</td>';
+                html += '<td class="py-2 px-3 text-gray-600">' + escapeHtml(a.category || '-') + '</td>';
+                html += '<td class="py-2 px-3"><button onclick="openDetailsModal(' + a.id + ')" class="text-blue-600 hover:text-blue-800 font-bold cursor-pointer">Ver</button></td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            body.innerHTML = html;
+        }).catch(() => {
+            body.innerHTML = '<p class="text-red-500 text-center py-8">Error al buscar.</p>';
+        });
+    } else {
+        api("/persons/?search=" + encodeURIComponent(keyword)).then(res => res.json()).then(data => {
+            if (!data || !data.length) {
+                body.innerHTML = '<p class="text-gray-400 italic text-center py-8">No se encontraron resultados.</p>';
+                return;
+            }
+            let html = '<div class="text-xs text-gray-500 mb-3 font-bold">' + data.length + ' resultado(s) encontrado(s)</div>';
+            html += '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr>';
+            html += '<th class="text-left py-2 px-3">Nombre</th><th class="text-left py-2 px-3">Email</th><th class="text-left py-2 px-3">Employee ID</th><th class="text-left py-2 px-3">Telefono</th><th class="text-left py-2 px-3"></th>';
+            html += '</tr></thead><tbody>';
+            data.forEach(p => {
+                html += '<tr class="border-b border-gray-100 hover:bg-gray-50">';
+                html += '<td class="py-2 px-3 font-medium">' + escapeHtml(p.full_name) + '</td>';
+                html += '<td class="py-2 px-3 text-gray-600">' + escapeHtml(p.email || '-') + '</td>';
+                html += '<td class="py-2 px-3">' + escapeHtml(p.employee_id || '-') + '</td>';
+                html += '<td class="py-2 px-3">' + escapeHtml(p.phone || '-') + '</td>';
+                html += '<td class="py-2 px-3"><button onclick="openEditPersonModal(' + p.id + ')" class="text-blue-600 hover:text-blue-800 font-bold cursor-pointer">Ver</button></td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            body.innerHTML = html;
+        }).catch(() => {
+            body.innerHTML = '<p class="text-red-500 text-center py-8">Error al buscar.</p>';
+        });
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    const topInput = document.getElementById("topSearchInput");
+    if (topInput) {
+        topInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") executeTopSearch();
+        });
+    }
+});
 
 function checkAllFields(select) {
     document.querySelectorAll("#adv_field_checkboxes input[type=checkbox]").forEach(cb => { cb.checked = select; });

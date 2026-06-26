@@ -339,7 +339,7 @@ class DepartmentAssetItem(BaseModel):
     assigned_person: str = ""
 
 class AssetStatusUpdate(BaseModel):
-    status: str
+    status: AssetStatus
     notas: Optional[str] = None
     repair_reason: Optional[str] = None
     repair_left_by_id: Optional[int] = None

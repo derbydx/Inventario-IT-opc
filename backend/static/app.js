@@ -255,7 +255,8 @@ function getAssetBadgeColor(status) {
     if (status === "Checkout") return "bg-blue-100 text-blue-800";
     if (["Broken", "Lost/Missing", "Dispose"].includes(status)) return "bg-red-100 text-red-800";
     if (status === "Under repair" || status === "GarantiaSD") return "bg-amber-100 text-amber-800";
-    if (["Reserved"].includes(status)) return "bg-purple-100 text-purple-800";
+    if (status === "Reserved") return "bg-purple-100 text-purple-800";
+    if (["Sold", "Donated", "Found"].includes(status)) return "bg-teal-100 text-teal-800";
     return "bg-green-100 text-green-800";
 }
 
@@ -265,12 +266,12 @@ function buildAssetRowHTML(asset, mode) {
     const assignedName = assignedPerson ? assignedPerson.full_name : '';
     let actionButton;
     if (mode === 'search') {
-        actionButton = `<button onclick="event.stopPropagation(); openDetailsModal(${asset.id})" class="text-[11px] font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-300 px-2.5 py-1 rounded transition-all cursor-pointer">Ver</button>`;
+        actionButton = `<button onclick="event.stopPropagation(); openDetailsModal(${asset.id})" class="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>Ver</button>`;
     } else {
         if (asset.status === "Checkout") {
-            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkin')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-in</button>`;
+            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkin')" class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15"/></svg>Check-in</button>`;
         } else {
-            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-out</button>`;
+            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/></svg>Check-out</button>`;
         }
     }
     return `

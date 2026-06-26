@@ -398,7 +398,7 @@
                         <div class="flex items-center gap-2">
                             <span id="assetsPageInfo" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">mostrando 0-0 de 0</span>
                             <div class="relative">
-                                <button onclick="toggleColumnPanel('assets')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Columnas</button>
+                                <button onclick="toggleColumnPanel('assets')" class="px-3 py-1.5 border border-gray-300 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50 bg-white transition-colors cursor-pointer">Columnas</button>
                                 <div id="colPanel_assets" class="hidden absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg p-3 z-20 w-44 text-xs space-y-1.5">
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="asignado" onchange="toggleColumn('assets','asignado')" checked> Asignado</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="serie" onchange="toggleColumn('assets','serie')" checked> Serie</label>
@@ -409,12 +409,12 @@
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="date" onchange="toggleColumn('assets','date')" checked> Fecha Compra</label>
                                 </div>
                             </div>
-                            <button onclick="exportVisibleCSV('assets')" class="text-[11px] bg-green-100 hover:bg-green-200 border border-green-300 px-2.5 py-1 rounded font-bold text-green-800 cursor-pointer">Exportar</button>
+                            <button onclick="exportVisibleCSV('assets')" class="px-3 py-1.5 border border-gray-300 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50 bg-white transition-colors cursor-pointer">Exportar</button>
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <input type="text" id="searchInput" placeholder="Buscar por tag, descripcion, marca, modelo o serie..." oninput="loadAssets()" class="flex-1 min-w-[200px] p-2 border border-gray-300 rounded text-xs bg-white">
-                        <button onclick="showAdvancedSearch()" class="px-3 py-2 bg-amber-400 hover:bg-amber-500 text-white text-xs font-bold rounded transition-colors cursor-pointer">Avanzada</button>
+                        <button onclick="showAdvancedSearch()" class="px-3 py-1.5 border border-gray-300 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50 bg-white transition-colors cursor-pointer">Avanzada</button>
                         <select id="filterStatus" onchange="loadAssets()" class="p-2 border border-gray-300 rounded text-xs bg-white">
                             <option value="">Todos los estados</option>
                             <option value="Available">Available</option>
@@ -549,9 +549,10 @@
                         </div>
                         <div class="flex justify-end gap-2 pt-2">
                             <button onclick="cancelAdvancedSearch()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded transition-colors cursor-pointer">Cancelar</button>
-                            <button onclick="executeAdvancedSearch()" class="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-white text-xs font-bold rounded shadow transition-colors cursor-pointer">Search</button>
+                            <button onclick="executeAdvancedSearch()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded shadow transition-colors cursor-pointer">Search</button>
                         </div>
                     </div>
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
@@ -590,6 +591,7 @@
                             </label>
                         </div>
                         <button onclick="changePage('assets', 1)" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded border border-gray-300 cursor-pointer disabled:opacity-40">Siguiente</button>
+                    </div>
                     </div>
                 </section>
 

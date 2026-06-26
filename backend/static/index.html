@@ -1527,19 +1527,42 @@
                         </div>
                     </div>
                     <div class="border border-gray-200 rounded-lg mb-6 overflow-hidden">
-                        <div class="overflow-x-auto border-t border-gray-200">
-                            <table class="min-w-full divide-y divide-gray-200 text-xs font-mono">
-                                <thead class="bg-gray-50 text-gray-500">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Fecha / Hora</th>
-                                        <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Accion</th>
-                                        <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Asignado a / Destino</th>
-                                        <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Operador</th>
-                                        <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Notas / Detalles</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="page_assetSpecificHistoryBody" class="bg-white divide-y divide-gray-200 text-gray-600"></tbody>
-                            </table>
+                        <div class="flex border-b border-gray-200 bg-gray-50">
+                            <button onclick="switchHistoryTab('eventos')" id="tab_btn_eventos" class="px-4 py-2 text-xs font-bold bg-amber-500 text-white">Eventos</button>
+                            <button onclick="switchHistoryTab('historial')" id="tab_btn_historial" class="px-4 py-2 text-xs font-bold bg-gray-50 text-gray-500 hover:bg-gray-100">Historial</button>
+                        </div>
+                        <div id="page_history_eventos">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 text-xs font-mono">
+                                    <thead class="bg-gray-50 text-gray-500">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Fecha / Hora</th>
+                                            <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Accion</th>
+                                            <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Asignado a / Destino</th>
+                                            <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Operador</th>
+                                            <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Notas / Detalles</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="page_assetSpecificHistoryBody" class="bg-white divide-y divide-gray-200 text-gray-600"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div id="page_history_historial" class="hidden">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 text-xs font-mono">
+                                    <thead class="bg-gray-50 text-gray-500">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Fecha</th>
+                                            <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Evento</th>
+                                            <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Campo</th>
+                                            <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Changed From</th>
+                                            <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Changed To</th>
+                                            <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Action by</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="page_assetDetailHistoryBody" class="bg-white divide-y divide-gray-200 text-gray-600"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                     <div class="flex items-center pt-4 border-t border-gray-200">

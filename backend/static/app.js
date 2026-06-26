@@ -475,7 +475,7 @@ async function renderAssetDetail(assetId) {
                 <span class="text-[10px] bg-blue-600 text-white font-bold py-0.5 px-1.5 rounded uppercase tracking-wide">Ver Asignados </span>
             </button>`;
     } else if (asset.status !== "Checkout") {
-        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded mb-2">Status: ${escapeHtml(asset.status)}</p><button onclick="closeAssetDetail();openModal('${asset.id}','${asset.asset_tag_id}','checkout')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow transition-colors cursor-pointer">Realizar Check-out</button>`;
+        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded">Status: ${escapeHtml(asset.status)}</p>`;
     } else {
         containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded">Disponible en Almacen</p>`;
     }
@@ -498,19 +498,24 @@ async function renderAssetDetail(assetId) {
     document.getElementById("page_btn_edit_asset").onclick = () => openEditAssetModal(asset.id);
 
     const historyBody = document.getElementById("page_assetSpecificHistoryBody");
-    historyBody.innerHTML = `<tr><td colspan="5" class="px-3 py-4 text-center text-gray-400 italic">Buscando...</td></tr>`;
+    const historialBody = document.getElementById("page_assetDetailHistoryBody");
+    const loadingRow = `<tr><td colspan="5" class="px-3 py-4 text-center text-gray-400 italic">Buscando...</td></tr>`;
+    historyBody.innerHTML = loadingRow;
+    historialBody.innerHTML = loadingRow;
 
     try {
         const response = await api("/history/");
         if (response.ok) {
             const allHistory = await response.json();
             const specificHistory = allHistory.filter(h => h.asset_id === asset.id);
-            historyBody.innerHTML = "";
             if (specificHistory.length === 0) {
-                historyBody.innerHTML = `<tr><td colspan="5" class="px-3 py-3 text-center text-gray-400 italic">Sin movimientos registrados.</td></tr>`;
+                const empty = `<tr><td colspan="5" class="px-3 py-3 text-center text-gray-400 italic">Sin movimientos registrados.</td></tr>`;
+                historyBody.innerHTML = empty;
+                historialBody.innerHTML = empty;
             } else {
                 specificHistory.reverse();
                 let historyHtml = "";
+                let historialHtml = "";
                 specificHistory.forEach(item => {
                     const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
                     const badgeClass = getHistoryBadgeClass(item.tipo_accion);
@@ -547,8 +552,21 @@ async function renderAssetDetail(assetId) {
                         <td class="px-4 py-3 text-xs text-gray-600">${operatorName}</td>
                         <td class="px-4 py-3 text-xs text-gray-500 italic max-w-[200px] truncate">${detailHtml}</td>
                     </tr>`;
+
+                    const changedFrom = item.estado_anterior ? escapeHtml(item.estado_anterior) : '-';
+                    const changedTo = item.estado_nuevo ? escapeHtml(item.estado_nuevo) : '-';
+
+                    historialHtml += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 font-mono text-[11px] text-gray-500 whitespace-nowrap">${fecha}</td>
+                        <td class="px-4 py-3">${actionBadgeHtml}</td>
+                        <td class="px-4 py-3 text-xs text-gray-700">Status</td>
+                        <td class="px-4 py-3 text-xs text-gray-600">${changedFrom}</td>
+                        <td class="px-4 py-3 text-xs text-gray-600">${changedTo}</td>
+                        <td class="px-4 py-3 text-xs text-gray-600">${operatorName}</td>
+                    </tr>`;
                 });
                 historyBody.innerHTML = historyHtml;
+                historialBody.innerHTML = historialHtml;
             }
         }
     } catch (e) { console.error(e); }
@@ -594,6 +612,24 @@ function populateActionsDropdown(currentStatus) {
 function toggleActionsDropdown() {
     const dd = document.getElementById("page_actions_dropdown");
     dd.classList.toggle("hidden");
+}
+
+function switchHistoryTab(tab) {
+    const eventosBtn = document.getElementById("tab_btn_eventos");
+    const historialBtn = document.getElementById("tab_btn_historial");
+    const eventosDiv = document.getElementById("page_history_eventos");
+    const historialDiv = document.getElementById("page_history_historial");
+    if (tab === "historial") {
+        eventosBtn.className = "px-4 py-2 text-xs font-bold bg-gray-50 text-gray-500 hover:bg-gray-100";
+        historialBtn.className = "px-4 py-2 text-xs font-bold bg-amber-500 text-white";
+        eventosDiv.classList.add("hidden");
+        historialDiv.classList.remove("hidden");
+    } else {
+        historialBtn.className = "px-4 py-2 text-xs font-bold bg-gray-50 text-gray-500 hover:bg-gray-100";
+        eventosBtn.className = "px-4 py-2 text-xs font-bold bg-amber-500 text-white";
+        historialDiv.classList.add("hidden");
+        eventosDiv.classList.remove("hidden");
+    }
 }
 
 function changeAssetStatus(assetId, newStatus) {

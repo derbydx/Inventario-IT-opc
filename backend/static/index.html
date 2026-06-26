@@ -41,14 +41,31 @@
         </div>
     </div>
 
+    <!-- TOP BAR -->
+    <div id="topBar" class="fixed top-0 left-0 right-0 h-14 bg-blue-900 text-white flex items-center px-4 z-50 shadow-md">
+        <div class="flex items-center gap-3 w-56 shrink-0">
+            <h1 class="text-base font-bold tracking-wide">IT-Asset-Manager</h1>
+        </div>
+        <div class="flex-1 flex items-center justify-center gap-2 max-w-2xl mx-auto">
+            <input type="text" id="topSearchInput" placeholder="Buscar por tag, serial, nombre..." class="w-full max-w-md p-2 rounded text-xs bg-blue-800/50 border border-blue-700 text-white placeholder-blue-300/60 focus:outline-none focus:ring-2 focus:ring-amber-400">
+            <select id="topSearchSection" class="p-2 rounded text-xs bg-blue-800/50 border border-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                <option value="assets">Activos</option>
+                <option value="persons">Empleados</option>
+            </select>
+            <button onclick="executeTopSearch()" class="py-2 px-4 rounded text-xs font-bold bg-amber-500 hover:bg-amber-400 text-blue-900 transition-colors cursor-pointer">Buscar</button>
+        </div>
+        <div class="flex items-center gap-3 text-xs shrink-0">
+            <span id="topBarUserName" class="text-blue-200 font-bold">-</span>
+            <button onclick="logout()" class="text-xs bg-blue-800/50 hover:bg-blue-700/80 border border-blue-600/40 px-3 py-1.5 rounded font-bold transition-colors cursor-pointer">Salir</button>
+        </div>
+    </div>
+
     <!-- SIDEBAR LAYOUT -->
-    <div id="appLayout" class="flex h-screen overflow-hidden">
+    <div id="appLayout" class="flex h-screen overflow-hidden pt-14">
 
             <!-- SIDEBAR -->
             <aside id="sidebar" class="w-56 bg-blue-900 text-white flex flex-col shrink-0">
-                <div class="p-4 border-b border-white/10">
-                    <h1 class="text-base font-bold tracking-wide">IT-Asset-Manager</h1>
-                </div>
+
                 <nav class="flex-1 overflow-y-auto text-sm py-2">
 
                     <!-- Dashboard -->
@@ -281,14 +298,7 @@
 
                 </nav>
                 <div class="border-t border-white/10 p-3 space-y-1">
-                    <div id="sidebarUserInfo" class="text-xs text-blue-200">
-                        <div class="font-bold truncate" id="sidebarUserName">-</div>
-                        <div class="text-[10px] text-blue-300/70 truncate" id="sidebarUserGroup">-</div>
-                    </div>
                     <button onclick="openChangePasswordModal()" class="text-[10px] text-blue-300/80 hover:text-blue-100 transition-colors cursor-pointer">Cambiar contrasena</button>
-                    <button onclick="logout()" class="w-full text-xs bg-blue-800/50 hover:bg-blue-700/80 border border-blue-600/40 px-3 py-2 rounded font-bold transition-colors cursor-pointer">
-                        Cerrar Sesion
-                    </button>
                 </div>
             </aside>
 
@@ -370,6 +380,15 @@
                             </table>
                         </div>
                     </div>
+                </section>
+
+                <!-- SECTION: SEARCH RESULTS -->
+                <section id="searchResultsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800" id="searchResultsTitle">Resultados</h2>
+                        <button onclick="showSection('dashboard')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Cerrar</button>
+                    </div>
+                    <div id="searchResultsBody"></div>
                 </section>
 
                 <!-- SECTION: ACTIVOS -->
@@ -1456,6 +1475,126 @@
                         </table>
                     </div>
                 </section>
+
+                <!-- SECTION: DETALLE DE ACTIVO -->
+                <section id="assetDetailSection" class="hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h2 id="page_detailsTitle" class="text-xl font-bold text-gray-800">Hoja de Vida del Activo</h2>
+                            <p id="page_detailsTag" class="text-sm font-mono font-bold text-blue-600 mt-1"></p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="page_btn_edit_asset" class="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded text-xs transition-colors cursor-pointer">Editar Activo</button>
+                            <div class="relative" id="actionsDropdownContainer">
+                                <button id="page_actions_btn" onclick="toggleActionsDropdown()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold rounded text-xs transition-colors cursor-pointer flex items-center gap-1">
+                                    Acciones <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                <ul id="page_actions_dropdown" class="hidden absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-50 py-1 min-w-[180px] text-xs font-medium text-gray-700"></ul>
+                            </div>
+                            <button onclick="closeAssetDetail()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold rounded text-xs transition-colors cursor-pointer">Volver</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm mb-4">
+                        <div>
+                            <span class="block text-[10px] font-bold text-gray-400 uppercase">Descripcion</span>
+                            <p id="page_description" class="text-gray-700 font-medium">-</p>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-gray-400 uppercase">Estado Actual</span>
+                            <p id="page_status" class="mt-1">-</p>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-gray-400 uppercase">Marca / Modelo</span>
+                            <p id="page_brand_model" class="text-gray-700">-</p>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-gray-400 uppercase">Numero de Serie</span>
+                            <p id="page_serial" class="text-gray-700 font-mono font-bold">-</p>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-gray-400 uppercase">Categoria</span>
+                            <p id="page_category" class="text-gray-700 font-medium">-</p>
+                        </div>
+                        <div class="md:col-span-2">
+                            <span class="block text-[10px] font-bold text-gray-400 uppercase">Asignado Actualmente A</span>
+                            <div id="page_assigned_container" class="mt-1"></div>
+                        </div>
+                        <div id="page_repair_block" class="hidden md:col-span-2 bg-amber-50 border border-amber-200 rounded p-3 text-xs space-y-1">
+                            <div><span class="font-bold text-amber-800">Ultimo usuario asignado:</span> <span id="page_ultimo_asignado">-</span></div>
+                            <div><span class="font-bold text-amber-800">Motivo de reparacion:</span> <span id="page_repair_reason">-</span></div>
+                            <div><span class="font-bold text-amber-800">Dejado por:</span> <span id="page_repair_left_by">-</span></div>
+                            <div><span class="font-bold text-amber-800">Tecnico encargado:</span> <span id="page_repair_technician">-</span></div>
+                        </div>
+                    </div>
+                    <div class="border border-gray-200 rounded-lg mb-6 overflow-hidden">
+                        <div class="overflow-x-auto border-t border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs font-mono">
+                                <thead class="bg-gray-50 text-gray-500">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Fecha / Hora</th>
+                                        <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Accion</th>
+                                        <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Asignado a / Destino</th>
+                                        <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Operador</th>
+                                        <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Notas / Detalles</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="page_assetSpecificHistoryBody" class="bg-white divide-y divide-gray-200 text-gray-600"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="flex items-center pt-4 border-t border-gray-200">
+                        <button id="page_btn_delete_asset" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded text-xs transition-colors cursor-pointer">Dar de Baja (Mandar a papelera)</button>
+                    </div>
+                </section>
+
+                <!-- STATUS CHANGE MODAL -->
+                <div id="statusChangeModal" class="modal-overlay hidden fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div class="bg-white rounded-lg modal-panel p-6 max-w-md w-full shadow-xl border border-gray-200">
+                        <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
+                            <h3 id="statusChangeModalTitle" class="text-lg font-bold text-gray-800">Cambiar Status</h3>
+                            <button onclick="closeStatusChangeModal()" class="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">&times;</button>
+                        </div>
+                        <form id="statusChangeForm" class="space-y-3">
+                            <input type="hidden" id="sc_asset_id">
+                            <input type="hidden" id="sc_new_status">
+                            <div>
+                                <p id="sc_asset_info" class="text-sm font-mono text-blue-700 bg-blue-50 p-2 rounded"></p>
+                            </div>
+                            <div id="sc_repair_fields" class="hidden space-y-3 bg-amber-50 p-3 rounded border border-amber-200">
+                                <p class="text-[10px] font-bold text-amber-800 uppercase">Datos de Reparacion</p>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-amber-800 uppercase">Motivo de la reparacion</label>
+                                    <textarea id="sc_repair_reason" rows="2" class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-amber-800 uppercase">Usuario que dejo el equipo</label>
+                                    <div class="relative">
+                                        <input type="text" id="sc_repair_left_search" autocomplete="off" placeholder="Buscar empleado..." class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                        <input type="hidden" id="sc_repair_left_by_id" value="">
+                                        <div id="sc_repair_left_results" class="hidden absolute z-50 top-full left-0 right-0 bg-white border border-gray-200 rounded mt-1 shadow-lg max-h-40 overflow-y-auto"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-amber-800 uppercase">Tecnico encargado</label>
+                                    <div class="relative">
+                                        <input type="text" id="sc_repair_tech_search" autocomplete="off" placeholder="Buscar tecnico..." class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                        <input type="hidden" id="sc_repair_tech_id" value="">
+                                        <div id="sc_repair_tech_results" class="hidden absolute z-50 top-full left-0 right-0 bg-white border border-gray-200 rounded mt-1 shadow-lg max-h-40 overflow-y-auto"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 uppercase">Notas</label>
+                                <textarea id="sc_notas" rows="2" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm" placeholder="Opcional"></textarea>
+                            </div>
+                            <div id="sc_error" class="hidden text-red-600 text-xs font-bold"></div>
+                            <div class="flex justify-end gap-2 pt-2">
+                                <button type="button" onclick="closeStatusChangeModal()" class="px-4 py-2 bg-gray-200 rounded text-xs font-bold">Cancelar</button>
+                                <button type="submit" id="sc_submit_btn" class="px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold cursor-pointer">Confirmar Cambio</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </main>
     </div>
 
@@ -1679,10 +1818,11 @@
                     <table class="min-w-full divide-y divide-gray-200 text-xs font-mono">
                         <thead class="bg-gray-50 text-gray-500">
                             <tr>
-                                <th class="px-3 py-2 text-left font-bold uppercase">Fecha</th>
-                                <th class="px-3 py-2 text-left font-bold uppercase">Accion</th>
-                                <th class="px-3 py-2 text-left font-bold uppercase">Operador</th>
-                                <th class="px-3 py-2 text-left font-bold uppercase">Notas</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Fecha / Hora</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Accion</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Asignado a / Destino</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Operador</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase text-[11px] tracking-wider">Notas / Detalles</th>
                             </tr>
                         </thead>
                         <tbody id="assetSpecificHistoryBody" class="bg-white divide-y divide-gray-200 text-gray-600"></tbody>

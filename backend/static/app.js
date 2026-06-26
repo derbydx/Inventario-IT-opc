@@ -17,15 +17,19 @@ let totalAssets = 0;
 let assetSort = { key: null, dir: null, original: [], exclude: ["Archived"] };
 
 function getToken() {
-    const session = localStorage.getItem("adminSession");
-    if (!session) return null;
-    return JSON.parse(session).access_token;
+    try {
+        const session = localStorage.getItem("adminSession");
+        if (!session) return null;
+        return JSON.parse(session).access_token;
+    } catch (e) { return null; }
 }
 
 function getAdmin() {
-    const session = localStorage.getItem("adminSession");
-    if (!session) return null;
-    return JSON.parse(session).admin;
+    try {
+        const session = localStorage.getItem("adminSession");
+        if (!session) return null;
+        return JSON.parse(session).admin;
+    } catch (e) { return null; }
 }
 
 async function api(url, options = {}) {
@@ -125,6 +129,7 @@ async function loadDropdownData() {
         const resCats = await api("/categories/distinct/");
         if (resCats.ok) {
             const cats = await resCats.json();
+            const pendingCatSelect = { current: null };
             const fillCatSelect = (sel, withNew) => {
                 let html = '<option value="">-- Seleccione Categoria --</option>';
                 cats.forEach(c => { html += `<option value="${c}">${c}</option>`; });
@@ -132,16 +137,12 @@ async function loadDropdownData() {
                 sel.innerHTML = html;
                 sel.onchange = () => {
                     if (sel.value === "__NEW__") {
-                        const name = prompt("Nombre de la nueva categoria:");
-                        if (name && name.trim()) {
-                            const opt = document.createElement("option");
-                            opt.value = name.trim();
-                            opt.text = name.trim();
-                            sel.insertBefore(opt, sel.lastElementChild);
-                            sel.value = name.trim();
-                        } else {
-                            sel.value = "";
-                        }
+                        sel.value = "";
+                        pendingCatSelect.current = sel;
+                        document.getElementById("edit_cat_id").value = "";
+                        document.getElementById("cat_name_input").value = "";
+                        document.getElementById("categoryModalTitle").textContent = "Nueva Categoria";
+                        document.getElementById("categoryModal").classList.remove("hidden");
                     }
                 };
             };
@@ -273,21 +274,21 @@ function buildAssetRowHTML(asset, mode) {
         }
     }
     return `
-        <td class="px-4 py-3 font-mono font-bold text-gray-700 group-hover:text-blue-600">${asset.asset_tag_id}</td>
-        <td class="px-4 py-3 text-gray-600">${asset.asset_description}</td>
-        <td class="px-4 py-3 text-gray-500">${asset.brand} ${asset.model}</td>
+        <td class="px-4 py-3 font-mono font-bold text-gray-700 group-hover:text-blue-600">${escapeHtml(asset.asset_tag_id)}</td>
+        <td class="px-4 py-3 text-gray-600">${escapeHtml(asset.asset_description)}</td>
+        <td class="px-4 py-3 text-gray-500">${escapeHtml(asset.brand)} ${escapeHtml(asset.model)}</td>
         <td class="px-4 py-3">
             <span class="px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${badgeColor}">
-                ${asset.status}
+                ${escapeHtml(asset.status)}
             </span>
         </td>
-        <td data-col="asignado" class="px-4 py-3 text-gray-600 text-xs">${assignedName}</td>
+        <td data-col="asignado" class="px-4 py-3 text-gray-600 text-xs">${escapeHtml(assignedName)}</td>
         <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">${actionButton}</td>
-        <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${asset.serial_no}</td>
-        <td data-col="category" class="px-4 py-3 text-gray-500">${asset.category || ''}</td>
+        <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${escapeHtml(asset.serial_no)}</td>
+        <td data-col="category" class="px-4 py-3 text-gray-500">${escapeHtml(asset.category || '')}</td>
         <td data-col="site" class="px-4 py-3 text-gray-500">${siteName(asset.site_id)}</td>
-        <td data-col="phone" class="px-4 py-3 text-gray-500">${asset.numero_telefono || ''}</td>
-        <td data-col="vendor" class="px-4 py-3 text-gray-500">${asset.purchased_from || ''}</td>
+        <td data-col="phone" class="px-4 py-3 text-gray-500">${escapeHtml(asset.numero_telefono || '')}</td>
+        <td data-col="vendor" class="px-4 py-3 text-gray-500">${escapeHtml(asset.purchased_from || '')}</td>
         <td data-col="date" class="px-4 py-3 text-gray-500">${fmtDate(asset.purchase_date)}</td>
     `;
 }
@@ -664,6 +665,7 @@ function changeAssetStatus(assetId, newStatus) {
 }
 
 function closeStatusChangeModal() {
+    setLoading(document.getElementById("sc_submit_btn"), false);
     document.getElementById("statusChangeModal").classList.add("hidden");
     document.getElementById("statusChangeForm").reset();
     document.getElementById("sc_repair_fields").classList.add("hidden");
@@ -673,6 +675,8 @@ function closeStatusChangeModal() {
 function setupStatusChangeFormListener() {
     document.getElementById("statusChangeForm").addEventListener("submit", async (e) => {
         e.preventDefault();
+        const btn = document.getElementById("sc_submit_btn");
+        setLoading(btn, true);
         const assetId = document.getElementById("sc_asset_id").value;
         const newStatus = document.getElementById("sc_new_status").value;
         const notas = document.getElementById("sc_notas").value;
@@ -704,16 +708,19 @@ function setupStatusChangeFormListener() {
 
         try {
             const res = await api(url, options);
+            setLoading(btn, false);
             if (res.ok) {
                 showToast("Status actualizado a " + newStatus, "success");
                 closeStatusChangeModal();
                 renderAssetDetail(parseInt(assetId));
             } else {
+                setLoading(btn, false);
                 const err = await res.json().catch(() => ({}));
                 document.getElementById("sc_error").innerText = err.detail || "Error al cambiar status";
                 document.getElementById("sc_error").classList.remove("hidden");
             }
         } catch (e) {
+            setLoading(btn, false);
             document.getElementById("sc_error").innerText = "Error de conexion";
             document.getElementById("sc_error").classList.remove("hidden");
         }
@@ -1037,7 +1044,8 @@ async function loadHistory(search) {
             detailSpan.onclick = function() { showDetailModal(detail); };
             detailCell.appendChild(detailSpan);
             const assetCell = item.asset_id ? `<td class="px-4 py-2 font-bold text-gray-700 align-top cursor-pointer hover:text-blue-600" onclick="openDetailsModal(${item.asset_id})">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td>` : `<td class="px-4 py-2 text-gray-400 align-top italic">N/A</td>`;
-            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${item.tipo_accion}</td>${assetCell}<td class="px-4 py-2 text-gray-600 align-top">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
+            const empName = employeeObj ? escapeHtml(employeeObj.full_name) : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen');
+            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${escapeHtml(item.tipo_accion)}</td>${assetCell}<td class="px-4 py-2 text-gray-600 align-top">${empName}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
             row.appendChild(detailCell);
             historyBody.appendChild(row);
         });
@@ -1468,7 +1476,11 @@ function setupCatalogFormsListeners() {
                 showToast("Categoria guardada!", "success");
                 closeCategoryModal();
                 loadCatalogs();
-                loadDropdownData();
+                await loadDropdownData();
+                if (pendingCatSelect.current) {
+                    pendingCatSelect.current.value = name;
+                    pendingCatSelect.current = null;
+                }
             } else {
                 const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
                 alert("Error: " + (err.detail || "No se pudo guardar"));
@@ -1534,9 +1546,11 @@ function logout() {
 }
 
 function getGroup() {
-    const session = localStorage.getItem("adminSession");
-    if (!session) return null;
-    return JSON.parse(session).group || null;
+    try {
+        const session = localStorage.getItem("adminSession");
+        if (!session) return null;
+        return JSON.parse(session).group || null;
+    } catch (e) { return null; }
 }
 
 function hasPermission(perm) {
@@ -2415,6 +2429,17 @@ function exportDeptCSV(deptId) {
 function escapeHtml(str) {
     if (!str) return "";
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function setLoading(btn, loading) {
+    if (loading) {
+        btn._origHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="inline-block animate-spin mr-1">&#9696;</span> Procesando...';
+    } else {
+        btn.disabled = false;
+        if (btn._origHtml) btn.innerHTML = btn._origHtml;
+    }
 }
 
 async function openAssetModalById(assetId) {

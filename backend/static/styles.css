@@ -363,6 +363,21 @@ html.dark-mode .bg-purple-100   { background: #2e1065; }
 html.dark-mode .text-purple-800 { color: #d8b4fe; }
 html.dark-mode .bg-gray-100.text-gray-800 { color: #cbd5e1; }
 
+/* ── General blue/green accent overrides (asset detail, assigned blocks) ── */
+html.dark-mode .text-blue-600 { color: #60a5fa; }
+html.dark-mode .text-blue-700 { color: #93c5fd; }
+html.dark-mode .text-blue-800 { color: #bfdbfe; }
+html.dark-mode .bg-blue-50 { background: #1e3a5f; }
+html.dark-mode .bg-blue-600 { background: #2563eb; }
+html.dark-mode .border-blue-100 { border-color: #1e3a5f; }
+html.dark-mode .border-blue-200 { border-color: #1e40af; }
+html.dark-mode .hover\:bg-blue-100:hover { background: #1e3a5f !important; }
+
+html.dark-mode .text-green-600 { color: #4ade80; }
+html.dark-mode .text-green-700 { color: #86efac; }
+html.dark-mode .bg-green-50 { background: #14532d; }
+html.dark-mode .border-green-100 { border-color: #14532d; }
+
 /* ── Amber-toned panels (advanced search, repair blocks, table headers) ── */
 html.dark-mode .bg-amber-50 { background: #1e293b; }
 html.dark-mode .border-amber-200 { border-color: #78350f; }

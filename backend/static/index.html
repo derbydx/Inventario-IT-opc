@@ -609,11 +609,12 @@
                             <div class="relative">
                                 <button onclick="toggleColumnPanel('employees')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Columnas</button>
                                 <div id="colPanel_employees" class="hidden absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg p-3 z-20 w-44 text-xs space-y-1.5">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="employee_id" onchange="toggleColumn('employees','employee_id')" checked> EmployeeID</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="title" onchange="toggleColumn('employees','title')" checked> Titulo</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="phone" onchange="toggleColumn('employees','phone')" checked> Telefono</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="dept" onchange="toggleColumn('employees','dept')" checked> Departamento</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="site" onchange="toggleColumn('employees','site')" checked> Sitio</label>
-                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="phone" onchange="toggleColumn('employees','phone')" checked> Telefono</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="notes" onchange="toggleColumn('employees','notes')" checked> Notas</label>
-                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="employee_id" onchange="toggleColumn('employees','employee_id')" checked> Employee ID</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="status" onchange="toggleColumn('employees','status')" checked> Estado</label>
                                 </div>
                             </div>
@@ -626,17 +627,18 @@
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th data-col="employee_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee ID</th>
+                                    <th data-col="employee_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">EmployeeID</th>
+                                    <th data-col="title" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Titulo</th>
+                                    <th data-col="phone" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Telefono</th>
                                     <th data-col="dept" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Departamento</th>
                                     <th data-col="site" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sitio</th>
-                                    <th data-col="phone" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Telefono</th>
                                     <th data-col="notes" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Notas</th>
                                     <th data-col="status" class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
                                     <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="personsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
-                                <tr><td colspan="9" class="px-4 py-6 text-center text-gray-400 italic">Cargando empleados...</td></tr>
+                                <tr><td colspan="10" class="px-4 py-6 text-center text-gray-400 italic">Cargando empleados...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -684,17 +686,18 @@
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th data-col="employee_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee ID</th>
+                                    <th data-col="employee_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">EmployeeID</th>
+                                    <th data-col="title" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Titulo</th>
+                                    <th data-col="phone" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Telefono</th>
                                     <th data-col="dept" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Departamento</th>
                                     <th data-col="site" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sitio</th>
-                                    <th data-col="phone" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Telefono</th>
                                     <th data-col="notes" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Notas</th>
                                     <th data-col="status" class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
                                     <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="empleadosInactivosBody" class="bg-white divide-y divide-gray-200 text-sm">
-                                <tr><td colspan="9" class="px-4 py-6 text-center text-gray-400 italic">Cargando empleados inactivos...</td></tr>
+                                <tr><td colspan="10" class="px-4 py-6 text-center text-gray-400 italic">Cargando empleados inactivos...</td></tr>
                             </tbody>
                         </table>
                     </div>

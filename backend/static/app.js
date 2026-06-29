@@ -1114,7 +1114,7 @@ function renderEmployeesPage() {
     const persons = globalPersons;
     tableBody.innerHTML = "";
     if (persons.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="9" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados registrados.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="10" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados registrados.</td></tr>';
         pageInfo.textContent = "mostrando 0-0 de 0";
         if (pageInfoAux) pageInfoAux.textContent = "Pagina 1";
         if (prevBtn) prevBtn.disabled = true;
@@ -1143,9 +1143,10 @@ function renderEmployeesPage() {
                 <td class="px-4 py-4 font-medium text-gray-800">${p.full_name}</td>
                 <td class="px-4 py-4 text-gray-500">${p.email}</td>
                 <td data-col="employee_id" class="px-4 py-4 text-gray-600 font-mono">${p.employee_id}</td>
+                <td data-col="title" class="px-4 py-4 text-gray-500">${p.title || '-'}</td>
+                <td data-col="phone" class="px-4 py-4 text-gray-500">${p.phone || '-'}</td>
                 <td data-col="dept" class="px-4 py-4 text-gray-600">${dept ? dept.department_name : '-'}</td>
                 <td data-col="site" class="px-4 py-4 text-gray-600">${site ? site.site_name : '-'}</td>
-                <td data-col="phone" class="px-4 py-4 text-gray-500">${p.phone || '-'}</td>
                 <td data-col="notes" class="px-4 py-4 text-gray-500">${p.notes || '-'}</td>
                 <td data-col="status" class="px-4 py-4 text-center">${statusBadge}</td>
                 <td class="px-4 py-4 text-center">
@@ -1165,7 +1166,7 @@ function loadEmployeesInactives() {
     const inactive = globalPersons.filter(p => p.is_active === false);
     tableBody.innerHTML = "";
     if (inactive.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="9" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados inactivos.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="10" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados inactivos.</td></tr>';
         pageInfo.textContent = "mostrando 0-0 de 0";
         if (pageInfoAux) pageInfoAux.textContent = "Pagina 1";
         if (prevBtn) prevBtn.disabled = true;
@@ -1190,9 +1191,10 @@ function loadEmployeesInactives() {
             <td class="px-4 py-4 font-medium text-gray-800">${escapeHtml(p.full_name)}</td>
             <td class="px-4 py-4 text-gray-500">${escapeHtml(p.email)}</td>
             <td data-col="employee_id" class="px-4 py-4 text-gray-600 font-mono">${escapeHtml(p.employee_id)}</td>
+            <td data-col="title" class="px-4 py-4 text-gray-500">${escapeHtml(p.title) || '-'}</td>
+            <td data-col="phone" class="px-4 py-4 text-gray-500">${escapeHtml(p.phone) || '-'}</td>
             <td data-col="dept" class="px-4 py-4 text-gray-600">${dept ? dept.department_name : '-'}</td>
             <td data-col="site" class="px-4 py-4 text-gray-600">${site ? site.site_name : '-'}</td>
-            <td data-col="phone" class="px-4 py-4 text-gray-500">${escapeHtml(p.phone) || '-'}</td>
             <td data-col="notes" class="px-4 py-4 text-gray-500">${escapeHtml(p.notes) || '-'}</td>
             <td data-col="status" class="px-4 py-4 text-center"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-300"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Inactivo</span></td>
             <td class="px-4 py-4 text-center">
@@ -2879,10 +2881,11 @@ function exportVisibleCSV(section) {
         const colMap = [
             { key: "full_name", label: "Nombre" },
             { key: "email", label: "Email" },
-            { key: "employee_id", label: "Employee ID", col: "employee_id" },
+            { key: "employee_id", label: "EmployeeID", col: "employee_id" },
+            { key: "title", label: "Titulo", col: "title" },
+            { key: "phone", label: "Telefono", col: "phone" },
             { key: "dept", label: "Departamento", col: "dept", fn: p => { const d = globalDepartments.find(x => x.id === p.department_id); return d ? d.department_name : ''; } },
             { key: "site", label: "Sitio", col: "site", fn: p => { const s = globalSites.find(x => x.id === p.site_id); return s ? s.site_name : ''; } },
-            { key: "phone", label: "Telefono", col: "phone" },
             { key: "notes", label: "Notas", col: "notes" },
             { key: "is_active", label: "Estado", col: "status", fn: p => p.is_active !== false ? "Activo" : "Inactivo" }
         ];

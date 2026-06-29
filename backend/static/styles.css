@@ -225,6 +225,118 @@ html.dark .sidebar-item.active { border-right-color: #f59e0b; }
 html.dark .sidebar-sub-item.active { border-right-color: #f59e0b; }
 html.dark .sidebar-nested-item.active { border-right-color: #f59e0b; }
 
+/* ===== DARK MODE ===== */
+html.dark-mode { color-scheme: dark; }
+html.dark-mode body { background-color: #0f172a; color: #e2e8f0; }
+
+/* Sections / cards — override bg-white, bg-gray-50 */
+html.dark-mode section.bg-white,
+html.dark-mode .bg-white,
+html.dark-mode .modal-panel,
+html.dark-mode #searchResultsBody table tbody tr:nth-child(even),
+html.dark-mode main section table tbody tr:nth-child(even) { background: #1e293b; }
+
+html.dark-mode .bg-gray-50,
+html.dark-mode main section table thead th,
+html.dark-mode main section table thead td,
+html.dark-mode #searchResultsBody table thead th,
+html.dark-mode .bg-gray-100\/50 { background: #334155; }
+
+/* Text overrides for muted / gray */
+html.dark-mode .text-gray-800 { color: #f1f5f9; }
+html.dark-mode .text-gray-700 { color: #e2e8f0; }
+html.dark-mode .text-gray-600 { color: #94a3b8; }
+html.dark-mode .text-gray-500,
+html.dark-mode .text-slate-500 { color: #64748b; }
+html.dark-mode main section table thead th,
+html.dark-mode main section table thead td,
+html.dark-mode #searchResultsBody table thead th { color: #94a3b8; }
+
+/* Border overrides */
+html.dark-mode .border-gray-200,
+html.dark-mode .border-gray-300 { border-color: #334155; }
+html.dark-mode .border-slate-200 { border-color: #334155; }
+
+/* Table cells */
+html.dark-mode table td,
+html.dark-mode table th { border-color: #334155; }
+
+/* Dividers */
+html.dark-mode .divide-gray-200 > * + * { border-color: #334155; }
+
+/* Login form */
+html.dark-mode .bg-slate-50 { background: #1e293b; }
+html.dark-mode .bg-white\/95 { background: rgba(30, 41, 59, 0.95); }
+
+/* Dropdown panels */
+html.dark-mode div[id^="colPanel_"] { background: #1e293b; border-color: #475569; }
+
+/* Dropdown search results */
+html.dark-mode div[id$="_results"] { background: #1e293b; border-color: #475569; }
+
+/* Inline report info bar */
+html.dark-mode #reportPersonInfo { background: #1e293b; border-color: #334155; }
+
+/* Hover states for buttons with bg-gray-50 hover */
+html.dark-mode .hover\:bg-gray-50:hover { background: #475569 !important; }
+
+/* Text in dynamic content — tbody defaults */
+html.dark-mode table tbody.text-gray-700,
+html.dark-mode table tbody.text-gray-600 { color: #e2e8f0; }
+
+/* Complete spans/sections using text-gray-400 */
+html.dark-mode .text-gray-400 { color: #94a3b8; }
+
+/* Inputs / selects / textareas */
+html.dark-mode input:not(.custom-checkbox),
+html.dark-mode select,
+html.dark-mode textarea {
+    background: #334155;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+html.dark-mode input::placeholder { color: #64748b; }
+
+/* Sidebar */
+html.dark-mode #sidebar { background: #0f172a; }
+
+/* Dashboard cards — keep gradient colors but darken backgrounds */
+html.dark-mode .dash-card {
+    background-blend-mode: overlay;
+    background-color: rgba(0,0,0,0.3);
+}
+html.dark-mode .dash-card .text-blue-700,
+html.dark-mode .dash-card .text-teal-700,
+html.dark-mode .dash-card .text-amber-700,
+html.dark-mode .dash-card .text-green-700,
+html.dark-mode .dash-card .text-orange-700,
+html.dark-mode .dash-card .text-purple-700 { color: #e2e8f0; }
+
+/* Table header colors in sections */
+html.dark-mode .text-gray-400 { color: #94a3b8; }
+
+/* Custom checkbox */
+html.dark-mode input[type="checkbox"].custom-checkbox {
+    border-color: #64748b;
+    background: #334155;
+}
+
+/* Section header */
+html.dark-mode .dash-bar-label,
+html.dark-mode .dash-bar-count { color: #e2e8f0; }
+html.dark-mode .dash-bar-track { background: #334155; }
+
+/* Toast background stays same (already dark enough) */
+
+/* Login overlay stays the same */
+
+/* Print unaffected */
+
+/* Scrollbar dark */
+html.dark-mode ::-webkit-scrollbar-track { background: #1e293b; }
+html.dark-mode ::-webkit-scrollbar-thumb { background: #475569; }
+html.dark-mode ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
 /* Responsive sidebar collapse */
 @media (max-width: 768px) {
     #menuToggle { display: block !important; }

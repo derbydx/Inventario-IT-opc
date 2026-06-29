@@ -1142,7 +1142,7 @@ function renderEmployeesPage() {
             row.innerHTML = `
                 <td class="px-4 py-4 font-medium text-gray-800">${p.full_name}</td>
                 <td class="px-4 py-4 text-gray-500">${p.email}</td>
-                <td class="px-4 py-4 text-gray-600 font-mono">${p.employee_id}</td>
+                <td data-col="employee_id" class="px-4 py-4 text-gray-600 font-mono">${p.employee_id}</td>
                 <td data-col="dept" class="px-4 py-4 text-gray-600">${dept ? dept.department_name : '-'}</td>
                 <td data-col="site" class="px-4 py-4 text-gray-600">${site ? site.site_name : '-'}</td>
                 <td data-col="phone" class="px-4 py-4 text-gray-500">${p.phone || '-'}</td>
@@ -1189,7 +1189,7 @@ function loadEmployeesInactives() {
         row.innerHTML = `
             <td class="px-4 py-4 font-medium text-gray-800">${escapeHtml(p.full_name)}</td>
             <td class="px-4 py-4 text-gray-500">${escapeHtml(p.email)}</td>
-            <td class="px-4 py-4 text-gray-600 font-mono">${escapeHtml(p.employee_id)}</td>
+            <td data-col="employee_id" class="px-4 py-4 text-gray-600 font-mono">${escapeHtml(p.employee_id)}</td>
             <td data-col="dept" class="px-4 py-4 text-gray-600">${dept ? dept.department_name : '-'}</td>
             <td data-col="site" class="px-4 py-4 text-gray-600">${site ? site.site_name : '-'}</td>
             <td data-col="phone" class="px-4 py-4 text-gray-500">${escapeHtml(p.phone) || '-'}</td>
@@ -2879,7 +2879,7 @@ function exportVisibleCSV(section) {
         const colMap = [
             { key: "full_name", label: "Nombre" },
             { key: "email", label: "Email" },
-            { key: "employee_id", label: "Employee ID" },
+            { key: "employee_id", label: "Employee ID", col: "employee_id" },
             { key: "dept", label: "Departamento", col: "dept", fn: p => { const d = globalDepartments.find(x => x.id === p.department_id); return d ? d.department_name : ''; } },
             { key: "site", label: "Sitio", col: "site", fn: p => { const s = globalSites.find(x => x.id === p.site_id); return s ? s.site_name : ''; } },
             { key: "phone", label: "Telefono", col: "phone" },

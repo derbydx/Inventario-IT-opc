@@ -6,4 +6,5 @@ services:
       - "3131:8000"
     volumes:
       - ./backend/it_inventario.db:/app/backend/it_inventario.db
+      - ./backend/static:/app/backend/static
     restart: unless-stopped

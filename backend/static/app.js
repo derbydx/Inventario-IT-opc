@@ -251,6 +251,24 @@ function fmtDate(d) {
     return d ? new Date(d).toLocaleDateString('es-ES') : '';
 }
 
+function getStatusLabel(status) {
+    const labels = {
+        "Available":    "Disponible",
+        "Checkout":     "En Uso",
+        "Broken":       "Dañado",
+        "Under repair": "En Reparación",
+        "GarantiaSD":   "Garantía SD",
+        "Reserved":     "Reservado",
+        "Lost/Missing": "Perdido / Extraviado",
+        "Found":        "Encontrado",
+        "Dispose":      "Descarte",
+        "Donate":       "Donación",
+        "Sold":         "Vendido",
+        "Archived":     "Archivado"
+    };
+    return labels[status] || status;
+}
+
 function getAssetBadgeColor(status) {
     if (status === "Checkout") return "bg-blue-100 text-blue-800";
     if (["Broken", "Lost/Missing", "Dispose"].includes(status)) return "bg-red-100 text-red-800";
@@ -280,7 +298,7 @@ function buildAssetRowHTML(asset, mode) {
         <td class="px-4 py-4 text-gray-500">${escapeHtml(asset.brand)} ${escapeHtml(asset.model)}</td>
         <td class="px-4 py-4">
             <span class="px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${badgeColor}">
-                ${escapeHtml(asset.status)}
+                ${getStatusLabel(asset.status)}
             </span>
         </td>
         <td data-col="asignado" class="px-4 py-4 text-gray-600 text-xs">${escapeHtml(assignedName)}</td>
@@ -464,7 +482,7 @@ async function renderAssetDetail(assetId) {
     } else if (asset.status === "Reserved") {
         badgeColor = "bg-purple-100 text-purple-800";
     }
-    statusElement.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeColor}">${asset.status}</span>`;
+    statusElement.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeColor}">${getStatusLabel(asset.status)}</span>`;
 
     const employeeObj = globalPersons.find(p => p.id === asset.person_id);
     const containerAsignado = document.getElementById("page_assigned_container");
@@ -477,7 +495,7 @@ async function renderAssetDetail(assetId) {
                 <span class="text-[10px] bg-blue-600 text-white font-bold py-0.5 px-1.5 rounded uppercase tracking-wide">Ver Asignados </span>
             </button>`;
     } else if (asset.status !== "Checkout") {
-        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded">Status: ${escapeHtml(asset.status)}</p>`;
+        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded">Status: ${getStatusLabel(asset.status)}</p>`;
     } else {
         containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded">Disponible en Almacen</p>`;
     }
@@ -3597,14 +3615,59 @@ function crExportCSV() {
 
 function crSaveDialog() {
     if (crSelectedFields.length === 0) { showToast("Seleccione campos para guardar.", "error"); return; }
-    const name = prompt("Nombre del reporte:", crSavedReportId ? "Reporte " + crSavedReportId : "");
-    if (!name) return;
+
+    const existing = document.getElementById("crSaveDialogInline");
+    if (existing) existing.remove();
+
+    const defaultName = crSavedReportId ? "Reporte " + crSavedReportId : "";
+    const overlay = document.createElement("div");
+    overlay.id = "crSaveDialogInline";
+    overlay.className = "fixed inset-0 bg-black/40 flex items-center justify-center z-[200] modal-overlay";
+    overlay.innerHTML = `
+        <div class="bg-white rounded-lg p-5 w-80 shadow-xl border border-gray-200 modal-panel">
+            <h4 class="text-sm font-bold text-gray-800 mb-3">Guardar reporte</h4>
+            <input id="crSaveNameInput" type="text" value="${defaultName}" maxlength="100"
+                placeholder="Nombre del reporte..."
+                class="w-full p-2 border border-gray-300 rounded text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <div class="flex justify-end gap-2">
+                <button id="crSaveCancelBtn"
+                    class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded transition-colors">
+                    Cancelar
+                </button>
+                <button id="crSaveConfirmBtn"
+                    class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded transition-colors">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const input = document.getElementById("crSaveNameInput");
+    input.focus();
+    input.select();
+
+    const doSave = () => {
+        const name = input.value.trim();
+        if (!name) { showToast("Ingresa un nombre para el reporte.", "error"); return; }
+        overlay.remove();
+        _crSaveExecute(name);
+    };
+
+    document.getElementById("crSaveConfirmBtn").onclick = doSave;
+    document.getElementById("crSaveCancelBtn").onclick = () => overlay.remove();
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+    input.onkeydown = (e) => {
+        if (e.key === "Enter") { e.preventDefault(); doSave(); }
+        if (e.key === "Escape") overlay.remove();
+    };
+}
+
+function _crSaveExecute(name) {
     const filters = JSON.stringify(crGetFilterValues());
     const method = crSavedReportId ? "PUT" : "POST";
     const url = crSavedReportId ? "/api/custom-reports/saved/" + crSavedReportId : "/api/custom-reports/saved/";
-    const body = crSavedReportId
-        ? JSON.stringify({ name, fields: crSelectedFields, filters })
-        : JSON.stringify({ name, fields: crSelectedFields, filters });
+    const body = JSON.stringify({ name, fields: crSelectedFields, filters });
     api(url, { method, headers: { "Content-Type": "application/json" }, body }).then(r => {
         if (!r.ok) { showToast("Error al guardar", "error"); return; }
         showToast("Reporte guardado.", "success");
@@ -3732,3 +3795,6 @@ async function refreshReconciliation() {
         loadReconciliationStatus();
     }
 }
+
+document.querySelectorAll('button[onclick*="exportVisibleCSV"], button[onclick*="toggleColumnPanel"]')
+    .forEach(function(btn) { btn.removeAttribute('disabled'); });

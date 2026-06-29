@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-gray-100 font-sans antialiased text-gray-900">
+<body class="bg-gray-50 font-sans antialiased text-gray-900">
 
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
@@ -42,21 +42,21 @@
     </div>
 
     <!-- TOP BAR -->
-    <div id="topBar" class="fixed top-0 left-0 right-0 h-14 bg-blue-900 text-white flex items-center px-4 z-50 shadow-md">
+    <div id="topBar" class="fixed top-0 left-0 right-0 h-14 bg-slate-900 text-white flex items-center px-4 z-50 shadow-md">
         <div class="flex items-center gap-3 w-56 shrink-0">
             <h1 class="text-base font-bold tracking-wide">IT-Asset-Manager</h1>
         </div>
         <div class="flex-1 flex items-center justify-center gap-2 max-w-2xl mx-auto">
-            <input type="text" id="topSearchInput" placeholder="Buscar por tag, serial, nombre..." class="w-full max-w-md p-2 rounded text-xs bg-blue-800/50 border border-blue-700 text-white placeholder-blue-300/60 focus:outline-none focus:ring-2 focus:ring-amber-400">
-            <select id="topSearchSection" class="p-2 rounded text-xs bg-blue-800/50 border border-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+            <input type="text" id="topSearchInput" placeholder="Buscar por tag, serial, nombre..." class="w-full max-w-md p-2 rounded text-xs bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400/60 focus:outline-none focus:ring-2 focus:ring-amber-400">
+            <select id="topSearchSection" class="p-2 rounded text-xs bg-slate-700/50 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
                 <option value="assets">Activos</option>
                 <option value="persons">Empleados</option>
             </select>
             <button onclick="executeTopSearch()" class="py-2 px-4 rounded text-xs font-bold bg-amber-500 hover:bg-amber-400 text-blue-900 transition-colors cursor-pointer">Buscar</button>
         </div>
         <div class="flex items-center gap-3 text-xs shrink-0">
-            <span id="topBarUserName" class="text-blue-200 font-bold">-</span>
-            <button onclick="logout()" class="text-xs bg-blue-800/50 hover:bg-blue-700/80 border border-blue-600/40 px-3 py-1.5 rounded font-bold transition-colors cursor-pointer">Salir</button>
+            <span id="topBarUserName" class="text-slate-300 font-bold">-</span>
+            <button onclick="logout()" class="text-xs bg-slate-700/50 hover:bg-slate-600/80 border border-slate-500/40 px-3 py-1.5 rounded font-bold transition-colors cursor-pointer">Salir</button>
         </div>
     </div>
 
@@ -64,7 +64,7 @@
     <div id="appLayout" class="flex h-screen overflow-hidden pt-14">
 
             <!-- SIDEBAR -->
-            <aside id="sidebar" class="w-56 bg-blue-900 text-white flex flex-col shrink-0">
+            <aside id="sidebar" class="w-56 bg-slate-800 text-white flex flex-col shrink-0">
 
                 <nav class="flex-1 overflow-y-auto text-sm py-2">
 
@@ -417,13 +417,13 @@
                         <button onclick="showAdvancedSearch()" class="px-3 py-1.5 border border-gray-300 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-50 bg-white transition-colors cursor-pointer">Avanzada</button>
                         <select id="filterStatus" onchange="loadAssets()" class="p-2 border border-gray-300 rounded text-xs bg-white">
                             <option value="">Todos los estados</option>
-                            <option value="Available">Available</option>
-                            <option value="Checkout">Checkout</option>
-                            <option value="Broken">Broken</option>
-                            <option value="Under repair">Under repair</option>
-                            <option value="GarantiaSD">GarantiaSD</option>
-                            <option value="Reserved">Reserved</option>
-                            <option value="Lost/Missing">Lost/Missing</option>
+                            <option value="Available">Disponible</option>
+                            <option value="Checkout">En Uso</option>
+                            <option value="Broken">Dañado</option>
+                            <option value="Under repair">En Reparación</option>
+                            <option value="GarantiaSD">Garantía SD</option>
+                            <option value="Reserved">Reservado</option>
+                            <option value="Lost/Missing">Perdido / Extraviado</option>
                         </select>
                         <select id="filterCategory" onchange="loadAssets()" class="p-2 border border-gray-300 rounded text-xs bg-white">
                             <option value="">Todas las categorias</option>
@@ -434,11 +434,11 @@
                         <h3 class="text-sm font-bold text-amber-800 mb-3">Busqueda Avanzada</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Buscar</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Buscar</label>
                                 <input type="text" id="adv_search" placeholder="Keyword" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Condicion</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Condicion</label>
                                 <select id="adv_condition" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
                                     <option value="contains">Contiene</option>
                                     <option value="exact">Exacto</option>
@@ -447,7 +447,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Campo de busqueda</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Campo de busqueda</label>
                                 <div id="adv_field_checkboxes" class="grid grid-cols-2 gap-x-3 gap-y-0.5 p-2 border border-gray-300 rounded bg-white max-h-40 overflow-y-auto">
                                     <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="asset_tag_id" checked class="cursor-pointer"> Asset Tag ID</label>
                                     <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="asset_description" checked class="cursor-pointer"> Descripcion</label>
@@ -469,37 +469,37 @@
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sitio</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Sitio</label>
                                 <select id="adv_site" class="w-full p-2 border border-gray-300 rounded text-xs bg-white"><option value="">Todos los Sitios</option></select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categoria</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Categoria</label>
                                 <select id="adv_category" class="w-full p-2 border border-gray-300 rounded text-xs bg-white"><option value="">Todas las Categorias</option></select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Departamento</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Departamento</label>
                                 <select id="adv_department" class="w-full p-2 border border-gray-300 rounded text-xs bg-white"><option value="">Todos los Departamentos</option></select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Estado</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Estado</label>
                                 <select id="adv_status" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
                                     <option value="">Cualquier Estado</option>
-                                    <option value="Available">Available</option>
-                                    <option value="Checkout">Checkout</option>
-                                    <option value="Broken">Broken</option>
-                                    <option value="Under repair">Under repair</option>
-                                    <option value="GarantiaSD">GarantiaSD</option>
-                                    <option value="Reserved">Reserved</option>
-                                    <option value="Lost/Missing">Lost/Missing</option>
-                                    <option value="Dispose">Dispose</option>
-                                    <option value="Sold">Sold</option>
-                                    <option value="Found">Found</option>
+                                    <option value="Available">Disponible</option>
+                                    <option value="Checkout">En Uso</option>
+                                    <option value="Broken">Dañado</option>
+                                    <option value="Under repair">En Reparación</option>
+                                    <option value="GarantiaSD">Garantía SD</option>
+                                    <option value="Reserved">Reservado</option>
+                                    <option value="Lost/Missing">Perdido / Extraviado</option>
+                                    <option value="Dispose">Descarte</option>
+                                    <option value="Sold">Vendido</option>
+                                    <option value="Found">Encontrado</option>
                                 </select>
                             </div>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Persona asignada</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Persona asignada</label>
                                 <div class="relative">
                                     <input type="text" id="adv_person_search" autocomplete="off" placeholder="Cualquier Persona" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
                                     <input type="hidden" id="adv_person_id" value="">
@@ -507,14 +507,14 @@
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Comprado a (Vendor)</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Comprado a (Vendor)</label>
                                 <input type="text" id="adv_vendor" placeholder="Cualquier Vendor" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
                             </div>
                         </div>
                         <hr class="my-3 border-amber-200">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">No. Resultados</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">No. Resultados</label>
                                 <select id="adv_limit" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
                                     <option value="50">50</option>
                                     <option value="100">100</option>
@@ -524,14 +524,14 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Rango de fecha por</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Rango de fecha por</label>
                                 <select id="adv_datefield" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
                                     <option value="purchase_date">Fecha de Creacion</option>
                                     <option value="assigned_date">Fecha de Asignacion</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Rango rapido</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Rango rapido</label>
                                 <select id="adv_quickdate" class="w-full p-2 border border-gray-300 rounded text-xs bg-white" onchange="applyQuickDateRange()">
                                     <option value="">Personalizado</option>
                                     <option value="today">Hoy</option>
@@ -543,7 +543,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Fecha personalizada</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Fecha personalizada</label>
                                 <input type="text" id="adv_daterange" placeholder="dd/MM/yyyy - dd/MM/yyyy" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
                             </div>
                         </div>
@@ -557,18 +557,18 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th data-sort="asset_tag_id" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Asset Tag</th>
-                                    <th data-sort="asset_description" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Descripcion</th>
-                                    <th data-sort="marca_modelo" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Marca/Modelo</th>
-                                    <th data-sort="status" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Estado</th>
-                                    <th data-sort="asignado" data-col="asignado" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Asignado</th>
-                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
-                                    <th data-sort="serial_no" data-col="serie" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Serie</th>
-                                    <th data-sort="category" data-col="category" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Categoria</th>
-                                    <th data-sort="site" data-col="site" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Sitio</th>
-                                    <th data-sort="numero_telefono" data-col="phone" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Telefono</th>
-                                    <th data-sort="purchased_from" data-col="vendor" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Vendor</th>
-                                    <th data-sort="purchase_date" data-col="date" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Fecha Compra</th>
+                                    <th data-sort="asset_tag_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Asset Tag</th>
+                                    <th data-sort="asset_description" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Descripcion</th>
+                                    <th data-sort="marca_modelo" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Marca/Modelo</th>
+                                    <th data-sort="status" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Estado</th>
+                                    <th data-sort="asignado" data-col="asignado" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Asignado</th>
+                                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
+                                    <th data-sort="serial_no" data-col="serie" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Serie</th>
+                                    <th data-sort="category" data-col="category" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Categoria</th>
+                                    <th data-sort="site" data-col="site" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Sitio</th>
+                                    <th data-sort="numero_telefono" data-col="phone" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Telefono</th>
+                                    <th data-sort="purchased_from" data-col="vendor" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Vendor</th>
+                                    <th data-sort="purchase_date" data-col="date" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Fecha Compra</th>
                                 </tr>
                             </thead>
                             <tbody id="assetsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
@@ -619,15 +619,15 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Employee ID</th>
-                                    <th data-col="dept" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Departamento</th>
-                                    <th data-col="site" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Sitio</th>
-                                    <th data-col="phone" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Telefono</th>
-                                    <th data-col="notes" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Notas</th>
-                                    <th data-col="status" class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee ID</th>
+                                    <th data-col="dept" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Departamento</th>
+                                    <th data-col="site" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sitio</th>
+                                    <th data-col="phone" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Telefono</th>
+                                    <th data-col="notes" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Notas</th>
+                                    <th data-col="status" class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
+                                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="personsTableBody" class="bg-white divide-y divide-gray-200 text-sm">
@@ -736,12 +736,12 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha / Hora</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Accion</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Equipo (Tag)</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Involucrado</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Operador</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Detalles / Notas</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fecha / Hora</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Accion</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Equipo (Tag)</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Involucrado</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Operador</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Detalles / Notas</th>
                                 </tr>
                             </thead>
                             <tbody id="historyTableBody" class="bg-white divide-y divide-gray-200 text-sm font-mono text-gray-600">
@@ -787,7 +787,7 @@
                     <div class="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <div class="flex flex-wrap items-end gap-3">
                             <div class="shrink-0">
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Empleado</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Empleado</label>
                                 <div class="relative">
                                     <input type="text" id="report_person_search" autocomplete="off" placeholder="Buscar por nombre, apellido, email o ID..." class="w-72 p-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <input type="hidden" id="report_person_id" value="">
@@ -796,7 +796,7 @@
                             </div>
                             <div id="reportPersonInfo" class="hidden flex items-center gap-2 text-[11px] text-gray-600 bg-white px-3 py-2 border border-gray-200 rounded flex-1 min-w-0"></div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Modo</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Modo</label>
                                 <select id="report_mode" onchange="loadCheckoutReport()" class="p-2 border border-gray-300 rounded text-sm bg-white">
                                     <option value="current">Current Status</option>
                                     <option value="alltime">All Time</option>
@@ -808,16 +808,16 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Asset Tag</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Descripcion</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Marca / Modelo</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Serie</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Categoria</th>
-                                    <th data-col="site" class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Sitio</th>
-                                    <th data-col="assigned" class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Asignado</th>
-                                    <th data-col="returned" class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Devuelto</th>
-                                    <th data-col="status" class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Status</th>
-                                    <th data-col="actions" class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Acciones</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Asset Tag</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Descripcion</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Marca / Modelo</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Serie</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Categoria</th>
+                                    <th data-col="site" class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Sitio</th>
+                                    <th data-col="assigned" class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Asignado</th>
+                                    <th data-col="returned" class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Devuelto</th>
+                                    <th data-col="status" class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Status</th>
+                                    <th data-col="actions" class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="reportResultsBody" class="bg-white divide-y divide-gray-200 text-xs text-gray-700">
@@ -838,11 +838,11 @@
                     <div class="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <div class="flex flex-wrap items-end gap-3">
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Desde</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Desde</label>
                                 <input type="date" id="ctf_start" class="p-2 border border-gray-300 rounded text-sm bg-white">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Hasta</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Hasta</label>
                                 <input type="date" id="ctf_end" class="p-2 border border-gray-300 rounded text-sm bg-white">
                             </div>
                             <div>
@@ -854,15 +854,15 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Asset Tag</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Descripcion</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Marca / Modelo</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Serie</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Categoria</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Empleado</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Admin</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Fecha Checkout</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Status Actual</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Asset Tag</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Descripcion</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Marca / Modelo</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Serie</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Categoria</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Empleado</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Admin</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Fecha Checkout</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Status Actual</th>
                                 </tr>
                             </thead>
                             <tbody id="ctfResultsBody" class="bg-white divide-y divide-gray-200 text-xs text-gray-700">
@@ -884,19 +884,19 @@
                     <div class="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <div class="flex flex-wrap items-end gap-3">
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Estado</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Estado</label>
                                 <select id="sr_status" onchange="loadStatusReport()" class="w-64 p-2 border border-gray-300 rounded text-sm bg-white">
                                     <option value="">-- Seleccione Status --</option>
-                                    <option value="Available">Available</option>
-                                    <option value="Checkout">Checkout</option>
-                                    <option value="Broken">Broken</option>
-                                    <option value="Under repair">Under repair</option>
-                                    <option value="GarantiaSD">GarantiaSD</option>
-                                    <option value="Reserved">Reserved</option>
-                                    <option value="Lost/Missing">Lost/Missing</option>
-                                    <option value="Dispose">Dispose</option>
-                                    <option value="Sold">Sold</option>
-                                    <option value="Found">Found</option>
+                                    <option value="Available">Disponible</option>
+                                    <option value="Checkout">En Uso</option>
+                                    <option value="Broken">Dañado</option>
+                                    <option value="Under repair">En Reparación</option>
+                                    <option value="GarantiaSD">Garantía SD</option>
+                                    <option value="Reserved">Reservado</option>
+                                    <option value="Lost/Missing">Perdido / Extraviado</option>
+                                    <option value="Dispose">Descarte</option>
+                                    <option value="Sold">Vendido</option>
+                                    <option value="Found">Encontrado</option>
                                     <option value="Archived">Archived</option>
                                 </select>
                             </div>
@@ -906,13 +906,13 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Asset Tag</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Descripcion</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Marca / Modelo</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Serie</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Categoria</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Sitio</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Status</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Asset Tag</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Descripcion</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Marca / Modelo</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Serie</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Categoria</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Sitio</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Status</th>
                                 </tr>
                             </thead>
                             <tbody id="srResultsBody" class="bg-white divide-y divide-gray-200 text-xs text-gray-700">
@@ -935,10 +935,10 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Departamento</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Empleados</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase">Activos Asignados</th>
-                                    <th class="px-3 py-2 text-center text-[10px] font-bold text-gray-500 uppercase">Accion</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Departamento</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Empleados</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Activos Asignados</th>
+                                    <th class="px-3 py-2 text-center text-[10px] font-semibold text-gray-500 uppercase">Accion</th>
                                 </tr>
                             </thead>
                             <tbody id="deptReportBody" class="bg-white divide-y divide-gray-200 text-xs text-gray-700">
@@ -961,7 +961,7 @@
                     <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
                         <div class="lg:col-span-3">
                             <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Campos del Reporte (seleccione los que desea incluir)</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-2">Campos del Reporte (seleccione los que desea incluir)</label>
                                 <div id="crFieldGroups" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 bg-white rounded border border-gray-200">
                                     <p class="text-xs text-gray-400 italic col-span-full">Cargando campos...</p>
                                 </div>
@@ -970,7 +970,7 @@
                         <div>
                             <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
                                 <div>
-                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Reportes Guardados</label>
+                                    <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Reportes Guardados</label>
                                     <select id="crSavedReports" onchange="crLoadSaved()" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
                                         <option value="">-- Seleccione --</option>
                                     </select>
@@ -986,43 +986,43 @@
                     <div id="crFilterPanel" class="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <div class="flex flex-wrap items-end gap-3">
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Status</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Status</label>
                                 <select id="cr_status" class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
                                     <option value="">-- Todos --</option>
-                                    <option value="Available">Available</option>
-                                    <option value="Checkout">Checkout</option>
-                                    <option value="Broken">Broken</option>
-                                    <option value="Under repair">Under repair</option>
-                                    <option value="GarantiaSD">GarantiaSD</option>
-                                    <option value="Reserved">Reserved</option>
-                                    <option value="Lost/Missing">Lost/Missing</option>
-                                    <option value="Dispose">Dispose</option>
-                                    <option value="Sold">Sold</option>
-                                    <option value="Donate">Donate</option>
-                                    <option value="Found">Found</option>
+                                    <option value="Available">Disponible</option>
+                                    <option value="Checkout">En Uso</option>
+                                    <option value="Broken">Dañado</option>
+                                    <option value="Under repair">En Reparación</option>
+                                    <option value="GarantiaSD">Garantía SD</option>
+                                    <option value="Reserved">Reservado</option>
+                                    <option value="Lost/Missing">Perdido / Extraviado</option>
+                                    <option value="Dispose">Descarte</option>
+                                    <option value="Sold">Vendido</option>
+                                    <option value="Donate">Donación</option>
+                                    <option value="Found">Encontrado</option>
                                     <option value="Archived">Archived</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categoria</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Categoria</label>
                                 <select id="cr_category" class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
                                     <option value="">-- Todas --</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sitio</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Sitio</label>
                                 <select id="cr_site" class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
                                     <option value="">-- Todos --</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Departamento</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Departamento</label>
                                 <select id="cr_dept" class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
                                     <option value="">-- Todos --</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Empleado</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Empleado</label>
                                 <div class="relative">
                                     <input type="text" id="cr_person_search" autocomplete="off" placeholder="Nombre o email..." class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
                                     <input type="hidden" id="cr_person_id" value="">
@@ -1030,30 +1030,30 @@
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Texto de busqueda</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Texto de busqueda</label>
                                 <input type="text" id="cr_text_search" placeholder="Buscar en campos..." class="w-40 p-2 border border-gray-300 rounded text-xs bg-white">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Costo Min</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Costo Min</label>
                                 <input type="number" id="cr_cost_min" step="0.01" class="w-24 p-2 border border-gray-300 rounded text-xs bg-white">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Costo Max</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Costo Max</label>
                                 <input type="number" id="cr_cost_max" step="0.01" class="w-24 p-2 border border-gray-300 rounded text-xs bg-white">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Fecha por</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Fecha por</label>
                                 <select id="cr_date_field" class="w-32 p-2 border border-gray-300 rounded text-xs bg-white">
                                     <option value="purchase_date">Fecha Compra</option>
                                     <option value="assigned_date">Fecha Asignacion</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Fecha Desde</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Fecha Desde</label>
                                 <input type="date" id="cr_date_from" class="w-36 p-2 border border-gray-300 rounded text-xs bg-white">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Fecha Hasta</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Fecha Hasta</label>
                                 <input type="date" id="cr_date_to" class="w-36 p-2 border border-gray-300 rounded text-xs bg-white">
                             </div>
                             <div class="flex gap-2">
@@ -1079,7 +1079,7 @@
                     <form id="deliveryForm" class="max-w-md space-y-3">
                         <div>
                             <div class="flex justify-between items-center">
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Empleado</label>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Empleado</label>
                                 <button type="button" onclick="openPersonModal()" class="text-blue-600 hover:text-blue-800 text-xs font-bold mb-1">+ Nuevo Empleado</button>
                             </div>
                             <div class="relative">
@@ -1089,11 +1089,11 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categorias y Cantidades</label>
+                            <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Categorias y Cantidades</label>
                             <div id="delivery_category_checkboxes" class="max-h-60 overflow-y-auto border border-gray-200 rounded p-2 space-y-1"></div>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Notas</label>
+                            <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Notas</label>
                             <textarea id="delivery_notes" rows="2" class="w-full p-2 border border-gray-300 rounded text-sm"></textarea>
                         </div>
                         <div>
@@ -1121,11 +1121,11 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Empleado</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">ID</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Items Pendientes</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Categorias</th>
-                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Empleado</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Items Pendientes</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Categorias</th>
+                                    <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="deliveryEmployeesBody" class="bg-white divide-y divide-gray-200 text-sm">
@@ -1685,12 +1685,12 @@
                 </div>
                 <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Categoria *</label>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase">Categoria *</label>
                         <select id="asset_category" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
                         <div class="flex justify-between items-center">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Sitio / Edificio *</label>
+                            <label class="block text-[10px] font-semibold text-gray-500 uppercase">Sitio / Edificio *</label>
                             <button type="button" onclick="openSiteModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nuevo</button>
                         </div>
                         <select id="asset_site_id" class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
@@ -1738,14 +1738,14 @@
                 <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
                     <div>
                         <div class="flex justify-between items-center">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Asignar a Departamento *</label>
+                            <label class="block text-[10px] font-semibold text-gray-500 uppercase">Asignar a Departamento *</label>
                             <button type="button" onclick="openDepartmentModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nuevo</button>
                         </div>
                         <select id="person_department_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
                         <div class="flex justify-between items-center">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Asignar a Sitio Base *</label>
+                            <label class="block text-[10px] font-semibold text-gray-500 uppercase">Asignar a Sitio Base *</label>
                             <button type="button" onclick="openSiteModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nuevo</button>
                         </div>
                         <select id="person_site_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
@@ -1902,27 +1902,27 @@
                 </div>
                 <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Categoria *</label>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase">Categoria *</label>
                         <select id="edit_asset_category" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Sitio / Edificio *</label>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase">Sitio / Edificio *</label>
                         <select id="edit_asset_site_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Estado (Status) *</label>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase">Estado (Status) *</label>
                         <select id="edit_asset_status" onchange="toggleEditRepairFields()" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white">
-                            <option value="Available">Available</option>
-                            <option value="Checkout">Checkout</option>
-                            <option value="Broken">Broken</option>
-                            <option value="Under repair">Under repair</option>
-                            <option value="GarantiaSD">GarantiaSD</option>
-                            <option value="Reserved">Reserved</option>
-                            <option value="Lost/Missing">Lost/Missing</option>
-                            <option value="Found">Found</option>
-                            <option value="Dispose">Dispose</option>
-                            <option value="Donate">Donate</option>
-                            <option value="Sold">Sold</option>
+                            <option value="Available">Disponible</option>
+                            <option value="Checkout">En Uso</option>
+                            <option value="Broken">Dañado</option>
+                            <option value="Under repair">En Reparación</option>
+                            <option value="GarantiaSD">Garantía SD</option>
+                            <option value="Reserved">Reservado</option>
+                            <option value="Lost/Missing">Perdido / Extraviado</option>
+                            <option value="Found">Encontrado</option>
+                            <option value="Dispose">Descarte</option>
+                            <option value="Donate">Donación</option>
+                            <option value="Sold">Vendido</option>
                         </select>
                     </div>
                     <div id="editAssetAssignedContainer" class="hidden bg-green-50 border border-green-200 rounded p-2">
@@ -2060,14 +2060,14 @@
                 <div class="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
                     <div>
                         <div class="flex justify-between items-center">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Departamento *</label>
+                            <label class="block text-[10px] font-semibold text-gray-500 uppercase">Departamento *</label>
                             <button type="button" onclick="openDepartmentModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nuevo</button>
                         </div>
                         <select id="edit_person_department_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>
                     </div>
                     <div>
                         <div class="flex justify-between items-center">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Sitio Base *</label>
+                            <label class="block text-[10px] font-semibold text-gray-500 uppercase">Sitio Base *</label>
                             <button type="button" onclick="openSiteModal()" class="text-blue-600 hover:text-blue-800 text-[10px] font-bold">+ Nuevo</button>
                         </div>
                         <select id="edit_person_site_id" required class="w-full mt-0.5 p-1.5 border border-gray-300 rounded text-xs bg-white"></select>

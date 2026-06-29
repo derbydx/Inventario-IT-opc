@@ -269,28 +269,28 @@ function buildAssetRowHTML(asset, mode) {
         actionButton = `<button onclick="event.stopPropagation(); openDetailsModal(${asset.id})" class="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>Ver</button>`;
     } else {
         if (asset.status === "Checkout") {
-            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkin')" class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15"/></svg>Check-in</button>`;
+            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkin')" class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15"/></svg>Devolver</button>`;
         } else {
-            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/></svg>Check-out</button>`;
+            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/></svg>Asignar</button>`;
         }
     }
     return `
-        <td class="px-4 py-3 font-mono font-bold text-gray-700 group-hover:text-blue-600">${escapeHtml(asset.asset_tag_id)}</td>
-        <td class="px-4 py-3 text-gray-600">${escapeHtml(asset.asset_description)}</td>
-        <td class="px-4 py-3 text-gray-500">${escapeHtml(asset.brand)} ${escapeHtml(asset.model)}</td>
-        <td class="px-4 py-3">
+        <td class="px-4 py-4 font-mono font-bold text-gray-700 group-hover:text-blue-600">${escapeHtml(asset.asset_tag_id)}</td>
+        <td class="px-4 py-4 text-gray-600">${escapeHtml(asset.asset_description)}</td>
+        <td class="px-4 py-4 text-gray-500">${escapeHtml(asset.brand)} ${escapeHtml(asset.model)}</td>
+        <td class="px-4 py-4">
             <span class="px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${badgeColor}">
                 ${escapeHtml(asset.status)}
             </span>
         </td>
-        <td data-col="asignado" class="px-4 py-3 text-gray-600 text-xs">${escapeHtml(assignedName)}</td>
-        <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">${actionButton}</td>
-        <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${escapeHtml(asset.serial_no)}</td>
-        <td data-col="category" class="px-4 py-3 text-gray-500">${escapeHtml(asset.category || '')}</td>
-        <td data-col="site" class="px-4 py-3 text-gray-500">${siteName(asset.site_id)}</td>
-        <td data-col="phone" class="px-4 py-3 text-gray-500">${escapeHtml(asset.numero_telefono || '')}</td>
-        <td data-col="vendor" class="px-4 py-3 text-gray-500">${escapeHtml(asset.purchased_from || '')}</td>
-        <td data-col="date" class="px-4 py-3 text-gray-500">${fmtDate(asset.purchase_date)}</td>
+        <td data-col="asignado" class="px-4 py-4 text-gray-600 text-xs">${escapeHtml(assignedName)}</td>
+        <td class="px-4 py-4 text-center" onclick="event.stopPropagation();">${actionButton}</td>
+        <td data-col="serie" class="px-4 py-4 text-gray-500 font-mono">${escapeHtml(asset.serial_no)}</td>
+        <td data-col="category" class="px-4 py-4 text-gray-500">${escapeHtml(asset.category || '')}</td>
+        <td data-col="site" class="px-4 py-4 text-gray-500">${siteName(asset.site_id)}</td>
+        <td data-col="phone" class="px-4 py-4 text-gray-500">${escapeHtml(asset.numero_telefono || '')}</td>
+        <td data-col="vendor" class="px-4 py-4 text-gray-500">${escapeHtml(asset.purchased_from || '')}</td>
+        <td data-col="date" class="px-4 py-4 text-gray-500">${fmtDate(asset.purchase_date)}</td>
     `;
 }
 
@@ -548,23 +548,23 @@ async function renderAssetDetail(assetId) {
                     }
 
                     historyHtml += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td class="px-4 py-3 font-mono text-[11px] text-gray-500 whitespace-nowrap">${fecha}</td>
-                        <td class="px-4 py-3">${actionBadgeHtml}</td>
-                        <td class="px-4 py-3 text-sm">${personHtml}</td>
-                        <td class="px-4 py-3 text-xs text-gray-600">${operatorName}</td>
-                        <td class="px-4 py-3 text-xs text-gray-500 italic max-w-[200px] truncate">${detailHtml}</td>
+                        <td class="px-4 py-4 font-mono text-[11px] text-gray-500 whitespace-nowrap">${fecha}</td>
+                        <td class="px-4 py-4">${actionBadgeHtml}</td>
+                        <td class="px-4 py-4 text-sm">${personHtml}</td>
+                        <td class="px-4 py-4 text-xs text-gray-600">${operatorName}</td>
+                        <td class="px-4 py-4 text-xs text-gray-500 italic max-w-[200px] truncate">${detailHtml}</td>
                     </tr>`;
 
                     const changedFrom = item.estado_anterior ? escapeHtml(item.estado_anterior) : '-';
                     const changedTo = item.estado_nuevo ? escapeHtml(item.estado_nuevo) : '-';
 
                     historialHtml += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td class="px-4 py-3 font-mono text-[11px] text-gray-500 whitespace-nowrap">${fecha}</td>
-                        <td class="px-4 py-3">${actionBadgeHtml}</td>
-                        <td class="px-4 py-3 text-xs text-gray-700">Status</td>
-                        <td class="px-4 py-3 text-xs text-gray-600">${changedFrom}</td>
-                        <td class="px-4 py-3 text-xs text-gray-600">${changedTo}</td>
-                        <td class="px-4 py-3 text-xs text-gray-600">${operatorName}</td>
+                        <td class="px-4 py-4 font-mono text-[11px] text-gray-500 whitespace-nowrap">${fecha}</td>
+                        <td class="px-4 py-4">${actionBadgeHtml}</td>
+                        <td class="px-4 py-4 text-xs text-gray-700">Status</td>
+                        <td class="px-4 py-4 text-xs text-gray-600">${changedFrom}</td>
+                        <td class="px-4 py-4 text-xs text-gray-600">${changedTo}</td>
+                        <td class="px-4 py-4 text-xs text-gray-600">${operatorName}</td>
                     </tr>`;
                 });
                 historyBody.innerHTML = historyHtml;
@@ -828,11 +828,11 @@ function openDeletedAssetsModal() {
             const row = document.createElement("tr");
             row.className = "hover:bg-red-50/30 transition-colors";
             row.innerHTML = `
-                <td class="px-4 py-3 font-bold text-red-700">${dev.asset_tag_id}</td>
-                <td class="px-4 py-3 text-gray-600">${dev.asset_description}</td>
-                <td class="px-4 py-3 text-gray-500">${dev.brand} ${dev.model}</td>
-                <td class="px-4 py-3 font-mono text-gray-400">${dev.serial_no}</td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-4 font-bold text-red-700">${dev.asset_tag_id}</td>
+                <td class="px-4 py-4 text-gray-600">${dev.asset_description}</td>
+                <td class="px-4 py-4 text-gray-500">${dev.brand} ${dev.model}</td>
+                <td class="px-4 py-4 font-mono text-gray-400">${dev.serial_no}</td>
+                <td class="px-4 py-4 text-center">
                     <button onclick="restoreAsset('${dev.id}', '${dev.asset_tag_id}')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] uppercase py-1 px-3 rounded shadow transition-colors cursor-pointer">
                         Restaurar
                     </button>
@@ -1114,15 +1114,15 @@ function renderEmployeesPage() {
             ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-800 border border-green-300"><span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Activo</span>'
             : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-300"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Inactivo</span>';
             row.innerHTML = `
-                <td class="px-4 py-3 font-medium text-gray-800">${p.full_name}</td>
-                <td class="px-4 py-3 text-gray-500">${p.email}</td>
-                <td class="px-4 py-3 text-gray-600 font-mono">${p.employee_id}</td>
-                <td data-col="dept" class="px-4 py-3 text-gray-600">${dept ? dept.department_name : '-'}</td>
-                <td data-col="site" class="px-4 py-3 text-gray-600">${site ? site.site_name : '-'}</td>
-                <td data-col="phone" class="px-4 py-3 text-gray-500">${p.phone || '-'}</td>
-                <td data-col="notes" class="px-4 py-3 text-gray-500">${p.notes || '-'}</td>
-                <td data-col="status" class="px-4 py-3 text-center">${statusBadge}</td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-4 font-medium text-gray-800">${p.full_name}</td>
+                <td class="px-4 py-4 text-gray-500">${p.email}</td>
+                <td class="px-4 py-4 text-gray-600 font-mono">${p.employee_id}</td>
+                <td data-col="dept" class="px-4 py-4 text-gray-600">${dept ? dept.department_name : '-'}</td>
+                <td data-col="site" class="px-4 py-4 text-gray-600">${site ? site.site_name : '-'}</td>
+                <td data-col="phone" class="px-4 py-4 text-gray-500">${p.phone || '-'}</td>
+                <td data-col="notes" class="px-4 py-4 text-gray-500">${p.notes || '-'}</td>
+                <td data-col="status" class="px-4 py-4 text-center">${statusBadge}</td>
+                <td class="px-4 py-4 text-center">
                     <button onclick="openEditPersonModal(${p.id})" class="bg-teal-100 hover:bg-teal-200 text-teal-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-teal-300 transition-colors cursor-pointer">Editar</button>
                 </td>`;
             tableBody.appendChild(row);
@@ -2643,11 +2643,11 @@ async function loadDeliveryEmployees() {
             const row = document.createElement("tr");
             row.className = "hover:bg-blue-50/50 transition-colors";
             row.innerHTML = `
-                <td class="px-4 py-3 font-medium text-gray-800">${g.person_name}</td>
-                <td class="px-4 py-3 font-mono text-gray-500">${g.items[0].person_id}</td>
-                <td class="px-4 py-3 text-gray-600">${pendingCount}</td>
-                <td class="px-4 py-3 text-gray-500">${cats}</td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-4 font-medium text-gray-800">${g.person_name}</td>
+                <td class="px-4 py-4 font-mono text-gray-500">${g.items[0].person_id}</td>
+                <td class="px-4 py-4 text-gray-600">${pendingCount}</td>
+                <td class="px-4 py-4 text-gray-500">${cats}</td>
+                <td class="px-4 py-4 text-center">
                     <button onclick="showSection('deliveryBoard')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-blue-300 transition-colors cursor-pointer">Ver en Tablero</button>
                 </td>`;
             tbody.appendChild(row);
@@ -2917,11 +2917,11 @@ async function loadUsers() {
         const canManage = hasPermission("can_manage_users");
         tbody.innerHTML = users.map(u => `
             <tr>
-                <td class="px-4 py-3 font-medium">${u.username}</td>
-                <td class="px-4 py-3">${u.email || '-'}</td>
-                <td class="px-4 py-3">${u.group ? u.group.name : '-'}</td>
-                <td class="px-4 py-3">${u.is_active ? '<span class="text-green-600 font-bold">Si</span>' : '<span class="text-red-500 font-bold">No</span>'}</td>
-                <td class="px-4 py-3 text-center">${canManage ? `<button onclick="editUser(${u.id})" class="text-blue-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Editar</button>` : '-'}</td>
+                <td class="px-4 py-4 font-medium">${u.username}</td>
+                <td class="px-4 py-4">${u.email || '-'}</td>
+                <td class="px-4 py-4">${u.group ? u.group.name : '-'}</td>
+                <td class="px-4 py-4">${u.is_active ? '<span class="text-green-600 font-bold">Si</span>' : '<span class="text-red-500 font-bold">No</span>'}</td>
+                <td class="px-4 py-4 text-center">${canManage ? `<button onclick="editUser(${u.id})" class="text-blue-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Editar</button>` : '-'}</td>
             </tr>
         `).join("");
     } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
@@ -3019,9 +3019,9 @@ async function loadGroups() {
             if (g.can_import_export) perms.push("Imp/Exp");
             if (g.can_manage_users) perms.push("Usuarios");
             return `<tr>
-                <td class="px-4 py-3 font-medium">${g.name}</td>
-                <td class="px-4 py-3 text-xs text-gray-500">${perms.join(", ")}</td>
-                <td class="px-4 py-3 text-center">${canManage ? `<button onclick="editGroup(${g.id})" class="text-blue-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Editar</button><button onclick="deleteGroup(${g.id})" class="text-red-600 hover:underline text-xs font-bold cursor-pointer">Eliminar</button>` : '-'}</td>
+                <td class="px-4 py-4 font-medium">${g.name}</td>
+                <td class="px-4 py-4 text-xs text-gray-500">${perms.join(", ")}</td>
+                <td class="px-4 py-4 text-center">${canManage ? `<button onclick="editGroup(${g.id})" class="text-blue-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Editar</button><button onclick="deleteGroup(${g.id})" class="text-red-600 hover:underline text-xs font-bold cursor-pointer">Eliminar</button>` : '-'}</td>
             </tr>`;
         }).join("");
     } catch (e) { tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
@@ -3121,11 +3121,11 @@ async function loadAssetsByStatus(status) {
         }
         tbody.innerHTML = assets.map(a => `
             <tr class="hover:bg-red-50/30 transition-colors cursor-pointer" onclick="openDetailsModal(${a.id})">
-                <td class="px-4 py-3 font-bold text-red-700">${a.asset_tag_id}</td>
-                <td class="px-4 py-3 text-gray-600">${a.asset_description}</td>
-                <td class="px-4 py-3 text-gray-500">${a.brand} ${a.model}</td>
-                <td class="px-4 py-3 font-mono text-gray-400">${a.serial_no}</td>
-                <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">
+                <td class="px-4 py-4 font-bold text-red-700">${a.asset_tag_id}</td>
+                <td class="px-4 py-4 text-gray-600">${a.asset_description}</td>
+                <td class="px-4 py-4 text-gray-500">${a.brand} ${a.model}</td>
+                <td class="px-4 py-4 font-mono text-gray-400">${a.serial_no}</td>
+                <td class="px-4 py-4 text-center" onclick="event.stopPropagation();">
                     <button onclick="restoreOneAsset(${a.id},'${a.asset_tag_id}')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] uppercase py-1 px-3 rounded shadow transition-colors cursor-pointer">Restaurar</button>
                 </td>
             </tr>
@@ -3150,14 +3150,14 @@ async function loadRepairAssets() {
             var tech = globalAdmins.find(function (ad) { return ad.id === a.repair_technician_id; });
             var badgeColor = a.status === "GarantiaSD" ? "bg-amber-100 text-amber-800" : "bg-orange-100 text-orange-800";
             return '<tr class="hover:bg-amber-50/30 transition-colors cursor-pointer" onclick="openDetailsModal(' + a.id + ')">' +
-                '<td class="px-4 py-3 font-bold text-amber-700">' + a.asset_tag_id + '</td>' +
-                '<td class="px-4 py-3 text-gray-600">' + (a.asset_description || '') + '</td>' +
-                '<td class="px-4 py-3 text-gray-500">' + (a.brand || '') + ' ' + (a.model || '') + '</td>' +
-                '<td class="px-4 py-3 font-mono text-gray-400">' + (a.serial_no || '') + '</td>' +
-                '<td class="px-4 py-3"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ' + badgeColor + '">' + a.status + '</span></td>' +
-                '<td class="px-4 py-3 text-gray-600 max-w-[200px] truncate">' + (a.repair_reason || '-') + '</td>' +
-                '<td class="px-4 py-3 text-gray-600">' + (leftPerson ? leftPerson.full_name : '-') + '</td>' +
-                '<td class="px-4 py-3 text-gray-600">' + (tech ? tech.username : '-') + '</td>' +
+                '<td class="px-4 py-4 font-bold text-amber-700">' + a.asset_tag_id + '</td>' +
+                '<td class="px-4 py-4 text-gray-600">' + (a.asset_description || '') + '</td>' +
+                '<td class="px-4 py-4 text-gray-500">' + (a.brand || '') + ' ' + (a.model || '') + '</td>' +
+                '<td class="px-4 py-4 font-mono text-gray-400">' + (a.serial_no || '') + '</td>' +
+                '<td class="px-4 py-4"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ' + badgeColor + '">' + a.status + '</span></td>' +
+                '<td class="px-4 py-4 text-gray-600 max-w-[200px] truncate">' + (a.repair_reason || '-') + '</td>' +
+                '<td class="px-4 py-4 text-gray-600">' + (leftPerson ? leftPerson.full_name : '-') + '</td>' +
+                '<td class="px-4 py-4 text-gray-600">' + (tech ? tech.username : '-') + '</td>' +
             '</tr>';
         }).join("");
     } catch (e) { tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
@@ -3181,12 +3181,12 @@ async function loadListadoInactivos() {
             if (a.status === "Sold") badgeColor = "bg-yellow-100 text-yellow-800";
             if (a.status === "Disposed") badgeColor = "bg-gray-200 text-gray-700";
             return `<tr class="hover:bg-blue-50/30 transition-colors cursor-pointer" onclick="openDetailsModal(${a.id})">
-                <td class="px-4 py-3 font-bold text-blue-700">${a.asset_tag_id}</td>
-                <td class="px-4 py-3 text-gray-600">${a.asset_description}</td>
-                <td class="px-4 py-3 text-gray-500">${a.brand} ${a.model}</td>
-                <td class="px-4 py-3"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}">${a.status}</span></td>
-                <td class="px-4 py-3 font-mono text-gray-400">${a.serial_no}</td>
-                <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">
+                <td class="px-4 py-4 font-bold text-blue-700">${a.asset_tag_id}</td>
+                <td class="px-4 py-4 text-gray-600">${a.asset_description}</td>
+                <td class="px-4 py-4 text-gray-500">${a.brand} ${a.model}</td>
+                <td class="px-4 py-4"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}">${a.status}</span></td>
+                <td class="px-4 py-4 font-mono text-gray-400">${a.serial_no}</td>
+                <td class="px-4 py-4 text-center" onclick="event.stopPropagation();">
                     <button onclick="restoreOneAsset(${a.id},'${a.asset_tag_id}')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] uppercase py-1 px-3 rounded shadow transition-colors cursor-pointer">Restaurar</button>
                 </td>
             </tr>`;
@@ -3278,7 +3278,7 @@ function renderReconciliationStatus(data) {
         card.style.animationDelay = (idx * 0.06) + "s";
 
         const header = document.createElement("button");
-        header.className = "w-full flex items-center justify-between px-4 py-3 text-left cursor-pointer hover:bg-gray-50/80 transition-colors relative";
+        header.className = "w-full flex items-center justify-between px-4 py-4 text-left cursor-pointer hover:bg-gray-50/80 transition-colors relative";
         header.style.borderLeft = "4px solid " + (hasPending ? "#d97706" : "#22c55e");
         header.setAttribute("onclick", "toggleSessionAssetList(" + sessionId + ")");
 
@@ -3332,7 +3332,7 @@ function renderReconciliationStatus(data) {
                 var pct = assets.length > 0 ? Math.round((clearedCount_p / assets.length) * 100) : 100;
 
                 const personBlock = document.createElement("div");
-                personBlock.className = "px-4 py-3 border-b border-gray-50 last:border-b-0";
+                personBlock.className = "px-4 py-4 border-b border-gray-50 last:border-b-0";
 
                 const personHeader = document.createElement("div");
                 personHeader.className = "flex items-center justify-between flex-wrap gap-2";
@@ -3377,7 +3377,7 @@ function renderReconciliationStatus(data) {
                         var statusColor = a.status === "Checkout" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-green-50 text-green-700 border-green-200";
                         var tr = document.createElement("tr");
                         tr.className = "hover:bg-gray-50/50 transition-colors";
-                        tr.innerHTML = '<td class="px-3 py-1.5 font-mono font-bold text-gray-800">' + escapeHtml(a.asset_tag_id) + '</td><td class="px-3 py-1.5 text-gray-600">' + escapeHtml(a.asset_description || '-') + '</td><td class="px-3 py-1.5 text-gray-500">' + escapeHtml(a.model || '-') + '</td><td class="px-3 py-1.5 font-mono text-gray-500">' + escapeHtml(a.serial_no || '-') + '</td><td class="px-3 py-1.5 text-center"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ' + statusColor + ' border"><span class="w-1.5 h-1.5 rounded-full ' + (a.status === "Checkout" ? 'bg-amber-500' : 'bg-green-500') + ' inline-block"></span>' + a.status + '</span></td><td class="px-3 py-1.5 text-center"><button onclick="reconciliationCheckin(' + a.id + ',' + a.departed_asset_id + ",'" + a.asset_tag_id + "')" + '" class="px-2 py-1 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded text-[10px] font-bold border border-teal-200 transition-colors cursor-pointer">Checkin</button></td>';
+                        tr.innerHTML = '<td class="px-3 py-1.5 font-mono font-bold text-gray-800">' + escapeHtml(a.asset_tag_id) + '</td><td class="px-3 py-1.5 text-gray-600">' + escapeHtml(a.asset_description || '-') + '</td><td class="px-3 py-1.5 text-gray-500">' + escapeHtml(a.model || '-') + '</td><td class="px-3 py-1.5 font-mono text-gray-500">' + escapeHtml(a.serial_no || '-') + '</td><td class="px-3 py-1.5 text-center"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ' + statusColor + ' border"><span class="w-1.5 h-1.5 rounded-full ' + (a.status === "Checkout" ? 'bg-amber-500' : 'bg-green-500') + ' inline-block"></span>' + a.status + '</span></td><td class="px-3 py-1.5 text-center"><button onclick="reconciliationCheckin(' + a.id + ',' + a.departed_asset_id + ",'" + a.asset_tag_id + "')" + '" class="px-2 py-1 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded text-[10px] font-bold border border-teal-200 transition-colors cursor-pointer">Devolver</button></td>';
                         tbody.appendChild(tr);
                     });
                     table.appendChild(tbody);

@@ -1,3 +1,20 @@
+/* ===== DESIGN TOKENS ===== */
+:root {
+    --color-sidebar:        #1e293b;   /* slate-800 */
+    --color-topbar:         #0f172a;   /* slate-900 */
+    --color-accent:         #d97706;   /* amber-600 */
+    --color-accent-hover:   #f59e0b;   /* amber-500 */
+    --color-accent-bg:      rgba(217, 119, 6, 0.12);
+    --color-accent-active:  rgba(217, 119, 6, 0.18);
+    --color-success:        #15803d;   /* green-700 */
+    --color-success-bg:     #dcfce7;   /* green-100 */
+    --color-danger:         #b91c1c;   /* red-700 */
+    --color-muted:          #6b7280;   /* gray-500 */
+    --radius-sm:            6px;
+    --radius-md:            8px;
+    --radius-lg:            12px;
+}
+
 /* Font baseline */
 body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
 
@@ -15,44 +32,20 @@ h1, h2, h3, h4, h5, h6, .font-display { font-family: 'Sora', sans-serif; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* Sidebar items with animated border */
-.sidebar-item {
+/* Sidebar nav items — todos los niveles */
+.sidebar-item,
+.sidebar-sub-item,
+.sidebar-nested-item {
     transition: background 0.15s, color 0.15s, border-color 0.2s;
     border-right: 3px solid transparent;
 }
-.sidebar-item:hover {
-    background: rgba(217, 119, 6, 0.12);
-}
-.sidebar-item.active {
-    background: rgba(217, 119, 6, 0.18);
-    font-weight: 700;
-    border-right-color: #f59e0b;
-    color: #fff;
-}
-
-/* Submenu items */
-.sidebar-sub-item {
-    transition: background 0.15s, border-color 0.2s;
-    border-right: 3px solid transparent;
-}
-.sidebar-sub-item:hover {
-    background: rgba(217, 119, 6, 0.12);
-}
-.sidebar-sub-item.active {
-    background: rgba(217, 119, 6, 0.18);
-    font-weight: 700;
-    border-right-color: #f59e0b;
-    color: #fff;
-}
-
-/* Nested items */
-.sidebar-nested-item {
-    transition: background 0.15s, border-color 0.2s;
-    border-right: 3px solid transparent;
-}
+.sidebar-item:hover,
+.sidebar-sub-item:hover,
 .sidebar-nested-item:hover {
     background: rgba(217, 119, 6, 0.12);
 }
+.sidebar-item.active,
+.sidebar-sub-item.active,
 .sidebar-nested-item.active {
     background: rgba(217, 119, 6, 0.18);
     font-weight: 700;
@@ -285,3 +278,6 @@ html.dark .sidebar-nested-item.active { border-right-color: #f59e0b; }
     max-height: 500px;
     overflow-y: auto;
 }
+
+/* Chevrons del sidebar — override del color blue-400 inline */
+#sidebar .sidebar-chevron { color: rgba(148, 163, 184, 0.6); }

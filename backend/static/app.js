@@ -482,17 +482,13 @@ async function renderAssetDetail(assetId) {
     } catch (e) {}
     if (!asset) { showSection('assets'); return; }
 
-    document.getElementById("page_detailsTitle").innerHTML = `Hoja de Vida del Activo <span class="text-blue-600">#${escapeHtml(asset.asset_tag_id)}</span>`;
-    document.getElementById("page_detailsTag").innerText = `Tag del Activo: ${asset.asset_tag_id}`;
+    document.getElementById("page_header_description").textContent = escapeHtml(asset.asset_description || asset.description || "-");
+    document.getElementById("page_header_tag").textContent = asset.asset_tag_id;
+    document.getElementById("page_header_brand_model").textContent = asset.brand && asset.model ? `${asset.brand} - ${asset.model}` : (asset.brand || asset.model || '-');
+    document.getElementById("page_header_category").textContent = escapeHtml(asset.category || asset.categoria_nombre || '-');
 
-    document.getElementById("page_description").innerText = asset.asset_description || "-";
-    document.getElementById("page_brand").innerText = asset.brand || "-";
-    document.getElementById("page_model").innerText = asset.model || "-";
-    document.getElementById("page_serial").innerText = asset.serial_no || "-";
-    document.getElementById("page_category").innerText = asset.category || "-";
-    document.getElementById("page_site").innerText = siteName(asset.site_id) || "-";
-
-    const statusElement = document.getElementById("page_status");
+    const headerBadge = document.getElementById("page_header_status_badge");
+    const headerAssigned = document.getElementById("page_header_assigned");
     let badgeColor = "bg-gray-100 text-gray-800";
     if (asset.status === "Available" || asset.status === "Found") {
         badgeColor = "bg-green-100 text-green-800";
@@ -505,6 +501,22 @@ async function renderAssetDetail(assetId) {
     } else if (asset.status === "Reserved") {
         badgeColor = "bg-purple-100 text-purple-800";
     }
+    headerBadge.innerHTML = `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${badgeColor}">${getStatusLabel(asset.status)}</span>`;
+    if (asset.status === "Checkout") {
+        const emp = globalPersons.find(p => p.id === asset.person_id);
+        headerAssigned.textContent = emp ? `Asignado a: ${emp.full_name}` : '';
+    } else {
+        headerAssigned.textContent = '';
+    }
+
+    document.getElementById("page_description").innerText = asset.asset_description || "-";
+    document.getElementById("page_brand").innerText = asset.brand || "-";
+    document.getElementById("page_model").innerText = asset.model || "-";
+    document.getElementById("page_serial").innerText = asset.serial_no || "-";
+    document.getElementById("page_category").innerText = asset.category || "-";
+    document.getElementById("page_site").innerText = siteName(asset.site_id) || "-";
+
+    const statusElement = document.getElementById("page_status");
     statusElement.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeColor}">${getStatusLabel(asset.status)}</span>`;
 
     const employeeObj = globalPersons.find(p => p.id === asset.person_id);
@@ -704,16 +716,16 @@ function switchHistoryTab(tab) {
 
 function changeAssetStatus(assetId, newStatus) {
     if (newStatus === "Checkout") {
-        const tagEl = document.getElementById("page_detailsTag");
-        const tagText = tagEl ? tagEl.innerText.replace("Tag del Activo: ", "") : "ID:" + assetId;
+        const tagEl = document.getElementById("page_header_tag");
+        const tagText = tagEl ? tagEl.textContent : "ID:" + assetId;
         openModal(assetId, tagText, "checkout");
         return;
     }
     document.getElementById("sc_asset_id").value = assetId;
     document.getElementById("sc_new_status").value = newStatus;
     document.getElementById("statusChangeModalTitle").innerText = "Cambiar a " + getStatusLabel(newStatus);
-    const assetTag = document.getElementById("page_detailsTag");
-    document.getElementById("sc_asset_info").innerText = "Activo: " + (assetTag ? assetTag.innerText : "ID: " + assetId);
+    const assetTag = document.getElementById("page_header_tag");
+    document.getElementById("sc_asset_info").innerText = "Activo: " + (assetTag ? "#" + assetTag.textContent : "ID: " + assetId);
     document.getElementById("sc_notas").value = "";
     document.getElementById("sc_error").classList.add("hidden");
 

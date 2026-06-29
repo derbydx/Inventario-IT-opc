@@ -1560,12 +1560,22 @@
 
                 <!-- SECTION: DETALLE DE ACTIVO (redesigned) -->
                 <section id="assetDetailSection" class="hidden">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
-                        <div>
-                            <h2 id="page_detailsTitle" class="text-xl font-bold text-gray-800">Hoja de Vida del Activo</h2>
-                            <p id="page_detailsTag" class="text-sm font-mono font-bold text-blue-600 mt-1"></p>
+                    <div class="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
+                        <div class="min-w-0 flex-1">
+                            <h2 id="page_header_description" class="text-xl font-bold text-gray-800 truncate">-</h2>
+                            <p class="text-sm text-gray-500 mt-0.5 truncate">
+                                <span id="page_header_brand_model"></span>
+                                <span class="mx-1.5 text-gray-300">·</span>
+                                <span id="page_header_category"></span>
+                                <span class="mx-1.5 text-gray-300">·</span>
+                                <span class="font-mono font-bold text-blue-600">#<span id="page_header_tag"></span></span>
+                            </p>
+                            <div class="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5">
+                                <span id="page_header_status_badge"></span>
+                                <span id="page_header_assigned" class="text-xs text-gray-600"></span>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-2 flex-wrap">
+                        <div class="flex items-center gap-2 flex-wrap shrink-0">
                             <button id="page_btn_edit_asset" class="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded text-xs transition-colors cursor-pointer">Editar Activo</button>
                             <div class="relative" id="actionsDropdownContainer">
                                 <button id="page_actions_btn" onclick="toggleActionsDropdown()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold rounded text-xs transition-colors cursor-pointer flex items-center gap-1">

@@ -227,12 +227,63 @@ html.dark .sidebar-nested-item.active { border-right-color: #f59e0b; }
 
 /* Responsive sidebar collapse */
 @media (max-width: 768px) {
-    #sidebar { width: 64px; }
-    #sidebar .nav-label, #sidebar .sidebar-chevron,
-    #sidebar .sidebar-sub-item, #sidebar .sidebar-nested-item { display: none; }
-    #sidebar .p-4 h1 { font-size: 0; }
-    #sidebar .p-4 h1::after { content: "IT"; font-size: 14px; font-weight: 800; }
-    main { margin-left: 64px !important; }
+    #menuToggle { display: block !important; }
+}
+
+@media (max-width: 639px) {
+    #sidebar {
+        position: fixed; top: 56px; left: 0; bottom: 0;
+        z-index: 40; width: 260px;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+    }
+    #sidebar.open {
+        transform: translateX(0);
+    }
+    #sidebarBackdrop {
+        display: none;
+    }
+    #sidebarBackdrop.open {
+        display: block;
+    }
+    main { margin-left: 0 !important; }
+
+    /* Hide togglable columns on mobile */
+    .overflow-x-auto [data-col] {
+        display: none;
+    }
+
+    /* Compact table cells on mobile */
+    .overflow-x-auto table th,
+    .overflow-x-auto table td {
+        padding: 8px 6px !important;
+        font-size: 12px;
+        white-space: normal;
+    }
+
+    /* Full-width modals on mobile */
+    .modal-panel {
+        max-width: 100% !important;
+        margin: 0 8px;
+    }
+
+    /* Stack dashboard cards 2x2 instead of 4x1 */
+    .grid-cols-1.md\:grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Compact search on mobile */
+    #topBar .flex-1.flex { gap: 4px; }
+    #topBar input { font-size: 11px; padding: 4px 6px; max-width: 120px; }
+    #topBar select { font-size: 11px; padding: 4px 6px; max-width: 80px; }
+    #topBar button { font-size: 10px; padding: 4px 8px; }
+    #topBarUserName { font-size: 10px; }
+    #topBar .w-56 { width: auto; }
+    #topBar h1 { font-size: 13px; }
+}
+
+@media (min-width: 640px) {
+    #menuToggle { display: none; }
 }
 
 /* ===== RECONCILIATION ===== */

@@ -1785,6 +1785,7 @@ async function loadStatusReport() {
 }
 
 function showSection(name) {
+    closeSidebar();
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
     const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'assetDetail'];
@@ -3854,6 +3855,20 @@ async function refreshReconciliation() {
         alert(data.reactivated + " registro(s) reactivado(s) por reasignacion.");
         loadReconciliationStatus();
     }
+}
+
+function toggleSidebar() {
+    var sidebar = document.getElementById("sidebar");
+    var backdrop = document.getElementById("sidebarBackdrop");
+    sidebar.classList.toggle("open");
+    backdrop.classList.toggle("open");
+}
+
+function closeSidebar() {
+    var sidebar = document.getElementById("sidebar");
+    var backdrop = document.getElementById("sidebarBackdrop");
+    sidebar.classList.remove("open");
+    backdrop.classList.remove("open");
 }
 
 (function() {

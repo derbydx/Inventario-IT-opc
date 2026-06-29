@@ -386,7 +386,57 @@ html.dark-mode .text-amber-800 { color: #fcd34d; }
 /* ── Tab buttons (asset detail historial/eventos) ── */
 html.dark-mode .bg-gray-50.text-gray-500 { color: #94a3b8; }
 
-/* ── Toast (keep as-is, already dark) ── */
+/* ── Detail cards in dark mode ── */
+html.dark-mode .detail-card,
+html.dark-mode #page_notes_block { background: #1e293b !important; border-color: #334155; }
+
+/* ── Timeline dark mode ── */
+html.dark-mode .timeline-content { background: #334155 !important; border-color: #475569; }
+html.dark-mode .timeline-content:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+html.dark-mode .timeline-line::before { background: #475569; }
+html.dark-mode .timeline-dot { border-color: #1e293b; }
+html.dark-mode .timeline-content .text-gray-600 { color: #94a3b8; }
+html.dark-mode .timeline-content .text-gray-400 { color: #64748b; }
+
+/* ── Repair block in dark mode ── */
+html.dark-mode #page_repair_block { background: #1e293b; border-color: #78350f; }
+html.dark-mode #page_repair_block .text-amber-700 { color: #fcd34d; }
+html.dark-mode #page_repair_block .text-gray-700 { color: #cbd5e1; }
+
+/* ── Timeline ── */
+.timeline-container { position: relative; }
+.timeline-line { position: relative; }
+.timeline-line::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: #e2e8f0;
+    border-radius: 1px;
+}
+.timeline-item { position: relative; }
+.timeline-dot {
+    position: absolute;
+    left: -1.5rem;
+    top: 0.5rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    z-index: 1;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+.timeline-item.last .timeline-dot::after { display: none; }
+.timeline-content { transition: box-shadow 0.15s; }
+.timeline-content:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+/* ── Detail cards ── */
+.detail-card { transition: box-shadow 0.15s; }
+.detail-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+
+/* ── Dark mode: Toast ── */
 
 /* ── Scrollbar dark ── */
 html.dark-mode ::-webkit-scrollbar-track { background: #1e293b; }

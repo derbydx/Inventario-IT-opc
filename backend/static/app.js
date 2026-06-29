@@ -453,14 +453,26 @@ function openDetailsModal(assetId) {
     window.location.hash = "asset/" + assetId;
 }
 
-function closeDetailsModal() { document.getElementById("detailsModal").classList.add("hidden"); }
-
-function toggleSpecificHistory() {
-    const wrapper = document.getElementById("assetSpecificHistoryWrapper");
-    const icon = document.getElementById("historyToggleIcon");
-    if (wrapper.classList.contains("hidden")) { wrapper.classList.remove("hidden"); icon.innerText = "Ocultar"; } 
-    else { wrapper.classList.add("hidden"); icon.innerText = "Mostrar"; }
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP', minimumFractionDigits: 0 }).format(amount);
 }
+
+function getTimelineDotColor(action) {
+    const colors = {
+        "Checkout": "#3b82f6",
+        "Check in": "#22c55e",
+        "Archived": "#ef4444",
+        "Dispose": "#ef4444",
+        "Donate": "#ef4444",
+        "Sold": "#ef4444",
+        "Under repair": "#f59e0b",
+        "GarantiaSD": "#f59e0b",
+        "Reserved": "#a855f7"
+    };
+    return colors[action] || "#6b7280";
+}
+
+
 
 async function renderAssetDetail(assetId) {
     let asset;
@@ -472,10 +484,13 @@ async function renderAssetDetail(assetId) {
 
     document.getElementById("page_detailsTitle").innerHTML = `Hoja de Vida del Activo <span class="text-blue-600">#${escapeHtml(asset.asset_tag_id)}</span>`;
     document.getElementById("page_detailsTag").innerText = `Tag del Activo: ${asset.asset_tag_id}`;
-    document.getElementById("page_description").innerText = asset.asset_description;
-    document.getElementById("page_brand_model").innerText = `${asset.brand} - ${asset.model}`;
-    document.getElementById("page_serial").innerText = asset.serial_no;
+
+    document.getElementById("page_description").innerText = asset.asset_description || "-";
+    document.getElementById("page_brand").innerText = asset.brand || "-";
+    document.getElementById("page_model").innerText = asset.model || "-";
+    document.getElementById("page_serial").innerText = asset.serial_no || "-";
     document.getElementById("page_category").innerText = asset.category || "-";
+    document.getElementById("page_site").innerText = siteName(asset.site_id) || "-";
 
     const statusElement = document.getElementById("page_status");
     let badgeColor = "bg-gray-100 text-gray-800";
@@ -503,9 +518,26 @@ async function renderAssetDetail(assetId) {
                 <span class="text-[10px] bg-blue-600 text-white font-bold py-0.5 px-1.5 rounded uppercase tracking-wide">Ver Asignados </span>
             </button>`;
     } else if (asset.status !== "Checkout") {
-        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded">Status: ${getStatusLabel(asset.status)}</p>`;
+        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded text-sm">Status: ${getStatusLabel(asset.status)}</p>`;
     } else {
-        containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded">Disponible en Almacen</p>`;
+        containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded text-sm">Disponible en Almacen</p>`;
+    }
+
+    const ultimoUser = globalPersons.find(p => p.id === asset.ultimo_asignado_id);
+    document.getElementById("page_ultimo_asignado_global").innerText = ultimoUser ? ultimoUser.full_name + " (" + ultimoUser.employee_id + ")" : "-";
+
+    document.getElementById("page_telefono").innerText = asset.numero_telefono || "-";
+    document.getElementById("page_purchase_date").innerText = asset.purchase_date || "-";
+    document.getElementById("page_cost").innerText = asset.cost ? formatCurrency(asset.cost) : "-";
+    document.getElementById("page_purchased_from").innerText = asset.purchased_from || "-";
+
+    const notesBlock = document.getElementById("page_notes_block");
+    const notesText = document.getElementById("page_notas");
+    if (asset.notas_adicionales) {
+        notesBlock.classList.remove("hidden");
+        notesText.innerText = asset.notas_adicionales;
+    } else {
+        notesBlock.classList.add("hidden");
     }
 
     var repairBlock = document.getElementById("page_repair_block");
@@ -516,7 +548,6 @@ async function renderAssetDetail(assetId) {
         document.getElementById("page_repair_left_by").innerText = leftPerson ? leftPerson.full_name + " (" + leftPerson.employee_id + ")" : "-";
         var tech = globalAdmins.find(function (a) { return a.id === asset.repair_technician_id; });
         document.getElementById("page_repair_technician").innerText = tech ? tech.username : "-";
-        var ultimoUser = globalPersons.find(function (p) { return p.id === asset.ultimo_asignado_id; });
         document.getElementById("page_ultimo_asignado").innerText = ultimoUser ? ultimoUser.full_name + " (" + ultimoUser.employee_id + ")" : "-";
     } else {
         repairBlock.classList.add("hidden");
@@ -525,11 +556,10 @@ async function renderAssetDetail(assetId) {
     document.getElementById("page_btn_delete_asset").onclick = () => triggerDeleteAsset(asset.id, asset.asset_tag_id);
     document.getElementById("page_btn_edit_asset").onclick = () => openEditAssetModal(asset.id);
 
-    const historyBody = document.getElementById("page_assetSpecificHistoryBody");
+    const timelineContainer = document.getElementById("page_timeline_container");
     const historialBody = document.getElementById("page_assetDetailHistoryBody");
-    const loadingRow = `<tr><td colspan="5" class="px-3 py-4 text-center text-gray-400 italic">Buscando...</td></tr>`;
-    historyBody.innerHTML = loadingRow;
-    historialBody.innerHTML = loadingRow;
+    timelineContainer.innerHTML = `<div class="text-center text-gray-400 italic py-4 text-sm">Buscando...</div>`;
+    historialBody.innerHTML = `<tr><td colspan="6" class="px-3 py-4 text-center text-gray-400 italic">Buscando...</td></tr>`;
 
     try {
         const response = await api("/history/");
@@ -537,28 +567,28 @@ async function renderAssetDetail(assetId) {
             const allHistory = await response.json();
             const specificHistory = allHistory.filter(h => h.asset_id === asset.id);
             if (specificHistory.length === 0) {
-                const empty = `<tr><td colspan="5" class="px-3 py-3 text-center text-gray-400 italic">Sin movimientos registrados.</td></tr>`;
-                historyBody.innerHTML = empty;
-                historialBody.innerHTML = empty;
+                timelineContainer.innerHTML = `<div class="text-center text-gray-400 italic py-4 text-sm">Sin movimientos registrados.</div>`;
+                historialBody.innerHTML = `<tr><td colspan="6" class="px-3 py-3 text-center text-gray-400 italic">Sin movimientos registrados.</td></tr>`;
             } else {
-                specificHistory.reverse();
-                let historyHtml = "";
+                const reversed = specificHistory.slice().reverse();
+                let timelineHtml = `<div class="timeline-line relative pl-8 space-y-0">`;
                 let historialHtml = "";
-                specificHistory.forEach(item => {
+                reversed.forEach((item, idx) => {
                     const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
+                    const actionLabel = escapeHtml(item.tipo_accion);
+                    const dotColor = getTimelineDotColor(item.tipo_accion);
                     const badgeClass = getHistoryBadgeClass(item.tipo_accion);
-                    const actionBadgeHtml = `<span class="px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${badgeClass}">${escapeHtml(item.tipo_accion)}</span>`;
 
                     const person = item.asignado_a_id ? globalPersons.find(p => p.id === item.asignado_a_id) : null;
-                    let personHtml;
+                    let personName;
                     if (person) {
                         const safeName = escapeHtml(person.full_name);
                         const onClickName = person.full_name.replace(/'/g, "\\'");
-                        personHtml = `<span onclick="openUserAssetsModal(${person.id}, '${onClickName}')" class="text-blue-600 hover:underline font-medium cursor-pointer">${safeName}</span>`;
+                        personName = `<span onclick="openUserAssetsModal(${person.id}, '${onClickName}')" class="text-blue-600 hover:underline font-medium cursor-pointer">${safeName}</span>`;
                     } else if (item.asignado_a_id) {
-                        personHtml = `<span class="text-gray-400 italic">ID: ${item.asignado_a_id}</span>`;
+                        personName = `<span class="text-gray-400 italic">ID: ${item.asignado_a_id}</span>`;
                     } else {
-                        personHtml = `<span class="text-gray-400 italic">Almacen</span>`;
+                        personName = `<span class="text-gray-400 italic">Almacen</span>`;
                     }
 
                     const admin = globalAdmins.find(a => a.id === item.realizado_por_id);
@@ -573,16 +603,26 @@ async function renderAssetDetail(assetId) {
                         detailHtml = `<span class="text-gray-300 italic">-</span>`;
                     }
 
-                    historyHtml += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td class="px-4 py-4 font-mono text-[11px] text-gray-500 whitespace-nowrap">${fecha}</td>
-                        <td class="px-4 py-4">${actionBadgeHtml}</td>
-                        <td class="px-4 py-4 text-sm">${personHtml}</td>
-                        <td class="px-4 py-4 text-xs text-gray-600">${operatorName}</td>
-                        <td class="px-4 py-4 text-xs text-gray-500 italic max-w-[200px] truncate">${detailHtml}</td>
-                    </tr>`;
+                    const isLast = idx === reversed.length - 1;
+                    timelineHtml += `
+                        <div class="timeline-item relative pb-5 ${isLast ? 'last' : ''}">
+                            <div class="timeline-dot" style="background:${dotColor}"></div>
+                            <div class="timeline-content bg-gray-50 rounded-lg border border-gray-200 p-3 text-sm">
+                                <div class="flex items-center justify-between gap-2 mb-1">
+                                    <span class="text-xs font-semibold ${badgeClass} px-2 py-0.5 rounded-full">${actionLabel}</span>
+                                    <span class="text-[11px] font-mono text-gray-400 whitespace-nowrap">${fecha}</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mt-1.5">
+                                    <div><span class="text-gray-400">Asignado a:</span> ${personName}</div>
+                                    <div><span class="text-gray-400">Operador:</span> ${operatorName}</div>
+                                    ${detailHtml !== '<span class="text-gray-300 italic">-</span>' ? `<div class="col-span-2"><span class="text-gray-400">Notas:</span> ${detailHtml}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>`;
 
                     const changedFrom = item.estado_anterior ? escapeHtml(item.estado_anterior) : '-';
                     const changedTo = item.estado_nuevo ? escapeHtml(item.estado_nuevo) : '-';
+                    const actionBadgeHtml = `<span class="px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${badgeClass}">${actionLabel}</span>`;
 
                     historialHtml += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td class="px-4 py-4 font-mono text-[11px] text-gray-500 whitespace-nowrap">${fecha}</td>
@@ -593,7 +633,8 @@ async function renderAssetDetail(assetId) {
                         <td class="px-4 py-4 text-xs text-gray-600">${operatorName}</td>
                     </tr>`;
                 });
-                historyBody.innerHTML = historyHtml;
+                timelineHtml += `</div>`;
+                timelineContainer.innerHTML = timelineHtml;
                 historialBody.innerHTML = historialHtml;
             }
         }
@@ -1005,7 +1046,7 @@ function setupEditAssetFormListener() {
             if (response.ok) {
                 showToast("Modificado con exito!", "success");
                 closeEditAssetModal();
-                closeDetailsModal();
+                closeAssetDetail();
                 loadAssets();   
                 loadHistory();  
             } else {
@@ -1024,7 +1065,7 @@ async function triggerDeleteAsset(assetId, assetTag) {
     if (!confirmacion) return;
     try {
         const response = await api(`/assets/${assetId}`, { method: "DELETE" });
-        if (response.ok) { showToast("Movido a la papelera", "success"); closeDetailsModal(); loadAssets(); loadHistory(); }
+        if (response.ok) { showToast("Movido a la papelera", "success"); closeAssetDetail(); loadAssets(); loadHistory(); }
     } catch (e) { alert("Error."); }
 }
 

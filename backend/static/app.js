@@ -13,6 +13,7 @@ let currentDeptAssets = {};
 let currentAssetPage = 1;
 let currentEmployeePage = 1;
 let currentHistoryPage = 1;
+let currentInactivePage = 1;
 let totalAssets = 0;
 let assetSort = { key: null, dir: null, original: [], exclude: ["Archived"] };
 
@@ -222,6 +223,10 @@ function changePage(table, delta) {
         currentEmployeePage += delta;
         if (currentEmployeePage < 1) currentEmployeePage = 1;
         renderEmployeesPage();
+    } else if (table === 'empleadosInactivos') {
+        currentInactivePage += delta;
+        if (currentInactivePage < 1) currentInactivePage = 1;
+        loadEmployeesInactives();
     } else if (table === 'history') {
         currentHistoryPage += delta;
         if (currentHistoryPage < 1) currentHistoryPage = 1;
@@ -236,6 +241,9 @@ function changePageSize(table) {
     } else if (table === 'employees') {
         currentEmployeePage = 1;
         renderEmployeesPage();
+    } else if (table === 'empleadosInactivos') {
+        currentInactivePage = 1;
+        loadEmployeesInactives();
     } else if (table === 'history') {
         currentHistoryPage = 1;
         loadHistory();
@@ -1147,6 +1155,53 @@ function renderEmployeesPage() {
         });
         applyColumnPreferences();
 }
+function loadEmployeesInactives() {
+    const tableBody = document.getElementById("empleadosInactivosBody");
+    const pageSize = parseInt(document.getElementById("empleadosInactivosPageSize").value);
+    const pageInfo = document.getElementById("empleadosInactivosPageInfo");
+    const pageInfoAux = document.getElementById("empleadosInactivosPageInfoAux");
+    const prevBtn = document.querySelector("#empleadosInactivosSection .flex.justify-between button:first-child");
+    const nextBtn = document.querySelector("#empleadosInactivosSection .flex.justify-between button:last-child");
+    const inactive = globalPersons.filter(p => p.is_active === false);
+    tableBody.innerHTML = "";
+    if (inactive.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="9" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados inactivos.</td></tr>';
+        pageInfo.textContent = "mostrando 0-0 de 0";
+        if (pageInfoAux) pageInfoAux.textContent = "Pagina 1";
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        return;
+    }
+    const total = inactive.length;
+    const start = (currentInactivePage - 1) * pageSize;
+    const pageItems = inactive.slice(start, start + pageSize);
+    const displayStart = total > 0 ? start + 1 : 0;
+    const displayEnd = Math.min(start + pageSize, total);
+    pageInfo.textContent = `mostrando ${displayStart}-${displayEnd} de ${total}`;
+    if (pageInfoAux) pageInfoAux.textContent = `Pagina ${currentInactivePage}`;
+    if (prevBtn) prevBtn.disabled = currentInactivePage <= 1;
+    if (nextBtn) nextBtn.disabled = displayEnd >= total;
+    pageItems.forEach(p => {
+        const dept = globalDepartments.find(d => d.id === p.department_id);
+        const site = globalSites.find(s => s.id === p.site_id);
+        const row = document.createElement("tr");
+        row.className = "hover:bg-gray-100/50 transition-colors opacity-60";
+        row.innerHTML = `
+            <td class="px-4 py-4 font-medium text-gray-800">${escapeHtml(p.full_name)}</td>
+            <td class="px-4 py-4 text-gray-500">${escapeHtml(p.email)}</td>
+            <td class="px-4 py-4 text-gray-600 font-mono">${escapeHtml(p.employee_id)}</td>
+            <td data-col="dept" class="px-4 py-4 text-gray-600">${dept ? dept.department_name : '-'}</td>
+            <td data-col="site" class="px-4 py-4 text-gray-600">${site ? site.site_name : '-'}</td>
+            <td data-col="phone" class="px-4 py-4 text-gray-500">${escapeHtml(p.phone) || '-'}</td>
+            <td data-col="notes" class="px-4 py-4 text-gray-500">${escapeHtml(p.notes) || '-'}</td>
+            <td data-col="status" class="px-4 py-4 text-center"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-300"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Inactivo</span></td>
+            <td class="px-4 py-4 text-center">
+                <button onclick="openEditPersonModal(${p.id})" class="bg-teal-100 hover:bg-teal-200 text-teal-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-teal-300 transition-colors cursor-pointer">Editar</button>
+            </td>`;
+        tableBody.appendChild(row);
+    });
+    applyColumnPreferences();
+}
 async function loadCatalogs() {
     const sitesBody = document.getElementById("sitesTableBody");
     const deptsBody = document.getElementById("departmentsTableBody");
@@ -1729,7 +1784,7 @@ async function loadStatusReport() {
 function showSection(name) {
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'assetDetail'];
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'assetDetail'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1738,6 +1793,7 @@ function showSection(name) {
     if (target) target.classList.remove('hidden');
     if (name !== 'assetDetail') { window.location.hash = ""; }
     if (name === 'employees' && typeof loadPersons === 'function') loadPersons();
+    if (name === 'empleadosInactivos' && typeof loadEmployeesInactives === 'function') loadEmployeesInactives();
     if (name === 'catalogs' && typeof loadCatalogs === 'function') loadCatalogs();
     if (name === 'history' && typeof loadHistory === 'function') loadHistory();
     if (name === 'assets' && typeof loadAssets === 'function') loadAssets();
@@ -1767,7 +1823,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1797,7 +1853,7 @@ function executeTopSearch() {
     const section = document.getElementById("topSearchSection").value;
     if (!keyword) { showToast("Escribe una palabra clave para buscar", "warning"); return; }
 
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');

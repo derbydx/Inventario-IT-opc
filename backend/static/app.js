@@ -570,10 +570,10 @@ async function renderAssetDetail(assetId) {
                 timelineContainer.innerHTML = `<div class="text-center text-gray-400 italic py-4 text-sm">Sin movimientos registrados.</div>`;
                 historialBody.innerHTML = `<tr><td colspan="6" class="px-3 py-3 text-center text-gray-400 italic">Sin movimientos registrados.</td></tr>`;
             } else {
-                const reversed = specificHistory.slice().reverse();
+                const sorted = specificHistory.sort((a, b) => new Date(b.fecha_accion) - new Date(a.fecha_accion));
                 let timelineHtml = `<div class="timeline-line relative pl-8 space-y-0">`;
                 let historialHtml = "";
-                reversed.forEach((item, idx) => {
+                sorted.forEach((item, idx) => {
                     const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
                     const actionLabel = escapeHtml(item.tipo_accion);
                     const dotColor = getTimelineDotColor(item.tipo_accion);
@@ -603,7 +603,7 @@ async function renderAssetDetail(assetId) {
                         detailHtml = `<span class="text-gray-300 italic">-</span>`;
                     }
 
-                    const isLast = idx === reversed.length - 1;
+                    const isLast = idx === sorted.length - 1;
                     timelineHtml += `
                         <div class="timeline-item relative pb-5 ${isLast ? 'last' : ''}">
                             <div class="timeline-dot" style="background:${dotColor}"></div>

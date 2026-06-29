@@ -363,6 +363,11 @@ html.dark-mode .bg-purple-100   { background: #2e1065; }
 html.dark-mode .text-purple-800 { color: #d8b4fe; }
 html.dark-mode .bg-gray-100.text-gray-800 { color: #cbd5e1; }
 
+/* ── Amber-toned panels (advanced search, repair blocks, table headers) ── */
+html.dark-mode .bg-amber-50 { background: #1e293b; }
+html.dark-mode .border-amber-200 { border-color: #78350f; }
+html.dark-mode .text-amber-800 { color: #fcd34d; }
+
 /* ── Tab buttons (asset detail historial/eventos) ── */
 html.dark-mode .bg-gray-50.text-gray-500 { color: #94a3b8; }
 

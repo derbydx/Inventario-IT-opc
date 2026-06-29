@@ -1,0 +1,12 @@
+name: inventario-it-test
+
+services:
+  inventario:
+    build: .
+    container_name: inventario-it-test
+    ports:
+      - "3132:8000"
+    volumes:
+      - ./backend/it_inventario_test.db:/app/backend/it_inventario.db
+      - ./backend/static:/app/backend/static
+    restart: unless-stopped

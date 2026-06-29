@@ -13,19 +13,24 @@ let currentDeptAssets = {};
 let currentAssetPage = 1;
 let currentEmployeePage = 1;
 let currentHistoryPage = 1;
+let currentInactivePage = 1;
 let totalAssets = 0;
 let assetSort = { key: null, dir: null, original: [], exclude: ["Archived"] };
 
 function getToken() {
-    const session = localStorage.getItem("adminSession");
-    if (!session) return null;
-    return JSON.parse(session).access_token;
+    try {
+        const session = localStorage.getItem("adminSession");
+        if (!session) return null;
+        return JSON.parse(session).access_token;
+    } catch (e) { return null; }
 }
 
 function getAdmin() {
-    const session = localStorage.getItem("adminSession");
-    if (!session) return null;
-    return JSON.parse(session).admin;
+    try {
+        const session = localStorage.getItem("adminSession");
+        if (!session) return null;
+        return JSON.parse(session).admin;
+    } catch (e) { return null; }
 }
 
 async function api(url, options = {}) {
@@ -85,6 +90,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPasswordFormListener();
     setupUserFormListener();
     setupGroupFormListener();
+    setupStatusChangeFormListener();
+    initScRepairAutocompletes();
     initCrPersonAutocomplete();
     const sortHeaderRow = document.querySelector("#assetsSection thead tr");
     if (sortHeaderRow) {
@@ -92,6 +99,18 @@ document.addEventListener("DOMContentLoaded", () => {
             const th = e.target.closest("th[data-sort]");
             if (th) sortAssetsBy(th.getAttribute("data-sort"));
         });
+    }
+
+    document.addEventListener("click", function(e) {
+        const container = document.getElementById("actionsDropdownContainer");
+        if (container && !container.contains(e.target)) {
+            document.getElementById("page_actions_dropdown")?.classList.add("hidden");
+        }
+    });
+
+    window.addEventListener("hashchange", handleHashChange);
+    if (window.location.hash) {
+        handleHashChange();
     }
 });
 
@@ -111,6 +130,7 @@ async function loadDropdownData() {
         const resCats = await api("/categories/distinct/");
         if (resCats.ok) {
             const cats = await resCats.json();
+            const pendingCatSelect = { current: null };
             const fillCatSelect = (sel, withNew) => {
                 let html = '<option value="">-- Seleccione Categoria --</option>';
                 cats.forEach(c => { html += `<option value="${c}">${c}</option>`; });
@@ -118,16 +138,12 @@ async function loadDropdownData() {
                 sel.innerHTML = html;
                 sel.onchange = () => {
                     if (sel.value === "__NEW__") {
-                        const name = prompt("Nombre de la nueva categoria:");
-                        if (name && name.trim()) {
-                            const opt = document.createElement("option");
-                            opt.value = name.trim();
-                            opt.text = name.trim();
-                            sel.insertBefore(opt, sel.lastElementChild);
-                            sel.value = name.trim();
-                        } else {
-                            sel.value = "";
-                        }
+                        sel.value = "";
+                        pendingCatSelect.current = sel;
+                        document.getElementById("edit_cat_id").value = "";
+                        document.getElementById("cat_name_input").value = "";
+                        document.getElementById("categoryModalTitle").textContent = "Nueva Categoria";
+                        document.getElementById("categoryModal").classList.remove("hidden");
                     }
                 };
             };
@@ -207,6 +223,10 @@ function changePage(table, delta) {
         currentEmployeePage += delta;
         if (currentEmployeePage < 1) currentEmployeePage = 1;
         renderEmployeesPage();
+    } else if (table === 'empleadosInactivos') {
+        currentInactivePage += delta;
+        if (currentInactivePage < 1) currentInactivePage = 1;
+        loadEmployeesInactives();
     } else if (table === 'history') {
         currentHistoryPage += delta;
         if (currentHistoryPage < 1) currentHistoryPage = 1;
@@ -221,6 +241,9 @@ function changePageSize(table) {
     } else if (table === 'employees') {
         currentEmployeePage = 1;
         renderEmployeesPage();
+    } else if (table === 'empleadosInactivos') {
+        currentInactivePage = 1;
+        loadEmployeesInactives();
     } else if (table === 'history') {
         currentHistoryPage = 1;
         loadHistory();
@@ -236,11 +259,30 @@ function fmtDate(d) {
     return d ? new Date(d).toLocaleDateString('es-ES') : '';
 }
 
+function getStatusLabel(status) {
+    const labels = {
+        "Available":    "Disponible",
+        "Checkout":     "En Uso",
+        "Broken":       "Dañado",
+        "Under repair": "En Reparación",
+        "GarantiaSD":   "Garantía SD",
+        "Reserved":     "Reservado",
+        "Lost/Missing": "Perdido / Extraviado",
+        "Found":        "Encontrado",
+        "Dispose":      "Descarte",
+        "Donate":       "Donación",
+        "Sold":         "Vendido",
+        "Archived":     "Archivado"
+    };
+    return labels[status] || status;
+}
+
 function getAssetBadgeColor(status) {
     if (status === "Checkout") return "bg-blue-100 text-blue-800";
     if (["Broken", "Lost/Missing", "Dispose"].includes(status)) return "bg-red-100 text-red-800";
     if (status === "Under repair" || status === "GarantiaSD") return "bg-amber-100 text-amber-800";
-    if (["Reserved"].includes(status)) return "bg-purple-100 text-purple-800";
+    if (status === "Reserved") return "bg-purple-100 text-purple-800";
+    if (["Sold", "Donated", "Found"].includes(status)) return "bg-teal-100 text-teal-800";
     return "bg-green-100 text-green-800";
 }
 
@@ -250,31 +292,31 @@ function buildAssetRowHTML(asset, mode) {
     const assignedName = assignedPerson ? assignedPerson.full_name : '';
     let actionButton;
     if (mode === 'search') {
-        actionButton = `<button onclick="event.stopPropagation(); openDetailsModal(${asset.id})" class="text-[11px] font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-300 px-2.5 py-1 rounded transition-all cursor-pointer">Ver</button>`;
+        actionButton = `<button onclick="event.stopPropagation(); openDetailsModal(${asset.id})" class="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>Ver</button>`;
     } else {
         if (asset.status === "Checkout") {
-            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkin')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-in</button>`;
+            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkin')" class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15"/></svg>Devolver</button>`;
         } else {
-            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors cursor-pointer">Check-out</button>`;
+            actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/></svg>Asignar</button>`;
         }
     }
     return `
-        <td class="px-4 py-3 font-mono font-bold text-gray-700 group-hover:text-blue-600">${asset.asset_tag_id}</td>
-        <td class="px-4 py-3 text-gray-600">${asset.asset_description}</td>
-        <td class="px-4 py-3 text-gray-500">${asset.brand} ${asset.model}</td>
-        <td class="px-4 py-3">
+        <td class="px-4 py-4 font-mono font-bold text-gray-700 group-hover:text-blue-600">${escapeHtml(asset.asset_tag_id)}</td>
+        <td class="px-4 py-4 text-gray-600">${escapeHtml(asset.asset_description)}</td>
+        <td class="px-4 py-4 text-gray-500">${escapeHtml(asset.brand)} ${escapeHtml(asset.model)}</td>
+        <td class="px-4 py-4">
             <span class="px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${badgeColor}">
-                ${asset.status}
+                ${getStatusLabel(asset.status)}
             </span>
         </td>
-        <td data-col="asignado" class="px-4 py-3 text-gray-600 text-xs">${assignedName}</td>
-        <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">${actionButton}</td>
-        <td data-col="serie" class="px-4 py-3 text-gray-500 font-mono">${asset.serial_no}</td>
-        <td data-col="category" class="px-4 py-3 text-gray-500">${asset.category || ''}</td>
-        <td data-col="site" class="px-4 py-3 text-gray-500">${siteName(asset.site_id)}</td>
-        <td data-col="phone" class="px-4 py-3 text-gray-500">${asset.numero_telefono || ''}</td>
-        <td data-col="vendor" class="px-4 py-3 text-gray-500">${asset.purchased_from || ''}</td>
-        <td data-col="date" class="px-4 py-3 text-gray-500">${fmtDate(asset.purchase_date)}</td>
+        <td data-col="asignado" class="px-4 py-4 text-gray-600 text-xs">${escapeHtml(assignedName)}</td>
+        <td class="px-4 py-4 text-center" onclick="event.stopPropagation();">${actionButton}</td>
+        <td data-col="serie" class="px-4 py-4 text-gray-500 font-mono">${escapeHtml(asset.serial_no)}</td>
+        <td data-col="category" class="px-4 py-4 text-gray-500">${escapeHtml(asset.category || '')}</td>
+        <td data-col="site" class="px-4 py-4 text-gray-500">${siteName(asset.site_id)}</td>
+        <td data-col="phone" class="px-4 py-4 text-gray-500">${escapeHtml(asset.numero_telefono || '')}</td>
+        <td data-col="vendor" class="px-4 py-4 text-gray-500">${escapeHtml(asset.purchased_from || '')}</td>
+        <td data-col="date" class="px-4 py-4 text-gray-500">${fmtDate(asset.purchase_date)}</td>
     `;
 }
 
@@ -392,108 +434,439 @@ async function loadAssets() {
     } catch (e) { tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>'; }
 }
 
-async function openDetailsModal(assetId) {
+function getHistoryBadgeClass(action) {
+    const map = {
+        "Checkout": "bg-blue-100 text-blue-800",
+        "Check in": "bg-amber-100 text-amber-800",
+        "Archived": "bg-red-100 text-red-800",
+        "Dispose": "bg-red-100 text-red-800",
+        "Donate": "bg-red-100 text-red-800",
+        "Sold": "bg-red-100 text-red-800",
+        "Under repair": "bg-amber-100 text-amber-800",
+        "GarantiaSD": "bg-amber-100 text-amber-800",
+        "Reserved": "bg-purple-100 text-purple-800"
+    };
+    return map[action] || "bg-gray-100 text-gray-800";
+}
+
+function openDetailsModal(assetId) {
+    window.location.hash = "asset/" + assetId;
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP', minimumFractionDigits: 0 }).format(amount);
+}
+
+function getTimelineDotColor(action) {
+    const colors = {
+        "Checkout": "#3b82f6",
+        "Check in": "#22c55e",
+        "Archived": "#ef4444",
+        "Dispose": "#ef4444",
+        "Donate": "#ef4444",
+        "Sold": "#ef4444",
+        "Under repair": "#f59e0b",
+        "GarantiaSD": "#f59e0b",
+        "Reserved": "#a855f7"
+    };
+    return colors[action] || "#6b7280";
+}
+
+
+
+async function renderAssetDetail(assetId) {
     let asset;
     try {
         const res = await api(`/assets/${assetId}`);
         if (res.ok) asset = await res.json();
     } catch (e) {}
-    if (!asset) return;
+    if (!asset) { showSection('assets'); return; }
 
-    document.getElementById("assetSpecificHistoryWrapper").classList.add("hidden");
-    document.getElementById("historyToggleIcon").innerText = "Mostrar";
+    document.getElementById("page_header_description").textContent = escapeHtml(asset.asset_description || asset.description || "-");
+    document.getElementById("page_header_tag").textContent = asset.asset_tag_id;
+    document.getElementById("page_header_brand_model").textContent = asset.brand && asset.model ? `${asset.brand} - ${asset.model}` : (asset.brand || asset.model || '-');
+    document.getElementById("page_header_category").textContent = escapeHtml(asset.category || asset.categoria_nombre || '-');
 
-    const siteObj = globalSites.find(s => s.id === asset.site_id);
-    const employeeObj = globalPersons.find(p => p.id === asset.person_id);
-
-    document.getElementById("detailsTag").innerText = `Asset Tag ID: ${asset.asset_tag_id}`;
-    document.getElementById("det_description").innerText = asset.asset_description;
-    document.getElementById("det_brand_model").innerText = `${asset.brand} - ${asset.model}`;
-    document.getElementById("det_serial").innerText = asset.serial_no;
-    
-    document.getElementById("det_category").innerText = asset.category || "-";
-    
-    const statusElement = document.getElementById("det_status");
-    let badgeColor = "bg-gray-100 text-gray-800"; 
-
+    const headerBadge = document.getElementById("page_header_status_badge");
+    const headerAssigned = document.getElementById("page_header_assigned");
+    let badgeColor = "bg-gray-100 text-gray-800";
     if (asset.status === "Available" || asset.status === "Found") {
         badgeColor = "bg-green-100 text-green-800";
     } else if (asset.status === "Checkout") {
-        badgeColor = "bg-blue-100 text-blue-800"; 
+        badgeColor = "bg-blue-100 text-blue-800";
     } else if (asset.status === "Broken" || asset.status === "Lost/Missing" || asset.status === "Dispose") {
-        badgeColor = "bg-red-100 text-red-800"; 
+        badgeColor = "bg-red-100 text-red-800";
     } else if (asset.status === "Under repair" || asset.status === "GarantiaSD") {
-        badgeColor = "bg-amber-100 text-amber-800"; 
+        badgeColor = "bg-amber-100 text-amber-800";
     } else if (asset.status === "Reserved") {
         badgeColor = "bg-purple-100 text-purple-800";
     }
+    headerBadge.innerHTML = `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${badgeColor}">${getStatusLabel(asset.status)}</span>`;
+    if (asset.status === "Checkout") {
+        const emp = globalPersons.find(p => p.id === asset.person_id);
+        headerAssigned.textContent = emp ? `Asignado a: ${emp.full_name}` : '';
+    } else {
+        headerAssigned.textContent = '';
+    }
 
-    statusElement.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeColor}">${asset.status}</span>`;
+    document.getElementById("page_description").innerText = asset.asset_description || "-";
+    document.getElementById("page_brand").innerText = asset.brand || "-";
+    document.getElementById("page_model").innerText = asset.model || "-";
+    document.getElementById("page_serial").innerText = asset.serial_no || "-";
+    document.getElementById("page_category").innerText = asset.category || "-";
+    document.getElementById("page_site").innerText = siteName(asset.site_id) || "-";
 
-    const containerAsignado = document.getElementById("det_assigned_container");
+    const statusElement = document.getElementById("page_status");
+    statusElement.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeColor}">${getStatusLabel(asset.status)}</span>`;
+
+    const employeeObj = globalPersons.find(p => p.id === asset.person_id);
+    const containerAsignado = document.getElementById("page_assigned_container");
     if (asset.status === "Checkout" && employeeObj) {
+        const safeName = escapeHtml(employeeObj.full_name);
+        const onClickName = employeeObj.full_name.replace(/'/g, "\\'");
         containerAsignado.innerHTML = `
-            <button onclick="openUserAssetsModal('${employeeObj.id}', '${employeeObj.full_name}')" class="w-full text-left bg-blue-50 border border-blue-200 rounded p-2 text-blue-700 font-semibold hover:bg-blue-100 transition-colors cursor-pointer block flex justify-between items-center">
-                <span>${employeeObj.full_name} (${employeeObj.title || 'Personal'})</span>
+            <button onclick="openUserAssetsModal(${employeeObj.id}, '${onClickName}')" class="w-full text-left bg-blue-50 border border-blue-200 rounded p-2 text-blue-700 font-semibold hover:bg-blue-100 transition-colors cursor-pointer block flex justify-between items-center">
+                <span>${safeName} (${employeeObj.title || 'Personal'})</span>
                 <span class="text-[10px] bg-blue-600 text-white font-bold py-0.5 px-1.5 rounded uppercase tracking-wide">Ver Asignados </span>
             </button>`;
     } else if (asset.status !== "Checkout") {
-        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded mb-2">Status: ${asset.status}</p><button onclick="closeDetailsModal();openModal('${asset.id}','${asset.asset_tag_id}','checkout')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow transition-colors cursor-pointer">Realizar Check-out</button>`;
+        containerAsignado.innerHTML = `<p class="text-blue-700 font-medium p-1 bg-blue-50 border border-blue-100 rounded text-sm">Status: ${getStatusLabel(asset.status)}</p>`;
     } else {
-        containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded">Disponible en Almacen</p>`;
+        containerAsignado.innerHTML = `<p class="text-green-700 font-medium p-1 bg-green-50 border border-green-100 rounded text-sm">Disponible en Almacen</p>`;
     }
 
-    var repairBlock = document.getElementById("det_repair_block");
+    const ultimoUser = globalPersons.find(p => p.id === asset.ultimo_asignado_id);
+    document.getElementById("page_ultimo_asignado_global").innerText = ultimoUser ? ultimoUser.full_name + " (" + ultimoUser.employee_id + ")" : "-";
+
+    document.getElementById("page_telefono").innerText = asset.numero_telefono || "-";
+    document.getElementById("page_purchase_date").innerText = asset.purchase_date || "-";
+    document.getElementById("page_cost").innerText = asset.cost ? formatCurrency(asset.cost) : "-";
+    document.getElementById("page_purchased_from").innerText = asset.purchased_from || "-";
+
+    const notesBlock = document.getElementById("page_notes_block");
+    const notesText = document.getElementById("page_notas");
+    if (asset.notas_adicionales) {
+        notesBlock.classList.remove("hidden");
+        notesText.innerText = asset.notas_adicionales;
+    } else {
+        notesBlock.classList.add("hidden");
+    }
+
+    var repairBlock = document.getElementById("page_repair_block");
     if (asset.status === "Under repair" || asset.status === "GarantiaSD") {
         repairBlock.classList.remove("hidden");
-        document.getElementById("det_repair_reason").innerText = asset.repair_reason || "-";
+        document.getElementById("page_repair_reason").innerText = asset.repair_reason || "-";
         var leftPerson = globalPersons.find(function (p) { return p.id === asset.repair_left_by_id; });
-        document.getElementById("det_repair_left_by").innerText = leftPerson ? leftPerson.full_name + " (" + leftPerson.employee_id + ")" : "-";
+        document.getElementById("page_repair_left_by").innerText = leftPerson ? leftPerson.full_name + " (" + leftPerson.employee_id + ")" : "-";
         var tech = globalAdmins.find(function (a) { return a.id === asset.repair_technician_id; });
-        document.getElementById("det_repair_technician").innerText = tech ? tech.username : "-";
-        var ultimoUser = globalPersons.find(function (p) { return p.id === asset.ultimo_asignado_id; });
-        document.getElementById("det_ultimo_asignado").innerText = ultimoUser ? ultimoUser.full_name + " (" + ultimoUser.employee_id + ")" : "-";
+        document.getElementById("page_repair_technician").innerText = tech ? tech.username : "-";
+        document.getElementById("page_ultimo_asignado").innerText = ultimoUser ? ultimoUser.full_name + " (" + ultimoUser.employee_id + ")" : "-";
     } else {
         repairBlock.classList.add("hidden");
     }
 
-    document.getElementById("btn_delete_asset").onclick = () => triggerDeleteAsset(asset.id, asset.asset_tag_id);
-    document.getElementById("btn_edit_asset").onclick = () => openEditAssetModal(asset.id);
+    document.getElementById("page_btn_delete_asset").onclick = () => triggerDeleteAsset(asset.id, asset.asset_tag_id);
+    document.getElementById("page_btn_edit_asset").onclick = () => openEditAssetModal(asset.id);
 
-    const historyBody = document.getElementById("assetSpecificHistoryBody");
-    historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">Buscando...</td></tr>`;
+    const timelineContainer = document.getElementById("page_timeline_container");
+    const historialBody = document.getElementById("page_assetDetailHistoryBody");
+    timelineContainer.innerHTML = `<div class="text-center text-gray-400 italic py-4 text-sm">Buscando...</div>`;
+    historialBody.innerHTML = `<tr><td colspan="6" class="px-3 py-4 text-center text-gray-400 italic">Buscando...</td></tr>`;
 
     try {
         const response = await api("/history/");
         if (response.ok) {
             const allHistory = await response.json();
             const specificHistory = allHistory.filter(h => h.asset_id === asset.id);
-            historyBody.innerHTML = "";
             if (specificHistory.length === 0) {
-                historyBody.innerHTML = `<tr><td colspan="4" class="px-3 py-3 text-center text-gray-400 italic">Sin movimientos registrados.</td></tr>`;
+                timelineContainer.innerHTML = `<div class="text-center text-gray-400 italic py-4 text-sm">Sin movimientos registrados.</div>`;
+                historialBody.innerHTML = `<tr><td colspan="6" class="px-3 py-3 text-center text-gray-400 italic">Sin movimientos registrados.</td></tr>`;
             } else {
-                specificHistory.reverse();
-                specificHistory.forEach(item => {
-                    const row = document.createElement("tr");
+                const sorted = specificHistory.sort((a, b) => new Date(b.fecha_accion) - new Date(a.fecha_accion));
+                let timelineHtml = `<div class="timeline-line relative pl-8 space-y-0">`;
+                let historialHtml = "";
+                sorted.forEach((item, idx) => {
                     const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
-                    let actionClass = item.tipo_accion === "Checkout" ? "text-blue-600 font-bold" : (item.tipo_accion === "Archived" ? "text-red-600 font-bold" : "text-amber-600 font-bold");
-                    row.innerHTML = `<td class="px-3 py-1.5 text-gray-400 text-[11px]">${fecha}</td><td class="px-3 py-1.5 uppercase ${actionClass}">${item.tipo_accion}</td><td class="px-3 py-1.5 text-gray-500">Admin_${item.realizado_por_id}</td><td class="px-3 py-1.5 text-gray-700 italic">${item.notas_detalle || '-'}</td>`;
-                    historyBody.appendChild(row);
+                    const actionLabel = escapeHtml(item.tipo_accion);
+                    const dotColor = getTimelineDotColor(item.tipo_accion);
+                    const badgeClass = getHistoryBadgeClass(item.tipo_accion);
+
+                    const person = item.asignado_a_id ? globalPersons.find(p => p.id === item.asignado_a_id) : null;
+                    let personName;
+                    if (person) {
+                        const safeName = escapeHtml(person.full_name);
+                        const onClickName = person.full_name.replace(/'/g, "\\'");
+                        personName = `<span onclick="openUserAssetsModal(${person.id}, '${onClickName}')" class="text-blue-600 hover:underline font-medium cursor-pointer">${safeName}</span>`;
+                    } else if (item.asignado_a_id) {
+                        personName = `<span class="text-gray-400 italic">ID: ${item.asignado_a_id}</span>`;
+                    } else {
+                        personName = `<span class="text-gray-400 italic">Almacen</span>`;
+                    }
+
+                    const admin = globalAdmins.find(a => a.id === item.realizado_por_id);
+                    const operatorName = admin ? escapeHtml(admin.username) : `Admin_${item.realizado_por_id}`;
+
+                    let detailHtml;
+                    if (item.notas_detalle) {
+                        const escapedDetail = escapeHtml(item.notas_detalle);
+                        const onClickDetail = item.notas_detalle.replace(/'/g, "\\'");
+                        detailHtml = `<span class="cursor-pointer text-blue-600 underline decoration-dotted hover:text-blue-800" title="${escapedDetail}" onclick="showDetailModal('${onClickDetail}')">${escapedDetail}</span>`;
+                    } else {
+                        detailHtml = `<span class="text-gray-300 italic">-</span>`;
+                    }
+
+                    const isLast = idx === sorted.length - 1;
+                    timelineHtml += `
+                        <div class="timeline-item relative pb-5 ${isLast ? 'last' : ''}">
+                            <div class="timeline-dot" style="background:${dotColor}"></div>
+                            <div class="timeline-content bg-gray-50 rounded-lg border border-gray-200 p-3 text-sm">
+                                <div class="flex items-center justify-between gap-2 mb-1">
+                                    <span class="text-xs font-semibold ${badgeClass} px-2 py-0.5 rounded-full">${actionLabel}</span>
+                                    <span class="text-[11px] font-mono text-gray-400 whitespace-nowrap">${fecha}</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mt-1.5">
+                                    <div><span class="text-gray-400">Asignado a:</span> ${personName}</div>
+                                    <div><span class="text-gray-400">Operador:</span> ${operatorName}</div>
+                                    ${detailHtml !== '<span class="text-gray-300 italic">-</span>' ? `<div class="col-span-2"><span class="text-gray-400">Notas:</span> ${detailHtml}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>`;
+
+                    const changedFrom = item.estado_anterior ? escapeHtml(item.estado_anterior) : '-';
+                    const changedTo = item.estado_nuevo ? escapeHtml(item.estado_nuevo) : '-';
+                    const actionBadgeHtml = `<span class="px-2 py-1 inline-flex items-center text-xs font-semibold rounded-full ${badgeClass}">${actionLabel}</span>`;
+
+                    historialHtml += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-4 font-mono text-[11px] text-gray-500 whitespace-nowrap">${fecha}</td>
+                        <td class="px-4 py-4">${actionBadgeHtml}</td>
+                        <td class="px-4 py-4 text-xs text-gray-700">Status</td>
+                        <td class="px-4 py-4 text-xs text-gray-600">${changedFrom}</td>
+                        <td class="px-4 py-4 text-xs text-gray-600">${changedTo}</td>
+                        <td class="px-4 py-4 text-xs text-gray-600">${operatorName}</td>
+                    </tr>`;
                 });
+                timelineHtml += `</div>`;
+                timelineContainer.innerHTML = timelineHtml;
+                historialBody.innerHTML = historialHtml;
             }
         }
     } catch (e) { console.error(e); }
 
-    document.getElementById("detailsModal").classList.remove("hidden");
+    populateActionsDropdown(asset.status);
+    showSection('assetDetail');
 }
 
-function closeDetailsModal() { document.getElementById("detailsModal").classList.add("hidden"); }
+function closeAssetDetail() {
+    window.location.hash = "";
+    showSection('assets');
+}
 
-function toggleSpecificHistory() {
-    const wrapper = document.getElementById("assetSpecificHistoryWrapper");
-    const icon = document.getElementById("historyToggleIcon");
-    if (wrapper.classList.contains("hidden")) { wrapper.classList.remove("hidden"); icon.innerText = "Ocultar"; } 
-    else { wrapper.classList.add("hidden"); icon.innerText = "Mostrar"; }
+function handleHashChange() {
+    const hash = window.location.hash.replace("#", "");
+    if (hash.startsWith("asset/")) {
+        const assetId = parseInt(hash.split("/")[1]);
+        if (!isNaN(assetId)) {
+            renderAssetDetail(assetId);
+        }
+    }
+}
+
+function populateActionsDropdown(currentStatus) {
+    const allStatuses = ["Checkout", "Available", "Broken", "Under repair", "GarantiaSD", "Reserved", "Lost/Missing", "Found", "Dispose", "Donate", "Sold"];
+    const ul = document.getElementById("page_actions_dropdown");
+    ul.innerHTML = "";
+    allStatuses.forEach(s => {
+        const li = document.createElement("li");
+        const label = getStatusLabel(s);
+        li.className = "px-3 py-2 hover:bg-gray-100 cursor-pointer";
+        if (s === currentStatus) {
+            li.className = "px-3 py-2 text-gray-300 italic cursor-not-allowed";
+            li.textContent = label + " (actual)";
+        } else {
+            const assetId = parseInt(window.location.hash.replace("#asset/", ""));
+            li.textContent = label;
+            li.onclick = () => { document.getElementById("page_actions_dropdown").classList.add("hidden"); changeAssetStatus(assetId, s); };
+        }
+        ul.appendChild(li);
+    });
+}
+
+function toggleActionsDropdown() {
+    const dd = document.getElementById("page_actions_dropdown");
+    dd.classList.toggle("hidden");
+}
+
+function switchHistoryTab(tab) {
+    const eventosBtn = document.getElementById("tab_btn_eventos");
+    const historialBtn = document.getElementById("tab_btn_historial");
+    const eventosDiv = document.getElementById("page_history_eventos");
+    const historialDiv = document.getElementById("page_history_historial");
+    if (tab === "historial") {
+        eventosBtn.className = "px-4 py-2 text-xs font-bold bg-gray-50 text-gray-500 hover:bg-gray-100";
+        historialBtn.className = "px-4 py-2 text-xs font-bold bg-amber-500 text-white";
+        eventosDiv.classList.add("hidden");
+        historialDiv.classList.remove("hidden");
+    } else {
+        historialBtn.className = "px-4 py-2 text-xs font-bold bg-gray-50 text-gray-500 hover:bg-gray-100";
+        eventosBtn.className = "px-4 py-2 text-xs font-bold bg-amber-500 text-white";
+        historialDiv.classList.add("hidden");
+        eventosDiv.classList.remove("hidden");
+    }
+}
+
+function changeAssetStatus(assetId, newStatus) {
+    if (newStatus === "Checkout") {
+        const tagEl = document.getElementById("page_header_tag");
+        const tagText = tagEl ? tagEl.textContent : "ID:" + assetId;
+        openModal(assetId, tagText, "checkout");
+        return;
+    }
+    document.getElementById("sc_asset_id").value = assetId;
+    document.getElementById("sc_new_status").value = newStatus;
+    document.getElementById("statusChangeModalTitle").innerText = "Cambiar a " + getStatusLabel(newStatus);
+    const assetTag = document.getElementById("page_header_tag");
+    document.getElementById("sc_asset_info").innerText = "Activo: " + (assetTag ? "#" + assetTag.textContent : "ID: " + assetId);
+    document.getElementById("sc_notas").value = "";
+    document.getElementById("sc_error").classList.add("hidden");
+
+    const repairFields = document.getElementById("sc_repair_fields");
+    const repairStatuses = ["Under repair", "GarantiaSD"];
+    if (repairStatuses.includes(newStatus)) {
+        repairFields.classList.remove("hidden");
+    } else {
+        repairFields.classList.add("hidden");
+        document.getElementById("sc_repair_reason").value = "";
+        document.getElementById("sc_repair_left_by_id").value = "";
+        document.getElementById("sc_repair_left_search").value = "";
+        document.getElementById("sc_repair_tech_id").value = "";
+        document.getElementById("sc_repair_tech_search").value = "";
+    }
+
+    document.getElementById("statusChangeModal").classList.remove("hidden");
+}
+
+function closeStatusChangeModal() {
+    setLoading(document.getElementById("sc_submit_btn"), false);
+    document.getElementById("statusChangeModal").classList.add("hidden");
+    document.getElementById("statusChangeForm").reset();
+    document.getElementById("sc_repair_fields").classList.add("hidden");
+    document.getElementById("sc_error").classList.add("hidden");
+}
+
+function setupStatusChangeFormListener() {
+    document.getElementById("statusChangeForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("sc_submit_btn");
+        setLoading(btn, true);
+        const assetId = document.getElementById("sc_asset_id").value;
+        const newStatus = document.getElementById("sc_new_status").value;
+        const notas = document.getElementById("sc_notas").value;
+
+        const repairStatuses = ["Under repair", "GarantiaSD"];
+        let body = { status: newStatus, notas: notas || null };
+
+        if (repairStatuses.includes(newStatus)) {
+            body.repair_reason = document.getElementById("sc_repair_reason").value || null;
+            const leftById = document.getElementById("sc_repair_left_by_id").value;
+            body.repair_left_by_id = leftById ? parseInt(leftById) : null;
+            const techId = document.getElementById("sc_repair_tech_id").value;
+            body.repair_technician_id = techId ? parseInt(techId) : null;
+        }
+
+        const simpleStatuses = ["Available", "Found", "Reserved"];
+        let url, method, options;
+
+        if (simpleStatuses.includes(newStatus)) {
+            url = `/assets/${assetId}/checkin?nuevo_estado=${encodeURIComponent(newStatus)}`;
+            if (notas) url += `&notas=${encodeURIComponent(notas)}`;
+            method = "POST";
+            options = { method };
+        } else {
+            url = `/assets/${assetId}/status`;
+            method = "POST";
+            options = { method, body: JSON.stringify(body), headers: { "Content-Type": "application/json" } };
+        }
+
+        try {
+            const res = await api(url, options);
+            setLoading(btn, false);
+            if (res.ok) {
+                showToast("Status actualizado a " + newStatus, "success");
+                closeStatusChangeModal();
+                renderAssetDetail(parseInt(assetId));
+            } else {
+                setLoading(btn, false);
+                const err = await res.json().catch(() => ({}));
+                document.getElementById("sc_error").innerText = err.detail || "Error al cambiar status";
+                document.getElementById("sc_error").classList.remove("hidden");
+            }
+        } catch (e) {
+            setLoading(btn, false);
+            document.getElementById("sc_error").innerText = "Error de conexion";
+            document.getElementById("sc_error").classList.remove("hidden");
+        }
+    });
+}
+
+function initScRepairAutocompletes() {
+    const leftInput = document.getElementById("sc_repair_left_search");
+    const leftResults = document.getElementById("sc_repair_left_results");
+    const leftHidden = document.getElementById("sc_repair_left_by_id");
+    let leftTimer;
+
+    leftInput.addEventListener("input", function() {
+        clearTimeout(leftTimer);
+        const q = this.value.trim().toLowerCase();
+        if (q.length < 1) { leftResults.classList.add("hidden"); return; }
+        leftTimer = setTimeout(() => {
+            const matches = globalPersons.filter(p =>
+                p.is_active !== false &&
+                (p.full_name.toLowerCase().includes(q) || (p.employee_id && p.employee_id.toLowerCase().includes(q)))
+            ).slice(0, 8);
+            if (matches.length === 0) { leftResults.classList.add("hidden"); return; }
+            leftResults.innerHTML = matches.map(p =>
+                `<div class="px-3 py-2 hover:bg-amber-100 cursor-pointer text-xs" data-id="${p.id}" data-name="${p.full_name.replace(/"/g, '&quot;').replace(/'/g, "\\'")}">${p.full_name.replace(/</g, '&lt;').replace(/>/g, '&gt;')} (${p.employee_id || ''})</div>`
+            ).join("");
+            leftResults.querySelectorAll("div").forEach(div => {
+                div.addEventListener("click", function() {
+                    leftHidden.value = this.dataset.id;
+                    leftInput.value = this.dataset.name;
+                    leftResults.classList.add("hidden");
+                });
+            });
+            leftResults.classList.remove("hidden");
+        }, 200);
+    });
+    leftInput.addEventListener("blur", () => setTimeout(() => leftResults.classList.add("hidden"), 200));
+
+    const techInput = document.getElementById("sc_repair_tech_search");
+    const techResults = document.getElementById("sc_repair_tech_results");
+    const techHidden = document.getElementById("sc_repair_tech_id");
+    let techTimer;
+
+    techInput.addEventListener("input", function() {
+        clearTimeout(techTimer);
+        const q = this.value.trim().toLowerCase();
+        if (q.length < 1) { techResults.classList.add("hidden"); return; }
+        techTimer = setTimeout(() => {
+            const matches = globalAdmins.filter(a =>
+                a.username && a.username.toLowerCase().includes(q)
+            ).slice(0, 8);
+            if (matches.length === 0) { techResults.classList.add("hidden"); return; }
+            techResults.innerHTML = matches.map(a =>
+                `<div class="px-3 py-2 hover:bg-amber-100 cursor-pointer text-xs" data-id="${a.id}" data-name="${a.username.replace(/"/g, '&quot;').replace(/'/g, "\\'")}">${a.username.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`
+            ).join("");
+            techResults.querySelectorAll("div").forEach(div => {
+                div.addEventListener("click", function() {
+                    techHidden.value = this.dataset.id;
+                    techInput.value = this.dataset.name;
+                    techResults.classList.add("hidden");
+                });
+            });
+            techResults.classList.remove("hidden");
+        }, 200);
+    });
+    techInput.addEventListener("blur", () => setTimeout(() => techResults.classList.add("hidden"), 200));
 }
 
 function openUserAssetsModal(personId, personName) {
@@ -511,7 +884,9 @@ function openUserAssetsModal(personId, personName) {
         } else {
             assignedDevices.forEach(dev => {
                 const row = document.createElement("tr");
-                row.innerHTML = '<td class="px-3 py-2 font-bold text-blue-600">' + dev.asset_tag_id + '</td><td class="px-3 py-2 text-gray-600">' + (dev.asset_description || "-") + '</td><td class="px-3 py-2 text-gray-500">' + (dev.brand || "") + " " + (dev.model || "") + '</td><td class="px-3 py-2 font-bold text-gray-400">' + (dev.serial_no || "-") + '</td>';
+                row.className = "cursor-pointer hover:bg-gray-50 transition-colors";
+                row.onclick = () => { closeUserAssetsModal(); openDetailsModal(dev.asset_id); };
+                row.innerHTML = '<td class="px-3 py-2 font-bold text-blue-600">' + escapeHtml(dev.asset_tag_id) + '</td><td class="px-3 py-2 text-gray-600">' + escapeHtml(dev.asset_description || "-") + '</td><td class="px-3 py-2 text-gray-500">' + escapeHtml(dev.brand || "") + " " + escapeHtml(dev.model || "") + '</td><td class="px-3 py-2 font-bold text-gray-400">' + escapeHtml(dev.serial_no || "-") + '</td>';
                 tableBody.appendChild(row);
             });
         }
@@ -533,11 +908,11 @@ function openDeletedAssetsModal() {
             const row = document.createElement("tr");
             row.className = "hover:bg-red-50/30 transition-colors";
             row.innerHTML = `
-                <td class="px-4 py-3 font-bold text-red-700">${dev.asset_tag_id}</td>
-                <td class="px-4 py-3 text-gray-600">${dev.asset_description}</td>
-                <td class="px-4 py-3 text-gray-500">${dev.brand} ${dev.model}</td>
-                <td class="px-4 py-3 font-mono text-gray-400">${dev.serial_no}</td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-4 font-bold text-red-700">${dev.asset_tag_id}</td>
+                <td class="px-4 py-4 text-gray-600">${dev.asset_description}</td>
+                <td class="px-4 py-4 text-gray-500">${dev.brand} ${dev.model}</td>
+                <td class="px-4 py-4 font-mono text-gray-400">${dev.serial_no}</td>
+                <td class="px-4 py-4 text-center">
                     <button onclick="restoreAsset('${dev.id}', '${dev.asset_tag_id}')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] uppercase py-1 px-3 rounded shadow transition-colors cursor-pointer">
                         Restaurar
                     </button>
@@ -683,7 +1058,7 @@ function setupEditAssetFormListener() {
             if (response.ok) {
                 showToast("Modificado con exito!", "success");
                 closeEditAssetModal();
-                closeDetailsModal();
+                closeAssetDetail();
                 loadAssets();   
                 loadHistory();  
             } else {
@@ -702,21 +1077,22 @@ async function triggerDeleteAsset(assetId, assetTag) {
     if (!confirmacion) return;
     try {
         const response = await api(`/assets/${assetId}`, { method: "DELETE" });
-        if (response.ok) { showToast("Movido a la papelera", "success"); closeDetailsModal(); loadAssets(); loadHistory(); }
+        if (response.ok) { showToast("Movido a la papelera", "success"); closeAssetDetail(); loadAssets(); loadHistory(); }
     } catch (e) { alert("Error."); }
 }
 
-async function loadHistory() {
+async function loadHistory(search) {
     const historyBody = document.getElementById("historyTableBody");
     const pageSize = parseInt(document.getElementById("historyPageSize").value);
     const pageInfo = document.getElementById("historyPageInfo");
     const pageInfoAux = document.getElementById("historyPageInfoAux");
     const prevBtn = document.querySelector("#historySection .flex.justify-between button:first-child");
     const nextBtn = document.querySelector("#historySection .flex.justify-between button:last-child");
+    const searchParam = search || "";
     try {
         const [countRes, listRes] = await Promise.all([
-            api("/history/count/"),
-            api(`/history/?skip=${(currentHistoryPage - 1) * pageSize}&limit=${pageSize}`)
+            api(`/history/count/?search=${encodeURIComponent(searchParam)}`),
+            api(`/history/?search=${encodeURIComponent(searchParam)}&skip=${(currentHistoryPage - 1) * pageSize}&limit=${pageSize}`)
         ]);
         if (!countRes.ok || !listRes.ok) throw new Error("Error");
         const countData = await countRes.json();
@@ -749,7 +1125,8 @@ async function loadHistory() {
             detailSpan.onclick = function() { showDetailModal(detail); };
             detailCell.appendChild(detailSpan);
             const assetCell = item.asset_id ? `<td class="px-4 py-2 font-bold text-gray-700 align-top cursor-pointer hover:text-blue-600" onclick="openDetailsModal(${item.asset_id})">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td>` : `<td class="px-4 py-2 text-gray-400 align-top italic">N/A</td>`;
-            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${item.tipo_accion}</td>${assetCell}<td class="px-4 py-2 text-gray-600 align-top">${employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen')}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
+            const empName = employeeObj ? escapeHtml(employeeObj.full_name) : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen');
+            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${escapeHtml(item.tipo_accion)}</td>${assetCell}<td class="px-4 py-2 text-gray-600 align-top">${empName}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
             row.appendChild(detailCell);
             historyBody.appendChild(row);
         });
@@ -771,9 +1148,10 @@ function detailModalKeydown(e) {
     if (e.key === "Escape") closeDetailModal();
 }
 
-async function loadPersons() {
+async function loadPersons(search) {
     try {
-        const res = await api("/persons/");
+        const url = search ? `/persons/?search=${encodeURIComponent(search)}` : "/persons/";
+        const res = await api(url);
         if (!res.ok) throw new Error("Error");
         globalPersons = await res.json();
         renderEmployeesPage();
@@ -790,7 +1168,7 @@ function renderEmployeesPage() {
     const persons = globalPersons;
     tableBody.innerHTML = "";
     if (persons.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="9" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados registrados.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="10" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados registrados.</td></tr>';
         pageInfo.textContent = "mostrando 0-0 de 0";
         if (pageInfoAux) pageInfoAux.textContent = "Pagina 1";
         if (prevBtn) prevBtn.disabled = true;
@@ -816,20 +1194,69 @@ function renderEmployeesPage() {
             ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-800 border border-green-300"><span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Activo</span>'
             : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-300"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Inactivo</span>';
             row.innerHTML = `
-                <td class="px-4 py-3 font-medium text-gray-800">${p.full_name}</td>
-                <td class="px-4 py-3 text-gray-500">${p.email}</td>
-                <td class="px-4 py-3 text-gray-600 font-mono">${p.employee_id}</td>
-                <td data-col="dept" class="px-4 py-3 text-gray-600">${dept ? dept.department_name : '-'}</td>
-                <td data-col="site" class="px-4 py-3 text-gray-600">${site ? site.site_name : '-'}</td>
-                <td data-col="phone" class="px-4 py-3 text-gray-500">${p.phone || '-'}</td>
-                <td data-col="notes" class="px-4 py-3 text-gray-500">${p.notes || '-'}</td>
-                <td data-col="status" class="px-4 py-3 text-center">${statusBadge}</td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-4 font-medium text-gray-800">${p.full_name}</td>
+                <td class="px-4 py-4 text-gray-500">${p.email}</td>
+                <td data-col="employee_id" class="px-4 py-4 text-gray-600 font-mono">${p.employee_id}</td>
+                <td data-col="title" class="px-4 py-4 text-gray-500">${p.title || '-'}</td>
+                <td data-col="phone" class="px-4 py-4 text-gray-500">${p.phone || '-'}</td>
+                <td data-col="dept" class="px-4 py-4 text-gray-600">${dept ? dept.department_name : '-'}</td>
+                <td data-col="site" class="px-4 py-4 text-gray-600">${site ? site.site_name : '-'}</td>
+                <td data-col="notes" class="px-4 py-4 text-gray-500">${p.notes || '-'}</td>
+                <td data-col="status" class="px-4 py-4 text-center">${statusBadge}</td>
+                <td class="px-4 py-4 text-center">
                     <button onclick="openEditPersonModal(${p.id})" class="bg-teal-100 hover:bg-teal-200 text-teal-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-teal-300 transition-colors cursor-pointer">Editar</button>
                 </td>`;
             tableBody.appendChild(row);
         });
         applyColumnPreferences();
+}
+function loadEmployeesInactives() {
+    const tableBody = document.getElementById("empleadosInactivosBody");
+    const pageSize = parseInt(document.getElementById("empleadosInactivosPageSize").value);
+    const pageInfo = document.getElementById("empleadosInactivosPageInfo");
+    const pageInfoAux = document.getElementById("empleadosInactivosPageInfoAux");
+    const prevBtn = document.querySelector("#empleadosInactivosSection .flex.justify-between button:first-child");
+    const nextBtn = document.querySelector("#empleadosInactivosSection .flex.justify-between button:last-child");
+    const inactive = globalPersons.filter(p => p.is_active === false);
+    tableBody.innerHTML = "";
+    if (inactive.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="10" class="px-4 py-6 text-center text-gray-400 italic">No hay empleados inactivos.</td></tr>';
+        pageInfo.textContent = "mostrando 0-0 de 0";
+        if (pageInfoAux) pageInfoAux.textContent = "Pagina 1";
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        return;
+    }
+    const total = inactive.length;
+    const start = (currentInactivePage - 1) * pageSize;
+    const pageItems = inactive.slice(start, start + pageSize);
+    const displayStart = total > 0 ? start + 1 : 0;
+    const displayEnd = Math.min(start + pageSize, total);
+    pageInfo.textContent = `mostrando ${displayStart}-${displayEnd} de ${total}`;
+    if (pageInfoAux) pageInfoAux.textContent = `Pagina ${currentInactivePage}`;
+    if (prevBtn) prevBtn.disabled = currentInactivePage <= 1;
+    if (nextBtn) nextBtn.disabled = displayEnd >= total;
+    pageItems.forEach(p => {
+        const dept = globalDepartments.find(d => d.id === p.department_id);
+        const site = globalSites.find(s => s.id === p.site_id);
+        const row = document.createElement("tr");
+        row.className = "hover:bg-gray-100/50 transition-colors opacity-60";
+        row.innerHTML = `
+            <td class="px-4 py-4 font-medium text-gray-800">${escapeHtml(p.full_name)}</td>
+            <td class="px-4 py-4 text-gray-500">${escapeHtml(p.email)}</td>
+            <td data-col="employee_id" class="px-4 py-4 text-gray-600 font-mono">${escapeHtml(p.employee_id)}</td>
+            <td data-col="title" class="px-4 py-4 text-gray-500">${escapeHtml(p.title) || '-'}</td>
+            <td data-col="phone" class="px-4 py-4 text-gray-500">${escapeHtml(p.phone) || '-'}</td>
+            <td data-col="dept" class="px-4 py-4 text-gray-600">${dept ? dept.department_name : '-'}</td>
+            <td data-col="site" class="px-4 py-4 text-gray-600">${site ? site.site_name : '-'}</td>
+            <td data-col="notes" class="px-4 py-4 text-gray-500">${escapeHtml(p.notes) || '-'}</td>
+            <td data-col="status" class="px-4 py-4 text-center"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-300"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Inactivo</span></td>
+            <td class="px-4 py-4 text-center">
+                <button onclick="openEditPersonModal(${p.id})" class="bg-teal-100 hover:bg-teal-200 text-teal-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-teal-300 transition-colors cursor-pointer">Editar</button>
+            </td>`;
+        tableBody.appendChild(row);
+    });
+    applyColumnPreferences();
 }
 async function loadCatalogs() {
     const sitesBody = document.getElementById("sitesTableBody");
@@ -1079,8 +1506,8 @@ function openModal(assetId, assetTag, actionType) {
     document.getElementById("modal_asset_id").value = assetId; document.getElementById("modal_action_type").value = actionType;
     document.getElementById("modalAssetInfo").innerText = `Activo Seleccionado: ${assetTag}`;
     const divAsignadoA = document.getElementById("div_asignado_a"); const modalTitle = document.getElementById("modalTitle"); const submitBtn = document.getElementById("modalSubmitBtn");
-    if (actionType === "checkout") { modalTitle.innerText = "Registrar Asignacion (Check-out)"; submitBtn.innerText = "Asignar Equipo"; submitBtn.className = "px-4 py-2 bg-blue-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.remove("hidden"); document.getElementById("modal_person_search").value = ""; document.getElementById("modal_person_id").value = ""; document.getElementById("modal_person_results").classList.add("hidden"); } 
-    else { modalTitle.innerText = "Registrar Devolucion (Check-in)"; submitBtn.innerText = "Recibir en Almacen"; submitBtn.className = "px-4 py-2 bg-amber-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.add("hidden"); }
+    if (actionType === "checkout") { modalTitle.innerText = "Registrar Asignacion"; submitBtn.innerText = "Asignar Equipo"; submitBtn.className = "px-4 py-2 bg-blue-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.remove("hidden"); document.getElementById("modal_person_search").value = ""; document.getElementById("modal_person_id").value = ""; document.getElementById("modal_person_results").classList.add("hidden"); } 
+    else { modalTitle.innerText = "Registrar Devolucion"; submitBtn.innerText = "Recibir en Almacen"; submitBtn.className = "px-4 py-2 bg-amber-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.add("hidden"); }
     document.getElementById("movementModal").classList.remove("hidden");
 }
 function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); document.getElementById("modal_person_results")?.classList.add("hidden"); window.__reconciliationAfterCheckin = null; }
@@ -1179,7 +1606,11 @@ function setupCatalogFormsListeners() {
                 showToast("Categoria guardada!", "success");
                 closeCategoryModal();
                 loadCatalogs();
-                loadDropdownData();
+                await loadDropdownData();
+                if (pendingCatSelect.current) {
+                    pendingCatSelect.current.value = name;
+                    pendingCatSelect.current = null;
+                }
             } else {
                 const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
                 alert("Error: " + (err.detail || "No se pudo guardar"));
@@ -1245,9 +1676,11 @@ function logout() {
 }
 
 function getGroup() {
-    const session = localStorage.getItem("adminSession");
-    if (!session) return null;
-    return JSON.parse(session).group || null;
+    try {
+        const session = localStorage.getItem("adminSession");
+        if (!session) return null;
+        return JSON.parse(session).group || null;
+    } catch (e) { return null; }
 }
 
 function hasPermission(perm) {
@@ -1258,12 +1691,8 @@ function hasPermission(perm) {
 
 function updateSidebarUserInfo() {
     const admin = getAdmin();
-    const group = getGroup();
     if (admin) {
-        document.getElementById("sidebarUserName").textContent = admin.username;
-    }
-    if (group) {
-        document.getElementById("sidebarUserGroup").textContent = group.name;
+        document.getElementById("topBarUserName").textContent = admin.username;
     }
 }
 
@@ -1409,16 +1838,19 @@ async function loadStatusReport() {
 }
 
 function showSection(name) {
+    closeSidebar();
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'assetDetail'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
     });
     const target = document.getElementById(name + 'Section');
     if (target) target.classList.remove('hidden');
+    if (name !== 'assetDetail') { window.location.hash = ""; }
     if (name === 'employees' && typeof loadPersons === 'function') loadPersons();
+    if (name === 'empleadosInactivos' && typeof loadEmployeesInactives === 'function') loadEmployeesInactives();
     if (name === 'catalogs' && typeof loadCatalogs === 'function') loadCatalogs();
     if (name === 'history' && typeof loadHistory === 'function') loadHistory();
     if (name === 'assets' && typeof loadAssets === 'function') loadAssets();
@@ -1448,7 +1880,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1471,6 +1903,89 @@ function populateAdvancedSearchDropdowns() {
     deptSel.innerHTML = '<option value="">Todos los Departamentos</option>';
     globalDepartments.forEach(d => { deptSel.innerHTML += `<option value="${d.id}">${d.department_name}</option>`; });
 }
+
+// Top bar search
+function executeTopSearch() {
+    const keyword = document.getElementById("topSearchInput").value.trim();
+    const section = document.getElementById("topSearchSection").value;
+    if (!keyword) { showToast("Escribe una palabra clave para buscar", "warning"); return; }
+
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    sections.forEach(s => {
+        const el = document.getElementById(s + 'Section');
+        if (el) el.classList.add('hidden');
+    });
+    document.getElementById("searchResultsSection").classList.remove("hidden");
+    document.querySelectorAll('.sidebar-item.active, .sidebar-sub-item.active, .sidebar-nested-item.active').forEach(el => el.classList.remove('active'));
+    document.getElementById("mainContent").scrollTo({ top: 0, behavior: "smooth" });
+
+    const title = document.getElementById("searchResultsTitle");
+    const body = document.getElementById("searchResultsBody");
+    title.textContent = `Resultados para "${keyword}" en ${section === "assets" ? "Activos" : "Empleados"}`;
+    body.innerHTML = '<p class="text-gray-400 italic text-center py-8">Buscando...</p>';
+
+    if (section === "assets") {
+        api("/assets/?search=" + encodeURIComponent(keyword)).then(res => res.json()).then(data => {
+            if (!data || !data.length) {
+                body.innerHTML = '<p class="text-gray-400 italic text-center py-8">No se encontraron resultados.</p>';
+                return;
+            }
+            let html = '<div class="text-xs text-gray-500 mb-3 font-bold">' + data.length + ' resultado(s) encontrado(s)</div>';
+            html += '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr>';
+            html += '<th class="text-left py-2 px-3">Tag del Activo</th><th class="text-left py-2 px-3">Serial</th><th class="text-left py-2 px-3">Marca</th><th class="text-left py-2 px-3">Modelo</th><th class="text-left py-2 px-3">Descripcion</th><th class="text-left py-2 px-3">Status</th><th class="text-left py-2 px-3">Categoria</th><th class="text-left py-2 px-3"></th>';
+            html += '</tr></thead><tbody>';
+            data.forEach(a => {
+                html += '<tr class="border-b border-gray-100 hover:bg-gray-50">';
+                html += '<td class="py-2 px-3 font-medium">' + escapeHtml(a.asset_tag_id) + '</td>';
+                html += '<td class="py-2 px-3 text-gray-600">' + escapeHtml(a.serial_no || '-') + '</td>';
+                html += '<td class="py-2 px-3">' + escapeHtml(a.brand || '-') + '</td>';
+                html += '<td class="py-2 px-3">' + escapeHtml(a.model || '-') + '</td>';
+                html += '<td class="py-2 px-3 text-gray-600 max-w-[200px] truncate">' + escapeHtml(a.asset_description || '-') + '</td>';
+                html += '<td class="py-2 px-3"><span class="badge-dot" style="background:' + (a.status === 'Checkout' ? '#3b82f6' : a.status === 'Available' ? '#10b981' : a.status === 'Under repair' || a.status === 'GarantiaSD' ? '#f59e0b' : '#6b7280') + '"></span>' + escapeHtml(a.status) + '</td>';
+                html += '<td class="py-2 px-3 text-gray-600">' + escapeHtml(a.category || '-') + '</td>';
+                html += '<td class="py-2 px-3"><button onclick="openDetailsModal(' + a.id + ')" class="text-blue-600 hover:text-blue-800 font-bold cursor-pointer">Ver</button></td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            body.innerHTML = html;
+        }).catch(() => {
+            body.innerHTML = '<p class="text-red-500 text-center py-8">Error al buscar.</p>';
+        });
+    } else {
+        api("/persons/?search=" + encodeURIComponent(keyword)).then(res => res.json()).then(data => {
+            if (!data || !data.length) {
+                body.innerHTML = '<p class="text-gray-400 italic text-center py-8">No se encontraron resultados.</p>';
+                return;
+            }
+            let html = '<div class="text-xs text-gray-500 mb-3 font-bold">' + data.length + ' resultado(s) encontrado(s)</div>';
+            html += '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr>';
+            html += '<th class="text-left py-2 px-3">Nombre</th><th class="text-left py-2 px-3">Email</th><th class="text-left py-2 px-3">ID Empleado</th><th class="text-left py-2 px-3">Telefono</th><th class="text-left py-2 px-3"></th>';
+            html += '</tr></thead><tbody>';
+            data.forEach(p => {
+                html += '<tr class="border-b border-gray-100 hover:bg-gray-50">';
+                html += '<td class="py-2 px-3 font-medium">' + escapeHtml(p.full_name) + '</td>';
+                html += '<td class="py-2 px-3 text-gray-600">' + escapeHtml(p.email || '-') + '</td>';
+                html += '<td class="py-2 px-3">' + escapeHtml(p.employee_id || '-') + '</td>';
+                html += '<td class="py-2 px-3">' + escapeHtml(p.phone || '-') + '</td>';
+                html += '<td class="py-2 px-3"><button onclick="openEditPersonModal(' + p.id + ')" class="text-blue-600 hover:text-blue-800 font-bold cursor-pointer">Ver</button></td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            body.innerHTML = html;
+        }).catch(() => {
+            body.innerHTML = '<p class="text-red-500 text-center py-8">Error al buscar.</p>';
+        });
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    const topInput = document.getElementById("topSearchInput");
+    if (topInput) {
+        topInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") executeTopSearch();
+        });
+    }
+});
 
 function checkAllFields(select) {
     document.querySelectorAll("#adv_field_checkboxes input[type=checkbox]").forEach(cb => { cb.checked = select; });
@@ -1983,7 +2498,7 @@ function renderDeptAssets(deptId) {
     var count = data.length;
     var assigned = data.filter(function(a) { return a.status === "Checkout"; }).length;
     var html = '<div class="flex items-center justify-between mb-2 px-1"><span class="text-xs font-bold text-gray-600">Total: ' + count + ' activos | Asignados: ' + assigned + '</span><div class="flex gap-1"><button onclick="exportDeptCSV(' + deptId + ')" class="text-[11px] bg-green-100 hover:bg-green-200 border border-green-300 px-2 py-0.5 rounded font-bold text-green-800 cursor-pointer">CSV</button><button onclick="exportDeptExcel(' + deptId + ')" class="text-[11px] bg-blue-100 hover:bg-blue-200 border border-blue-300 px-2 py-0.5 rounded font-bold text-blue-700 cursor-pointer">Excel</button></div></div>';
-    html += '<div class="overflow-x-auto max-h-64 overflow-y-auto"><table class="min-w-full text-xs border border-gray-200"><thead class="bg-gray-100 text-gray-500"><tr><th class="px-2 py-1 text-left font-bold uppercase">Asset Tag</th><th class="px-2 py-1 text-left font-bold uppercase">Descripcion</th><th class="px-2 py-1 text-left font-bold uppercase">Marca/Modelo</th><th class="px-2 py-1 text-left font-bold uppercase">Serie</th><th class="px-2 py-1 text-left font-bold uppercase">Categoria</th><th class="px-2 py-1 text-left font-bold uppercase">Status</th><th class="px-2 py-1 text-left font-bold uppercase">Asignado A</th></tr></thead><tbody>';
+    html += '<div class="overflow-x-auto max-h-64 overflow-y-auto"><table class="min-w-full text-xs border border-gray-200"><thead class="bg-gray-100 text-gray-500"><tr><th class="px-2 py-1 text-left font-bold uppercase">Tag del Activo</th><th class="px-2 py-1 text-left font-bold uppercase">Descripcion</th><th class="px-2 py-1 text-left font-bold uppercase">Marca/Modelo</th><th class="px-2 py-1 text-left font-bold uppercase">Serie</th><th class="px-2 py-1 text-left font-bold uppercase">Categoria</th><th class="px-2 py-1 text-left font-bold uppercase">Status</th><th class="px-2 py-1 text-left font-bold uppercase">Asignado A</th></tr></thead><tbody>';
     data.forEach(function(a) {
         var badge = getAssetBadgeColor(a.status);
         html += '<tr class="border-t border-gray-100 hover:bg-gray-50 cursor-pointer" onclick="openAssetModalById(' + a.asset_id + ')"><td class="px-2 py-1 font-mono font-bold text-blue-600">' + escapeHtml(a.asset_tag_id) + '</td><td class="px-2 py-1">' + escapeHtml(a.asset_description) + '</td><td class="px-2 py-1">' + escapeHtml(a.brand) + ' ' + escapeHtml(a.model) + '</td><td class="px-2 py-1 font-mono">' + escapeHtml(a.serial_no) + '</td><td class="px-2 py-1">' + escapeHtml(a.category) + '</td><td class="px-2 py-1"><span class="px-1.5 py-0.5 inline-flex items-center text-[10px] font-semibold rounded-full ' + badge + '">' + escapeHtml(a.status) + '</span></td><td class="px-2 py-1">' + escapeHtml(a.assigned_person) + '</td></tr>';
@@ -2046,6 +2561,17 @@ function exportDeptCSV(deptId) {
 function escapeHtml(str) {
     if (!str) return "";
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function setLoading(btn, loading) {
+    if (loading) {
+        btn._origHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="inline-block animate-spin mr-1">&#9696;</span> Procesando...';
+    } else {
+        btn.disabled = false;
+        if (btn._origHtml) btn.innerHTML = btn._origHtml;
+    }
 }
 
 async function openAssetModalById(assetId) {
@@ -2248,11 +2774,11 @@ async function loadDeliveryEmployees() {
             const row = document.createElement("tr");
             row.className = "hover:bg-blue-50/50 transition-colors";
             row.innerHTML = `
-                <td class="px-4 py-3 font-medium text-gray-800">${g.person_name}</td>
-                <td class="px-4 py-3 font-mono text-gray-500">${g.items[0].person_id}</td>
-                <td class="px-4 py-3 text-gray-600">${pendingCount}</td>
-                <td class="px-4 py-3 text-gray-500">${cats}</td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-4 font-medium text-gray-800">${g.person_name}</td>
+                <td class="px-4 py-4 font-mono text-gray-500">${g.items[0].person_id}</td>
+                <td class="px-4 py-4 text-gray-600">${pendingCount}</td>
+                <td class="px-4 py-4 text-gray-500">${cats}</td>
+                <td class="px-4 py-4 text-center">
                     <button onclick="showSection('deliveryBoard')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-blue-300 transition-colors cursor-pointer">Ver en Tablero</button>
                 </td>`;
             tbody.appendChild(row);
@@ -2392,7 +2918,7 @@ function exportVisibleCSV(section) {
     if (section === "assets") {
         data = currentAssets.filter(a => a.status !== "Archived");
         const colMap = [
-            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_tag_id", label: "Tag del Activo" },
             { key: "asset_description", label: "Descripcion" },
             { key: "brand", label: "Marca" },
             { key: "serial_no", label: "Serie", col: "serie" },
@@ -2410,10 +2936,11 @@ function exportVisibleCSV(section) {
         const colMap = [
             { key: "full_name", label: "Nombre" },
             { key: "email", label: "Email" },
-            { key: "employee_id", label: "Employee ID" },
+            { key: "employee_id", label: "EmployeeID", col: "employee_id" },
+            { key: "title", label: "Titulo", col: "title" },
+            { key: "phone", label: "Telefono", col: "phone" },
             { key: "dept", label: "Departamento", col: "dept", fn: p => { const d = globalDepartments.find(x => x.id === p.department_id); return d ? d.department_name : ''; } },
             { key: "site", label: "Sitio", col: "site", fn: p => { const s = globalSites.find(x => x.id === p.site_id); return s ? s.site_name : ''; } },
-            { key: "phone", label: "Telefono", col: "phone" },
             { key: "notes", label: "Notas", col: "notes" },
             { key: "is_active", label: "Estado", col: "status", fn: p => p.is_active !== false ? "Activo" : "Inactivo" }
         ];
@@ -2422,7 +2949,7 @@ function exportVisibleCSV(section) {
     } else if (section === "reports") {
         data = currentReportResults;
         const colMap = [
-            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_tag_id", label: "Tag del Activo" },
             { key: "asset_description", label: "Descripcion" },
             { key: "brand", label: "Marca" },
             { key: "serial_no", label: "Serie" },
@@ -2437,14 +2964,14 @@ function exportVisibleCSV(section) {
     } else if (section === "ctf") {
         data = currentCtfResults;
         const colMap = [
-            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_tag_id", label: "Tag del Activo" },
             { key: "asset_description", label: "Descripcion" },
             { key: "brand", label: "Marca", fn: r => r.brand + " " + r.model },
             { key: "serial_no", label: "Serie" },
             { key: "category", label: "Categoria" },
             { key: "employee_name", label: "Empleado", fn: r => r.employee_name + " (" + r.employee_id + ")" },
             { key: "admin_name", label: "Admin" },
-            { key: "checkout_date", label: "Fecha Checkout", fn: r => new Date(r.checkout_date).toLocaleDateString("es-ES") },
+            { key: "checkout_date", label: "Fecha de Asignacion", fn: r => new Date(r.checkout_date).toLocaleDateString("es-ES") },
             { key: "current_status", label: "Status Actual" }
         ];
         headers = colMap.map(c => c.label);
@@ -2453,7 +2980,7 @@ function exportVisibleCSV(section) {
         data = currentSrResults;
         const siteName = function (sid) { var s = globalSites.find(function (x) { return x.id === sid; }); return s ? s.site_name : ""; };
         const colMap = [
-            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_tag_id", label: "Tag del Activo" },
             { key: "asset_description", label: "Descripcion" },
             { key: "brand_model", label: "Marca/Modelo", fn: function (a) { return a.brand + " " + a.model; } },
             { key: "serial_no", label: "Serie" },
@@ -2522,11 +3049,11 @@ async function loadUsers() {
         const canManage = hasPermission("can_manage_users");
         tbody.innerHTML = users.map(u => `
             <tr>
-                <td class="px-4 py-3 font-medium">${u.username}</td>
-                <td class="px-4 py-3">${u.email || '-'}</td>
-                <td class="px-4 py-3">${u.group ? u.group.name : '-'}</td>
-                <td class="px-4 py-3">${u.is_active ? '<span class="text-green-600 font-bold">Si</span>' : '<span class="text-red-500 font-bold">No</span>'}</td>
-                <td class="px-4 py-3 text-center">${canManage ? `<button onclick="editUser(${u.id})" class="text-blue-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Editar</button>` : '-'}</td>
+                <td class="px-4 py-4 font-medium">${u.username}</td>
+                <td class="px-4 py-4">${u.email || '-'}</td>
+                <td class="px-4 py-4">${u.group ? u.group.name : '-'}</td>
+                <td class="px-4 py-4">${u.is_active ? '<span class="text-green-600 font-bold">Si</span>' : '<span class="text-red-500 font-bold">No</span>'}</td>
+                <td class="px-4 py-4 text-center">${canManage ? `<button onclick="editUser(${u.id})" class="text-blue-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Editar</button>` : '-'}</td>
             </tr>
         `).join("");
     } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
@@ -2620,13 +3147,13 @@ async function loadGroups() {
             if (g.can_create) perms.push("Crear");
             if (g.can_edit) perms.push("Editar");
             if (g.can_delete) perms.push("Eliminar");
-            if (g.can_checkout) perms.push("Checkout");
+            if (g.can_checkout) perms.push("Asignar");
             if (g.can_import_export) perms.push("Imp/Exp");
             if (g.can_manage_users) perms.push("Usuarios");
             return `<tr>
-                <td class="px-4 py-3 font-medium">${g.name}</td>
-                <td class="px-4 py-3 text-xs text-gray-500">${perms.join(", ")}</td>
-                <td class="px-4 py-3 text-center">${canManage ? `<button onclick="editGroup(${g.id})" class="text-blue-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Editar</button><button onclick="deleteGroup(${g.id})" class="text-red-600 hover:underline text-xs font-bold cursor-pointer">Eliminar</button>` : '-'}</td>
+                <td class="px-4 py-4 font-medium">${g.name}</td>
+                <td class="px-4 py-4 text-xs text-gray-500">${perms.join(", ")}</td>
+                <td class="px-4 py-4 text-center">${canManage ? `<button onclick="editGroup(${g.id})" class="text-blue-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Editar</button><button onclick="deleteGroup(${g.id})" class="text-red-600 hover:underline text-xs font-bold cursor-pointer">Eliminar</button>` : '-'}</td>
             </tr>`;
         }).join("");
     } catch (e) { tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
@@ -2726,11 +3253,11 @@ async function loadAssetsByStatus(status) {
         }
         tbody.innerHTML = assets.map(a => `
             <tr class="hover:bg-red-50/30 transition-colors cursor-pointer" onclick="openDetailsModal(${a.id})">
-                <td class="px-4 py-3 font-bold text-red-700">${a.asset_tag_id}</td>
-                <td class="px-4 py-3 text-gray-600">${a.asset_description}</td>
-                <td class="px-4 py-3 text-gray-500">${a.brand} ${a.model}</td>
-                <td class="px-4 py-3 font-mono text-gray-400">${a.serial_no}</td>
-                <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">
+                <td class="px-4 py-4 font-bold text-red-700">${a.asset_tag_id}</td>
+                <td class="px-4 py-4 text-gray-600">${a.asset_description}</td>
+                <td class="px-4 py-4 text-gray-500">${a.brand} ${a.model}</td>
+                <td class="px-4 py-4 font-mono text-gray-400">${a.serial_no}</td>
+                <td class="px-4 py-4 text-center" onclick="event.stopPropagation();">
                     <button onclick="restoreOneAsset(${a.id},'${a.asset_tag_id}')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] uppercase py-1 px-3 rounded shadow transition-colors cursor-pointer">Restaurar</button>
                 </td>
             </tr>
@@ -2755,14 +3282,14 @@ async function loadRepairAssets() {
             var tech = globalAdmins.find(function (ad) { return ad.id === a.repair_technician_id; });
             var badgeColor = a.status === "GarantiaSD" ? "bg-amber-100 text-amber-800" : "bg-orange-100 text-orange-800";
             return '<tr class="hover:bg-amber-50/30 transition-colors cursor-pointer" onclick="openDetailsModal(' + a.id + ')">' +
-                '<td class="px-4 py-3 font-bold text-amber-700">' + a.asset_tag_id + '</td>' +
-                '<td class="px-4 py-3 text-gray-600">' + (a.asset_description || '') + '</td>' +
-                '<td class="px-4 py-3 text-gray-500">' + (a.brand || '') + ' ' + (a.model || '') + '</td>' +
-                '<td class="px-4 py-3 font-mono text-gray-400">' + (a.serial_no || '') + '</td>' +
-                '<td class="px-4 py-3"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ' + badgeColor + '">' + a.status + '</span></td>' +
-                '<td class="px-4 py-3 text-gray-600 max-w-[200px] truncate">' + (a.repair_reason || '-') + '</td>' +
-                '<td class="px-4 py-3 text-gray-600">' + (leftPerson ? leftPerson.full_name : '-') + '</td>' +
-                '<td class="px-4 py-3 text-gray-600">' + (tech ? tech.username : '-') + '</td>' +
+                '<td class="px-4 py-4 font-bold text-amber-700">' + a.asset_tag_id + '</td>' +
+                '<td class="px-4 py-4 text-gray-600">' + (a.asset_description || '') + '</td>' +
+                '<td class="px-4 py-4 text-gray-500">' + (a.brand || '') + ' ' + (a.model || '') + '</td>' +
+                '<td class="px-4 py-4 font-mono text-gray-400">' + (a.serial_no || '') + '</td>' +
+                '<td class="px-4 py-4"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ' + badgeColor + '">' + a.status + '</span></td>' +
+                '<td class="px-4 py-4 text-gray-600 max-w-[200px] truncate">' + (a.repair_reason || '-') + '</td>' +
+                '<td class="px-4 py-4 text-gray-600">' + (leftPerson ? leftPerson.full_name : '-') + '</td>' +
+                '<td class="px-4 py-4 text-gray-600">' + (tech ? tech.username : '-') + '</td>' +
             '</tr>';
         }).join("");
     } catch (e) { tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-500">Error de conexion</td></tr>'; }
@@ -2786,12 +3313,12 @@ async function loadListadoInactivos() {
             if (a.status === "Sold") badgeColor = "bg-yellow-100 text-yellow-800";
             if (a.status === "Disposed") badgeColor = "bg-gray-200 text-gray-700";
             return `<tr class="hover:bg-blue-50/30 transition-colors cursor-pointer" onclick="openDetailsModal(${a.id})">
-                <td class="px-4 py-3 font-bold text-blue-700">${a.asset_tag_id}</td>
-                <td class="px-4 py-3 text-gray-600">${a.asset_description}</td>
-                <td class="px-4 py-3 text-gray-500">${a.brand} ${a.model}</td>
-                <td class="px-4 py-3"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}">${a.status}</span></td>
-                <td class="px-4 py-3 font-mono text-gray-400">${a.serial_no}</td>
-                <td class="px-4 py-3 text-center" onclick="event.stopPropagation();">
+                <td class="px-4 py-4 font-bold text-blue-700">${a.asset_tag_id}</td>
+                <td class="px-4 py-4 text-gray-600">${a.asset_description}</td>
+                <td class="px-4 py-4 text-gray-500">${a.brand} ${a.model}</td>
+                <td class="px-4 py-4"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}">${a.status}</span></td>
+                <td class="px-4 py-4 font-mono text-gray-400">${a.serial_no}</td>
+                <td class="px-4 py-4 text-center" onclick="event.stopPropagation();">
                     <button onclick="restoreOneAsset(${a.id},'${a.asset_tag_id}')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] uppercase py-1 px-3 rounded shadow transition-colors cursor-pointer">Restaurar</button>
                 </td>
             </tr>`;
@@ -2804,7 +3331,7 @@ async function restoreOneAsset(assetId, assetTag) {
     try {
         const res = await api(`/assets/${assetId}`, { method: "PUT", body: JSON.stringify({ status: "Available" }) });
         if (res.ok) { 
-            alert(`${assetTag} restaurado a Check in.`);
+            alert(`${assetTag} restaurado a Disponible.`);
             loadAssets();
             reloadVisibleInactive();
         } else {
@@ -2823,7 +3350,7 @@ async function reloadVisibleInactive() {
 async function restoreAllByStatus(status) {
     const statuses = status ? [status] : ["Broken","Lost","Disposed","Donate","Sold"];
     const label = status || "INACTIVOS";
-    if (!confirm(`Restaurar TODOS los equipos "${label}" a Check in?`)) return;
+    if (!confirm(`Restaurar TODOS los equipos "${label}" a Disponible?`)) return;
     try {
         let totalOk = 0, totalFail = 0;
         for (const st of statuses) {
@@ -2883,7 +3410,7 @@ function renderReconciliationStatus(data) {
         card.style.animationDelay = (idx * 0.06) + "s";
 
         const header = document.createElement("button");
-        header.className = "w-full flex items-center justify-between px-4 py-3 text-left cursor-pointer hover:bg-gray-50/80 transition-colors relative";
+        header.className = "w-full flex items-center justify-between px-4 py-4 text-left cursor-pointer hover:bg-gray-50/80 transition-colors relative";
         header.style.borderLeft = "4px solid " + (hasPending ? "#d97706" : "#22c55e");
         header.setAttribute("onclick", "toggleSessionAssetList(" + sessionId + ")");
 
@@ -2937,7 +3464,7 @@ function renderReconciliationStatus(data) {
                 var pct = assets.length > 0 ? Math.round((clearedCount_p / assets.length) * 100) : 100;
 
                 const personBlock = document.createElement("div");
-                personBlock.className = "px-4 py-3 border-b border-gray-50 last:border-b-0";
+                personBlock.className = "px-4 py-4 border-b border-gray-50 last:border-b-0";
 
                 const personHeader = document.createElement("div");
                 personHeader.className = "flex items-center justify-between flex-wrap gap-2";
@@ -2982,7 +3509,7 @@ function renderReconciliationStatus(data) {
                         var statusColor = a.status === "Checkout" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-green-50 text-green-700 border-green-200";
                         var tr = document.createElement("tr");
                         tr.className = "hover:bg-gray-50/50 transition-colors";
-                        tr.innerHTML = '<td class="px-3 py-1.5 font-mono font-bold text-gray-800">' + escapeHtml(a.asset_tag_id) + '</td><td class="px-3 py-1.5 text-gray-600">' + escapeHtml(a.asset_description || '-') + '</td><td class="px-3 py-1.5 text-gray-500">' + escapeHtml(a.model || '-') + '</td><td class="px-3 py-1.5 font-mono text-gray-500">' + escapeHtml(a.serial_no || '-') + '</td><td class="px-3 py-1.5 text-center"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ' + statusColor + ' border"><span class="w-1.5 h-1.5 rounded-full ' + (a.status === "Checkout" ? 'bg-amber-500' : 'bg-green-500') + ' inline-block"></span>' + a.status + '</span></td><td class="px-3 py-1.5 text-center"><button onclick="reconciliationCheckin(' + a.id + ',' + a.departed_asset_id + ",'" + a.asset_tag_id + "')" + '" class="px-2 py-1 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded text-[10px] font-bold border border-teal-200 transition-colors cursor-pointer">Checkin</button></td>';
+                        tr.innerHTML = '<td class="px-3 py-1.5 font-mono font-bold text-gray-800">' + escapeHtml(a.asset_tag_id) + '</td><td class="px-3 py-1.5 text-gray-600">' + escapeHtml(a.asset_description || '-') + '</td><td class="px-3 py-1.5 text-gray-500">' + escapeHtml(a.model || '-') + '</td><td class="px-3 py-1.5 font-mono text-gray-500">' + escapeHtml(a.serial_no || '-') + '</td><td class="px-3 py-1.5 text-center"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ' + statusColor + ' border"><span class="w-1.5 h-1.5 rounded-full ' + (a.status === "Checkout" ? 'bg-amber-500' : 'bg-green-500') + ' inline-block"></span>' + getStatusLabel(a.status) + '</span></td><td class="px-3 py-1.5 text-center"><button onclick="reconciliationCheckin(' + a.id + ',' + a.departed_asset_id + ",'" + a.asset_tag_id + "')" + '" class="px-2 py-1 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded text-[10px] font-bold border border-teal-200 transition-colors cursor-pointer">Devolver</button></td>';
                         tbody.appendChild(tr);
                     });
                     table.appendChild(tbody);
@@ -3202,14 +3729,59 @@ function crExportCSV() {
 
 function crSaveDialog() {
     if (crSelectedFields.length === 0) { showToast("Seleccione campos para guardar.", "error"); return; }
-    const name = prompt("Nombre del reporte:", crSavedReportId ? "Reporte " + crSavedReportId : "");
-    if (!name) return;
+
+    const existing = document.getElementById("crSaveDialogInline");
+    if (existing) existing.remove();
+
+    const defaultName = crSavedReportId ? "Reporte " + crSavedReportId : "";
+    const overlay = document.createElement("div");
+    overlay.id = "crSaveDialogInline";
+    overlay.className = "fixed inset-0 bg-black/40 flex items-center justify-center z-[200] modal-overlay";
+    overlay.innerHTML = `
+        <div class="bg-white rounded-lg p-5 w-80 shadow-xl border border-gray-200 modal-panel">
+            <h4 class="text-sm font-bold text-gray-800 mb-3">Guardar reporte</h4>
+            <input id="crSaveNameInput" type="text" value="${defaultName}" maxlength="100"
+                placeholder="Nombre del reporte..."
+                class="w-full p-2 border border-gray-300 rounded text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <div class="flex justify-end gap-2">
+                <button id="crSaveCancelBtn"
+                    class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded transition-colors">
+                    Cancelar
+                </button>
+                <button id="crSaveConfirmBtn"
+                    class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded transition-colors">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const input = document.getElementById("crSaveNameInput");
+    input.focus();
+    input.select();
+
+    const doSave = () => {
+        const name = input.value.trim();
+        if (!name) { showToast("Ingresa un nombre para el reporte.", "error"); return; }
+        overlay.remove();
+        _crSaveExecute(name);
+    };
+
+    document.getElementById("crSaveConfirmBtn").onclick = doSave;
+    document.getElementById("crSaveCancelBtn").onclick = () => overlay.remove();
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+    input.onkeydown = (e) => {
+        if (e.key === "Enter") { e.preventDefault(); doSave(); }
+        if (e.key === "Escape") overlay.remove();
+    };
+}
+
+function _crSaveExecute(name) {
     const filters = JSON.stringify(crGetFilterValues());
     const method = crSavedReportId ? "PUT" : "POST";
     const url = crSavedReportId ? "/api/custom-reports/saved/" + crSavedReportId : "/api/custom-reports/saved/";
-    const body = crSavedReportId
-        ? JSON.stringify({ name, fields: crSelectedFields, filters })
-        : JSON.stringify({ name, fields: crSelectedFields, filters });
+    const body = JSON.stringify({ name, fields: crSelectedFields, filters });
     api(url, { method, headers: { "Content-Type": "application/json" }, body }).then(r => {
         if (!r.ok) { showToast("Error al guardar", "error"); return; }
         showToast("Reporte guardado.", "success");
@@ -3337,3 +3909,57 @@ async function refreshReconciliation() {
         loadReconciliationStatus();
     }
 }
+
+function toggleDarkMode() {
+    var html = document.documentElement;
+    var isDark = html.classList.toggle("dark-mode");
+    localStorage.setItem("darkMode", isDark ? "1" : "0");
+    updateDarkModeIcon(isDark);
+}
+
+function updateDarkModeIcon(isDark) {
+    var path = document.getElementById("darkModePath");
+    if (!path) return;
+    if (isDark) {
+        path.setAttribute("d", "M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z");
+    } else {
+        path.setAttribute("d", "M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z");
+    }
+}
+
+(function initDarkMode() {
+    var stored = localStorage.getItem("darkMode");
+    var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var isDark = stored !== null ? stored === "1" : prefersDark;
+    if (isDark) {
+        document.documentElement.classList.add("dark-mode");
+    } else {
+        document.documentElement.classList.remove("dark-mode");
+    }
+    updateDarkModeIcon(isDark);
+})();
+
+function toggleSidebar() {
+    var sidebar = document.getElementById("sidebar");
+    var backdrop = document.getElementById("sidebarBackdrop");
+    sidebar.classList.toggle("open");
+    backdrop.classList.toggle("open");
+}
+
+function closeSidebar() {
+    var sidebar = document.getElementById("sidebar");
+    var backdrop = document.getElementById("sidebarBackdrop");
+    sidebar.classList.remove("open");
+    backdrop.classList.remove("open");
+}
+
+(function() {
+    var btns = document.querySelectorAll('button[onclick*="exportVisibleCSV"], button[onclick*="toggleColumnPanel"], button[onclick*="exportDeptReportCSV"], button[onclick*="crExportCSV"]');
+    btns.forEach(function(btn) {
+        btn.removeAttribute('disabled');
+        var obs = new MutationObserver(function() {
+            if (btn.disabled) btn.removeAttribute('disabled');
+        });
+        obs.observe(btn, { attributes: true, attributeFilter: ['disabled'] });
+    });
+})();

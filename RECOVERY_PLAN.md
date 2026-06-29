@@ -8,6 +8,7 @@ Contenido:
 - [Escenario 3: Disaster recovery (PC muerta, empezar de cero)](#escenario-3-disaster-recovery-pc-muerta-empezar-de-cero)
 - [Backup recomendado](#backup-recomendado)
 - [Referencia: Comandos utiles](#referencia-comandos-utiles)
+- [Workflow con worktrees (desarrollo + produccion)](#workflow-con-worktrees-desarrollo--produccion)
 - [Referencia: Estructura del proyecto](#referencia-estructura-del-proyecto)
 
 ---
@@ -74,11 +75,13 @@ Copia estos archivos a un USB, Google Drive, o OneDrive:
 5. Restaura los archivos respaldados:
    - Coloca `it_inventario.db` en `backend/` (reemplaza el existente)
    - Copia el contenido de `static/` en `backend/static/` (reemplaza)
-6. Inicia la app:
-   ```bash
-   docker compose up -d --build
-   ```
-7. Abre http://localhost:3131 en el navegador
+ 6. Inicia la app:
+    ```bash
+    docker compose up -d --build
+    # o usa el helper:
+    ./serve.ps1 -Rebuild
+    ```
+ 7. Abre http://localhost:3131 en el navegador
 
 ### Nota sobre el volumen static
 
@@ -216,6 +219,67 @@ El archivo `.gitignore` excluye `*.db`. Esto significa que la base de datos con 
 
 ---
 
+## Workflow con worktrees (desarrollo + produccion)
+
+El proyecto usa dos ramas con worktrees para mantener separados desarrollo y produccion.
+
+### Estructura
+
+```
+Documents/OpenCode/
+  Inventario-it/          ← worktree de prueba (rama prueba)
+    - docker-compose.test.yml  → 3132, DB test separada
+    - serve.ps1               → script unificado
+    - backend/it_inventario_test.db
+
+  inventario-main/        ← worktree de main (rama main)
+    - docker-compose.yml       → 3131
+    - backend/it_inventario.db
+```
+
+### Flujo diario
+
+```powershell
+# Desarrollo (en Inventario-it)
+cd Inventario-it
+./serve.ps1 -Test          # corre en http://localhost:3132
+# ...editas backend/static/ y se ve al instante...
+
+# Produccion (en inventario-main)
+cd ../inventario-main
+./serve.ps1                # corre en http://localhost:3131
+
+# Detener
+./serve.ps1 -Stop
+
+# Reconstruir imagen
+./serve.ps1 -Rebuild
+```
+
+### Como pasar cambios de desarrollo a produccion
+
+```powershell
+cd ../inventario-main
+git pull origin main       # asegurar main actualizado
+git pull origin prueba     # traer cambios de prueba
+git merge prueba           # mergear prueba en main
+git push origin main       # subir
+./serve.ps1 -Rebuild       # reconstruir contenedor de produccion
+```
+
+### Migrar a PC nueva con worktrees
+
+```bash
+git clone https://github.com/derbydx/Inventario-IT-opc.git
+cd Inventario-IT-opc
+git checkout main
+git worktree add ../inventario-prueba prueba
+```
+
+Luego colocar `it_inventario.db` en ambos `backend/` y copiar el contenido de `static/`.
+
+---
+
 ## Referencia: Comandos utiles
 
 ```bash
@@ -243,8 +307,9 @@ cloudflared tunnel --url http://localhost:3131  # desde terminal
 ### Puertos
 
 | Servicio | Puerto |
-|---|---|
-| App web | 3131 |
+|---|---|---|
+| App web (produccion) | 3131 |
+| App web (desarrollo/prueba) | 3132 |
 | API interna | 8000 (dentro del contenedor Docker) |
 
 ---
@@ -265,9 +330,11 @@ Inventario-IT-opc/
 │   │   ├── app.js
 │   │   └── styles.css
 │   └── it_inventario.db      # Base de datos SQLite (NO en GitHub)
-├── docker-compose.yml
+├── docker-compose.yml        # Produccion (3131)
+├── docker-compose.test.yml   # Desarrollo/prueba (3132, DB separada)
 ├── Dockerfile
 ├── requirements.txt
+├── serve.ps1                 # Script helper: prod, test, stop, rebuild
 ├── start_server.ps1          # Iniciar con Python directo
 ├── setup.ps1                 # Setup completo (venv + dependencias + servidor)
 ├── tunnel.bat                # Cloudflare Tunnel (acceso remoto)

@@ -439,7 +439,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                             <div>
                                 <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Buscar</label>
-                                <input type="text" id="adv_search" placeholder="Keyword" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
+                                <input type="text" id="adv_search" placeholder="Palabra clave" class="w-full p-2 border border-gray-300 rounded text-xs bg-white">
                             </div>
                             <div>
                                 <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Condicion</label>
@@ -453,7 +453,7 @@
                             <div>
                                 <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Campo de busqueda</label>
                                 <div id="adv_field_checkboxes" class="grid grid-cols-2 gap-x-3 gap-y-0.5 p-2 border border-gray-300 rounded bg-white max-h-40 overflow-y-auto">
-                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="asset_tag_id" checked class="cursor-pointer"> Asset Tag ID</label>
+                                    <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="asset_tag_id" checked class="cursor-pointer"> Tag del Activo</label>
                                     <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="asset_description" checked class="cursor-pointer"> Descripcion</label>
                                     <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="brand" checked class="cursor-pointer"> Marca</label>
                                     <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="checkbox" value="model" checked class="cursor-pointer"> Modelo</label>
@@ -561,7 +561,7 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th data-sort="asset_tag_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Asset Tag</th>
+                                    <th data-sort="asset_tag_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Tag del Activo</th>
                                     <th data-sort="asset_description" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Descripcion</th>
                                     <th data-sort="marca_modelo" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Marca/Modelo</th>
                                     <th data-sort="status" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600">Estado</th>
@@ -627,7 +627,7 @@
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th data-col="employee_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">EmployeeID</th>
+                                    <th data-col="employee_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID Empleado</th>
                                     <th data-col="title" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Titulo</th>
                                     <th data-col="phone" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Telefono</th>
                                     <th data-col="dept" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Departamento</th>
@@ -670,9 +670,11 @@
                             <div class="relative">
                                 <button onclick="toggleColumnPanel('employees')" class="text-[11px] bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded font-bold cursor-pointer">Columnas</button>
                                 <div id="colPanel_employees" class="hidden absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg p-3 z-20 w-44 text-xs space-y-1.5">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="employee_id" onchange="toggleColumn('employees','employee_id')" checked> ID Empleado</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="title" onchange="toggleColumn('employees','title')" checked> Titulo</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="phone" onchange="toggleColumn('employees','phone')" checked> Telefono</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="dept" onchange="toggleColumn('employees','dept')" checked> Departamento</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="site" onchange="toggleColumn('employees','site')" checked> Sitio</label>
-                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="phone" onchange="toggleColumn('employees','phone')" checked> Telefono</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="notes" onchange="toggleColumn('employees','notes')" checked> Notas</label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" data-col="status" onchange="toggleColumn('employees','status')" checked> Estado</label>
                                 </div>
@@ -686,7 +688,7 @@
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th data-col="employee_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">EmployeeID</th>
+                                    <th data-col="employee_id" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID Empleado</th>
                                     <th data-col="title" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Titulo</th>
                                     <th data-col="phone" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Telefono</th>
                                     <th data-col="dept" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Departamento</th>
@@ -834,7 +836,7 @@
                 </section>
                 <section id="reportsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold text-gray-800">Checkout by Person</h2>
+                        <h2 class="text-lg font-bold text-gray-800">Asignaciones por Persona</h2>
                         <div class="flex items-center gap-2">
                             <span id="reportCount" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">0 Resultados</span>
                             <div class="relative">
@@ -874,7 +876,7 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Asset Tag</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Tag del Activo</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Descripcion</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Marca / Modelo</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Serie</th>
@@ -920,14 +922,14 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Asset Tag</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Tag del Activo</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Descripcion</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Marca / Modelo</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Serie</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Categoria</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Empleado</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Admin</th>
-                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Fecha Checkout</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Fecha de Asignacion</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Status Actual</th>
                                 </tr>
                             </thead>
@@ -972,7 +974,7 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Asset Tag</th>
+                                    <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Tag del Activo</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Descripcion</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Marca / Modelo</th>
                                     <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">Serie</th>
@@ -1249,16 +1251,17 @@
                 <section id="brokenAssetsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-red-700">Equipos Dañados</h2>
-                        <button onclick="restoreAllByStatus('Broken')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Check in</button>
+<button onclick="restoreAllByStatus('Broken')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Disponible</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 text-xs">
-                            <thead class="bg-red-50 text-red-800"><tr>
-                                <th class="px-4 py-3 text-left font-bold uppercase">Asset Tag</th>
+                            <thead class="bg-amber-50 text-amber-800"><tr>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Tag del Activo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Descripcion</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Marca / Modelo</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Estado de Daño</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Serie</th>
-                                <th class="px-4 py-3 text-center font-bold uppercase">Accion</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Accion</th>
                             </tr></thead>
                             <tbody id="brokenAssetsBody" class="bg-white divide-y divide-gray-200 text-gray-700"><tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr></tbody>
                         </table>
@@ -1268,12 +1271,12 @@
                 <section id="lostAssetsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-red-700">Equipos Perdidos</h2>
-                        <button onclick="restoreAllByStatus('Lost')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Check in</button>
+                        <button onclick="restoreAllByStatus('Lost')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Disponible</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 text-xs">
                             <thead class="bg-red-50 text-red-800"><tr>
-                                <th class="px-4 py-3 text-left font-bold uppercase">Asset Tag</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Tag del Activo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Descripcion</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Marca / Modelo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Serie</th>
@@ -1287,12 +1290,12 @@
                 <section id="disposedAssetsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-red-700">Equipos Desechados</h2>
-                        <button onclick="restoreAllByStatus('Disposed')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Check in</button>
+                        <button onclick="restoreAllByStatus('Disposed')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Disponible</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 text-xs">
                             <thead class="bg-red-50 text-red-800"><tr>
-                                <th class="px-4 py-3 text-left font-bold uppercase">Asset Tag</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Tag del Activo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Descripcion</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Marca / Modelo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Serie</th>
@@ -1306,12 +1309,12 @@
                 <section id="donateAssetsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-red-700">Equipos Donados</h2>
-                        <button onclick="restoreAllByStatus('Donate')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Check in</button>
+                        <button onclick="restoreAllByStatus('Donate')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Disponible</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 text-xs">
                             <thead class="bg-red-50 text-red-800"><tr>
-                                <th class="px-4 py-3 text-left font-bold uppercase">Asset Tag</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Tag del Activo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Descripcion</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Marca / Modelo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Serie</th>
@@ -1325,12 +1328,12 @@
                 <section id="soldAssetsSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-red-700">Equipos Vendidos</h2>
-                        <button onclick="restoreAllByStatus('Sold')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Check in</button>
+                        <button onclick="restoreAllByStatus('Sold')" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Disponible</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 text-xs">
                             <thead class="bg-red-50 text-red-800"><tr>
-                                <th class="px-4 py-3 text-left font-bold uppercase">Asset Tag</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Tag del Activo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Descripcion</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Marca / Modelo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Serie</th>
@@ -1509,7 +1512,7 @@
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 text-xs">
                             <thead class="bg-amber-50 text-amber-800"><tr>
-                                <th class="px-4 py-3 text-left font-bold uppercase">Asset Tag</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Tag del Activo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Descripcion</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Marca / Modelo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Serie</th>
@@ -1527,12 +1530,12 @@
                 <section id="listadoInactivosSection" class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-blue-700">Listado de Equipos Inactivos</h2>
-                        <button onclick="restoreAllByStatus()" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Check in</button>
+                        <button onclick="restoreAllByStatus()" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold cursor-pointer">Restaurar Todo a Disponible</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 text-xs">
                             <thead class="bg-blue-50 text-blue-800"><tr>
-                                <th class="px-4 py-3 text-left font-bold uppercase">Asset Tag</th>
+                                <th class="px-4 py-3 text-left font-bold uppercase">Tag del Activo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Descripcion</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Marca / Modelo</th>
                                 <th class="px-4 py-3 text-left font-bold uppercase">Status</th>
@@ -1703,7 +1706,7 @@
                     <thead class="bg-gray-50 text-gray-500 sticky top-0">
                         <tr>
                             <th class="px-3 py-2 text-left font-bold uppercase w-8"></th>
-                            <th class="px-3 py-2 text-left font-bold uppercase">Asset Tag</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Tag del Activo</th>
                             <th class="px-3 py-2 text-left font-bold uppercase">Descripcion</th>
                             <th class="px-3 py-2 text-left font-bold uppercase">Marca/Modelo</th>
                             <th class="px-3 py-2 text-left font-bold uppercase">Serie</th>
@@ -1714,7 +1717,7 @@
             </div>
             <div class="flex justify-end gap-2 pt-4 mt-4 border-t border-gray-100">
                 <button onclick="closeFulfillModal()" class="px-4 py-2 bg-gray-200 rounded text-xs font-bold cursor-pointer">Cancelar</button>
-                <button onclick="submitFulfill()" class="px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold cursor-pointer">Asignar y Checkout</button>
+                <button onclick="submitFulfill()" class="px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold cursor-pointer">Asignar</button>
             </div>
         </div>
     </div>
@@ -1728,7 +1731,7 @@
             </div>
             <form id="assetForm" class="space-y-3">
                 <div>
-                    <label class="block text-xs font-bold text-gray-600 uppercase">Asset Tag ID *</label>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Tag del Activo *</label>
                     <input type="text" id="asset_tag_id" required placeholder="Ej: A-1001" class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
                 </div>
                 <div>
@@ -1945,7 +1948,7 @@
             <form id="editAssetForm" class="space-y-3">
                 <input type="hidden" id="edit_asset_id">
                 <div>
-                    <label class="block text-xs font-bold text-gray-600 uppercase">Asset Tag ID *</label>
+                    <label class="block text-xs font-bold text-gray-600 uppercase">Tag del Activo *</label>
                     <input type="text" id="edit_asset_tag_id" required class="w-full mt-1 p-2 border border-gray-300 rounded text-sm">
                 </div>
                 <div>
@@ -2039,7 +2042,7 @@
                 <table class="min-w-full divide-y divide-gray-200 text-xs">
                     <thead class="bg-gray-100 text-gray-600">
                         <tr>
-                            <th class="px-3 py-2 text-left font-bold uppercase">Asset Tag</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Tag del Activo</th>
                             <th class="px-3 py-2 text-left font-bold uppercase">Descripcion</th>
                             <th class="px-3 py-2 text-left font-bold uppercase">Marca / Modelo</th>
                             <th class="px-3 py-2 text-left font-bold uppercase">Numero de Serie</th>
@@ -2067,7 +2070,7 @@
                 <table class="min-w-full divide-y divide-gray-200 text-xs font-mono">
                     <thead class="bg-red-50 text-red-800">
                         <tr>
-                            <th class="px-4 py-3 text-left font-bold uppercase">Asset Tag</th>
+                            <th class="px-4 py-3 text-left font-bold uppercase">Tag del Activo</th>
                             <th class="px-4 py-3 text-left font-bold uppercase">Descripcion</th>
                             <th class="px-4 py-3 text-left font-bold uppercase">Marca / Modelo</th>
                             <th class="px-4 py-3 text-left font-bold uppercase">Numero de Serie</th>
@@ -2270,7 +2273,7 @@
                         <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_create" class="cursor-pointer"><span>Crear</span></label>
                         <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_edit" class="cursor-pointer"><span>Editar</span></label>
                         <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_delete" class="cursor-pointer"><span>Eliminar</span></label>
-                        <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_checkout" class="cursor-pointer"><span>Checkout</span></label>
+                        <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_checkout" class="cursor-pointer"><span>Asignar</span></label>
                         <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_import_export" class="cursor-pointer"><span>Importar/Exportar</span></label>
                         <label class="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded border col-span-2 border-gray-200 cursor-pointer"><input type="checkbox" id="perm_can_manage_users" class="cursor-pointer"><span>Gestionar Usuarios</span></label>
                     </div>

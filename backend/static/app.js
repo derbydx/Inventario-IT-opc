@@ -471,7 +471,7 @@ async function renderAssetDetail(assetId) {
     if (!asset) { showSection('assets'); return; }
 
     document.getElementById("page_detailsTitle").innerHTML = `Hoja de Vida del Activo <span class="text-blue-600">#${escapeHtml(asset.asset_tag_id)}</span>`;
-    document.getElementById("page_detailsTag").innerText = `Asset Tag ID: ${asset.asset_tag_id}`;
+    document.getElementById("page_detailsTag").innerText = `Tag del Activo: ${asset.asset_tag_id}`;
     document.getElementById("page_description").innerText = asset.asset_description;
     document.getElementById("page_brand_model").innerText = `${asset.brand} - ${asset.model}`;
     document.getElementById("page_serial").innerText = asset.serial_no;
@@ -624,13 +624,14 @@ function populateActionsDropdown(currentStatus) {
     ul.innerHTML = "";
     allStatuses.forEach(s => {
         const li = document.createElement("li");
+        const label = getStatusLabel(s);
         li.className = "px-3 py-2 hover:bg-gray-100 cursor-pointer";
         if (s === currentStatus) {
             li.className = "px-3 py-2 text-gray-300 italic cursor-not-allowed";
-            li.textContent = s + " (actual)";
+            li.textContent = label + " (actual)";
         } else {
             const assetId = parseInt(window.location.hash.replace("#asset/", ""));
-            li.textContent = s;
+            li.textContent = label;
             li.onclick = () => { document.getElementById("page_actions_dropdown").classList.add("hidden"); changeAssetStatus(assetId, s); };
         }
         ul.appendChild(li);
@@ -663,13 +664,13 @@ function switchHistoryTab(tab) {
 function changeAssetStatus(assetId, newStatus) {
     if (newStatus === "Checkout") {
         const tagEl = document.getElementById("page_detailsTag");
-        const tagText = tagEl ? tagEl.innerText.replace("Asset Tag ID: ", "") : "ID:" + assetId;
+        const tagText = tagEl ? tagEl.innerText.replace("Tag del Activo: ", "") : "ID:" + assetId;
         openModal(assetId, tagText, "checkout");
         return;
     }
     document.getElementById("sc_asset_id").value = assetId;
     document.getElementById("sc_new_status").value = newStatus;
-    document.getElementById("statusChangeModalTitle").innerText = "Cambiar a " + newStatus;
+    document.getElementById("statusChangeModalTitle").innerText = "Cambiar a " + getStatusLabel(newStatus);
     const assetTag = document.getElementById("page_detailsTag");
     document.getElementById("sc_asset_info").innerText = "Activo: " + (assetTag ? assetTag.innerText : "ID: " + assetId);
     document.getElementById("sc_notas").value = "";
@@ -1452,8 +1453,8 @@ function openModal(assetId, assetTag, actionType) {
     document.getElementById("modal_asset_id").value = assetId; document.getElementById("modal_action_type").value = actionType;
     document.getElementById("modalAssetInfo").innerText = `Activo Seleccionado: ${assetTag}`;
     const divAsignadoA = document.getElementById("div_asignado_a"); const modalTitle = document.getElementById("modalTitle"); const submitBtn = document.getElementById("modalSubmitBtn");
-    if (actionType === "checkout") { modalTitle.innerText = "Registrar Asignacion (Check-out)"; submitBtn.innerText = "Asignar Equipo"; submitBtn.className = "px-4 py-2 bg-blue-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.remove("hidden"); document.getElementById("modal_person_search").value = ""; document.getElementById("modal_person_id").value = ""; document.getElementById("modal_person_results").classList.add("hidden"); } 
-    else { modalTitle.innerText = "Registrar Devolucion (Check-in)"; submitBtn.innerText = "Recibir en Almacen"; submitBtn.className = "px-4 py-2 bg-amber-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.add("hidden"); }
+    if (actionType === "checkout") { modalTitle.innerText = "Registrar Asignacion"; submitBtn.innerText = "Asignar Equipo"; submitBtn.className = "px-4 py-2 bg-blue-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.remove("hidden"); document.getElementById("modal_person_search").value = ""; document.getElementById("modal_person_id").value = ""; document.getElementById("modal_person_results").classList.add("hidden"); } 
+    else { modalTitle.innerText = "Registrar Devolucion"; submitBtn.innerText = "Recibir en Almacen"; submitBtn.className = "px-4 py-2 bg-amber-600 text-white font-bold rounded text-sm cursor-pointer"; divAsignadoA.classList.add("hidden"); }
     document.getElementById("movementModal").classList.remove("hidden");
 }
 function closeModal() { document.getElementById("movementModal").classList.add("hidden"); document.getElementById("movementForm").reset(); document.getElementById("modal_person_results")?.classList.add("hidden"); window.__reconciliationAfterCheckin = null; }
@@ -1877,7 +1878,7 @@ function executeTopSearch() {
             }
             let html = '<div class="text-xs text-gray-500 mb-3 font-bold">' + data.length + ' resultado(s) encontrado(s)</div>';
             html += '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr>';
-            html += '<th class="text-left py-2 px-3">Asset Tag</th><th class="text-left py-2 px-3">Serial</th><th class="text-left py-2 px-3">Marca</th><th class="text-left py-2 px-3">Modelo</th><th class="text-left py-2 px-3">Descripcion</th><th class="text-left py-2 px-3">Status</th><th class="text-left py-2 px-3">Categoria</th><th class="text-left py-2 px-3"></th>';
+            html += '<th class="text-left py-2 px-3">Tag del Activo</th><th class="text-left py-2 px-3">Serial</th><th class="text-left py-2 px-3">Marca</th><th class="text-left py-2 px-3">Modelo</th><th class="text-left py-2 px-3">Descripcion</th><th class="text-left py-2 px-3">Status</th><th class="text-left py-2 px-3">Categoria</th><th class="text-left py-2 px-3"></th>';
             html += '</tr></thead><tbody>';
             data.forEach(a => {
                 html += '<tr class="border-b border-gray-100 hover:bg-gray-50">';
@@ -1904,7 +1905,7 @@ function executeTopSearch() {
             }
             let html = '<div class="text-xs text-gray-500 mb-3 font-bold">' + data.length + ' resultado(s) encontrado(s)</div>';
             html += '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr>';
-            html += '<th class="text-left py-2 px-3">Nombre</th><th class="text-left py-2 px-3">Email</th><th class="text-left py-2 px-3">Employee ID</th><th class="text-left py-2 px-3">Telefono</th><th class="text-left py-2 px-3"></th>';
+            html += '<th class="text-left py-2 px-3">Nombre</th><th class="text-left py-2 px-3">Email</th><th class="text-left py-2 px-3">ID Empleado</th><th class="text-left py-2 px-3">Telefono</th><th class="text-left py-2 px-3"></th>';
             html += '</tr></thead><tbody>';
             data.forEach(p => {
                 html += '<tr class="border-b border-gray-100 hover:bg-gray-50">';
@@ -2443,7 +2444,7 @@ function renderDeptAssets(deptId) {
     var count = data.length;
     var assigned = data.filter(function(a) { return a.status === "Checkout"; }).length;
     var html = '<div class="flex items-center justify-between mb-2 px-1"><span class="text-xs font-bold text-gray-600">Total: ' + count + ' activos | Asignados: ' + assigned + '</span><div class="flex gap-1"><button onclick="exportDeptCSV(' + deptId + ')" class="text-[11px] bg-green-100 hover:bg-green-200 border border-green-300 px-2 py-0.5 rounded font-bold text-green-800 cursor-pointer">CSV</button><button onclick="exportDeptExcel(' + deptId + ')" class="text-[11px] bg-blue-100 hover:bg-blue-200 border border-blue-300 px-2 py-0.5 rounded font-bold text-blue-700 cursor-pointer">Excel</button></div></div>';
-    html += '<div class="overflow-x-auto max-h-64 overflow-y-auto"><table class="min-w-full text-xs border border-gray-200"><thead class="bg-gray-100 text-gray-500"><tr><th class="px-2 py-1 text-left font-bold uppercase">Asset Tag</th><th class="px-2 py-1 text-left font-bold uppercase">Descripcion</th><th class="px-2 py-1 text-left font-bold uppercase">Marca/Modelo</th><th class="px-2 py-1 text-left font-bold uppercase">Serie</th><th class="px-2 py-1 text-left font-bold uppercase">Categoria</th><th class="px-2 py-1 text-left font-bold uppercase">Status</th><th class="px-2 py-1 text-left font-bold uppercase">Asignado A</th></tr></thead><tbody>';
+    html += '<div class="overflow-x-auto max-h-64 overflow-y-auto"><table class="min-w-full text-xs border border-gray-200"><thead class="bg-gray-100 text-gray-500"><tr><th class="px-2 py-1 text-left font-bold uppercase">Tag del Activo</th><th class="px-2 py-1 text-left font-bold uppercase">Descripcion</th><th class="px-2 py-1 text-left font-bold uppercase">Marca/Modelo</th><th class="px-2 py-1 text-left font-bold uppercase">Serie</th><th class="px-2 py-1 text-left font-bold uppercase">Categoria</th><th class="px-2 py-1 text-left font-bold uppercase">Status</th><th class="px-2 py-1 text-left font-bold uppercase">Asignado A</th></tr></thead><tbody>';
     data.forEach(function(a) {
         var badge = getAssetBadgeColor(a.status);
         html += '<tr class="border-t border-gray-100 hover:bg-gray-50 cursor-pointer" onclick="openAssetModalById(' + a.asset_id + ')"><td class="px-2 py-1 font-mono font-bold text-blue-600">' + escapeHtml(a.asset_tag_id) + '</td><td class="px-2 py-1">' + escapeHtml(a.asset_description) + '</td><td class="px-2 py-1">' + escapeHtml(a.brand) + ' ' + escapeHtml(a.model) + '</td><td class="px-2 py-1 font-mono">' + escapeHtml(a.serial_no) + '</td><td class="px-2 py-1">' + escapeHtml(a.category) + '</td><td class="px-2 py-1"><span class="px-1.5 py-0.5 inline-flex items-center text-[10px] font-semibold rounded-full ' + badge + '">' + escapeHtml(a.status) + '</span></td><td class="px-2 py-1">' + escapeHtml(a.assigned_person) + '</td></tr>';
@@ -2863,7 +2864,7 @@ function exportVisibleCSV(section) {
     if (section === "assets") {
         data = currentAssets.filter(a => a.status !== "Archived");
         const colMap = [
-            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_tag_id", label: "Tag del Activo" },
             { key: "asset_description", label: "Descripcion" },
             { key: "brand", label: "Marca" },
             { key: "serial_no", label: "Serie", col: "serie" },
@@ -2894,7 +2895,7 @@ function exportVisibleCSV(section) {
     } else if (section === "reports") {
         data = currentReportResults;
         const colMap = [
-            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_tag_id", label: "Tag del Activo" },
             { key: "asset_description", label: "Descripcion" },
             { key: "brand", label: "Marca" },
             { key: "serial_no", label: "Serie" },
@@ -2909,14 +2910,14 @@ function exportVisibleCSV(section) {
     } else if (section === "ctf") {
         data = currentCtfResults;
         const colMap = [
-            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_tag_id", label: "Tag del Activo" },
             { key: "asset_description", label: "Descripcion" },
             { key: "brand", label: "Marca", fn: r => r.brand + " " + r.model },
             { key: "serial_no", label: "Serie" },
             { key: "category", label: "Categoria" },
             { key: "employee_name", label: "Empleado", fn: r => r.employee_name + " (" + r.employee_id + ")" },
             { key: "admin_name", label: "Admin" },
-            { key: "checkout_date", label: "Fecha Checkout", fn: r => new Date(r.checkout_date).toLocaleDateString("es-ES") },
+            { key: "checkout_date", label: "Fecha de Asignacion", fn: r => new Date(r.checkout_date).toLocaleDateString("es-ES") },
             { key: "current_status", label: "Status Actual" }
         ];
         headers = colMap.map(c => c.label);
@@ -2925,7 +2926,7 @@ function exportVisibleCSV(section) {
         data = currentSrResults;
         const siteName = function (sid) { var s = globalSites.find(function (x) { return x.id === sid; }); return s ? s.site_name : ""; };
         const colMap = [
-            { key: "asset_tag_id", label: "Asset Tag" },
+            { key: "asset_tag_id", label: "Tag del Activo" },
             { key: "asset_description", label: "Descripcion" },
             { key: "brand_model", label: "Marca/Modelo", fn: function (a) { return a.brand + " " + a.model; } },
             { key: "serial_no", label: "Serie" },
@@ -3092,7 +3093,7 @@ async function loadGroups() {
             if (g.can_create) perms.push("Crear");
             if (g.can_edit) perms.push("Editar");
             if (g.can_delete) perms.push("Eliminar");
-            if (g.can_checkout) perms.push("Checkout");
+            if (g.can_checkout) perms.push("Asignar");
             if (g.can_import_export) perms.push("Imp/Exp");
             if (g.can_manage_users) perms.push("Usuarios");
             return `<tr>
@@ -3276,7 +3277,7 @@ async function restoreOneAsset(assetId, assetTag) {
     try {
         const res = await api(`/assets/${assetId}`, { method: "PUT", body: JSON.stringify({ status: "Available" }) });
         if (res.ok) { 
-            alert(`${assetTag} restaurado a Check in.`);
+            alert(`${assetTag} restaurado a Disponible.`);
             loadAssets();
             reloadVisibleInactive();
         } else {
@@ -3295,7 +3296,7 @@ async function reloadVisibleInactive() {
 async function restoreAllByStatus(status) {
     const statuses = status ? [status] : ["Broken","Lost","Disposed","Donate","Sold"];
     const label = status || "INACTIVOS";
-    if (!confirm(`Restaurar TODOS los equipos "${label}" a Check in?`)) return;
+    if (!confirm(`Restaurar TODOS los equipos "${label}" a Disponible?`)) return;
     try {
         let totalOk = 0, totalFail = 0;
         for (const st of statuses) {
@@ -3454,7 +3455,7 @@ function renderReconciliationStatus(data) {
                         var statusColor = a.status === "Checkout" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-green-50 text-green-700 border-green-200";
                         var tr = document.createElement("tr");
                         tr.className = "hover:bg-gray-50/50 transition-colors";
-                        tr.innerHTML = '<td class="px-3 py-1.5 font-mono font-bold text-gray-800">' + escapeHtml(a.asset_tag_id) + '</td><td class="px-3 py-1.5 text-gray-600">' + escapeHtml(a.asset_description || '-') + '</td><td class="px-3 py-1.5 text-gray-500">' + escapeHtml(a.model || '-') + '</td><td class="px-3 py-1.5 font-mono text-gray-500">' + escapeHtml(a.serial_no || '-') + '</td><td class="px-3 py-1.5 text-center"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ' + statusColor + ' border"><span class="w-1.5 h-1.5 rounded-full ' + (a.status === "Checkout" ? 'bg-amber-500' : 'bg-green-500') + ' inline-block"></span>' + a.status + '</span></td><td class="px-3 py-1.5 text-center"><button onclick="reconciliationCheckin(' + a.id + ',' + a.departed_asset_id + ",'" + a.asset_tag_id + "')" + '" class="px-2 py-1 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded text-[10px] font-bold border border-teal-200 transition-colors cursor-pointer">Devolver</button></td>';
+                        tr.innerHTML = '<td class="px-3 py-1.5 font-mono font-bold text-gray-800">' + escapeHtml(a.asset_tag_id) + '</td><td class="px-3 py-1.5 text-gray-600">' + escapeHtml(a.asset_description || '-') + '</td><td class="px-3 py-1.5 text-gray-500">' + escapeHtml(a.model || '-') + '</td><td class="px-3 py-1.5 font-mono text-gray-500">' + escapeHtml(a.serial_no || '-') + '</td><td class="px-3 py-1.5 text-center"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ' + statusColor + ' border"><span class="w-1.5 h-1.5 rounded-full ' + (a.status === "Checkout" ? 'bg-amber-500' : 'bg-green-500') + ' inline-block"></span>' + getStatusLabel(a.status) + '</span></td><td class="px-3 py-1.5 text-center"><button onclick="reconciliationCheckin(' + a.id + ',' + a.departed_asset_id + ",'" + a.asset_tag_id + "')" + '" class="px-2 py-1 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded text-[10px] font-bold border border-teal-200 transition-colors cursor-pointer">Devolver</button></td>';
                         tbody.appendChild(tr);
                     });
                     table.appendChild(tbody);

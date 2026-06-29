@@ -3796,5 +3796,13 @@ async function refreshReconciliation() {
     }
 }
 
-document.querySelectorAll('button[onclick*="exportVisibleCSV"], button[onclick*="toggleColumnPanel"]')
-    .forEach(function(btn) { btn.removeAttribute('disabled'); });
+(function() {
+    var btns = document.querySelectorAll('button[onclick*="exportVisibleCSV"], button[onclick*="toggleColumnPanel"], button[onclick*="exportDeptReportCSV"], button[onclick*="crExportCSV"]');
+    btns.forEach(function(btn) {
+        btn.removeAttribute('disabled');
+        var obs = new MutationObserver(function() {
+            if (btn.disabled) btn.removeAttribute('disabled');
+        });
+        obs.observe(btn, { attributes: true, attributeFilter: ['disabled'] });
+    });
+})();

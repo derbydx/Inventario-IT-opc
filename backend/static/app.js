@@ -1545,8 +1545,10 @@ function setupFormListener() {
     document.getElementById("assetForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const siteVal = document.getElementById("asset_site_id").value;
-        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: siteVal ? parseInt(siteVal) : null, status: "Available" };
-        try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { showToast("Activo registrado con exito!", "success"); closeAssetModal(); loadAssets(); } } catch (error) { alert("Error."); }
+        const purchaseDate = document.getElementById("asset_purchase_date").value || null;
+        const cost = document.getElementById("asset_cost").value || null;
+        const assetData = { asset_tag_id: document.getElementById("asset_tag_id").value, asset_description: document.getElementById("asset_description").value, brand: document.getElementById("brand").value, model: document.getElementById("model").value, serial_no: document.getElementById("serial_no").value, category: document.getElementById("asset_category").value, site_id: siteVal ? parseInt(siteVal) : null, purchase_date: purchaseDate, cost: cost ? parseFloat(cost) : null, purchased_from: document.getElementById("asset_purchased_from").value || null, numero_telefono: document.getElementById("asset_telefono").value || null, notas_adicionales: document.getElementById("asset_notas").value || null, status: "Available" };
+        try { const response = await api("/assets/", { method: "POST", body: JSON.stringify(assetData) }); if (response.status === 201) { showToast("Activo registrado con exito!", "success"); closeNewAssetSection(); loadAssets(); } } catch (error) { alert("Error."); }
     });
 }
 
@@ -1554,7 +1556,7 @@ function setupPersonFormListener() {
     document.getElementById("personForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const personData = { full_name: document.getElementById("person_full_name").value, email: document.getElementById("person_email").value, employee_id: document.getElementById("person_employee_id").value, title: document.getElementById("person_title").value || null, phone: document.getElementById("person_phone").value || null, notes: document.getElementById("person_notes").value || null, site_id: parseInt(document.getElementById("person_site_id").value), department_id: parseInt(document.getElementById("person_department_id").value) };
-        try { const response = await api("/persons/", { method: "POST", body: JSON.stringify(personData) }); if (response.status === 201) { showToast("Empleado dado de alta!", "success"); closePersonModal(); loadDropdownData(); } } catch (e) { alert("Error."); }
+        try { const response = await api("/persons/", { method: "POST", body: JSON.stringify(personData) }); if (response.status === 201) { showToast("Empleado dado de alta!", "success"); closeNewPersonSection(); loadDropdownData(); } } catch (e) { alert("Error."); }
     });
 }
 
@@ -1706,11 +1708,11 @@ function applyPermissionVisibility() {
     });
 }
 
-function openAssetModal() { document.getElementById("assetModal").classList.remove("hidden"); }
-function closeAssetModal() { document.getElementById("assetModal").classList.add("hidden"); document.getElementById("assetForm").reset(); }
+function openNewAssetSection() { showSection('newAsset'); }
+function closeNewAssetSection() { document.getElementById("assetForm").reset(); showSection('assets'); }
 
-function openPersonModal() { document.getElementById("personModal").classList.remove("hidden"); }
-function closePersonModal() { document.getElementById("personModal").classList.add("hidden"); document.getElementById("personForm").reset(); }
+function openNewPersonSection() { showSection('newPerson'); }
+function closeNewPersonSection() { document.getElementById("personForm").reset(); showSection('employees'); }
 
 function openSiteModal() { document.getElementById("siteModal").classList.remove("hidden"); }
 function closeSiteModal() { document.getElementById("siteModal").classList.add("hidden"); document.getElementById("form_add_site").reset(); }
@@ -1841,7 +1843,7 @@ function showSection(name) {
     closeSidebar();
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'assetDetail'];
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'assetDetail', 'newAsset', 'newPerson'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1880,7 +1882,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'newAsset', 'newPerson'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -1910,7 +1912,7 @@ function executeTopSearch() {
     const section = document.getElementById("topSearchSection").value;
     if (!keyword) { showToast("Escribe una palabra clave para buscar", "warning"); return; }
 
-    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation'];
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'newAsset', 'newPerson'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');

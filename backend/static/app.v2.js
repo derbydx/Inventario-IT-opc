@@ -161,12 +161,12 @@ async function loadDropdownData() {
                 filterCat.innerHTML = '<option value="">Todas las categorias</option>';
                 cats.forEach(c => { filterCat.innerHTML += `<option value="${c}">${c}</option>`; });
             }
-            populateDeliveryCategoryCheckboxes(cats);
+            populateDeliveryCategorySelect(cats);
         }
         const resAllCats = await api("/categories/");
         if (resAllCats.ok) {
             const allCats = (await resAllCats.json()).map(function (c) { return c.name; });
-            populateDeliveryCategoryCheckboxes(allCats);
+            populateDeliveryCategorySelect(allCats);
         }
         const resSites = await api("/sites/");
         if (resSites.ok) {
@@ -197,6 +197,8 @@ async function loadDropdownData() {
     } catch (e) { console.error(e); }
     initAutocomplete("modal_person_search", "modal_person_id", "modal_person_results");
     initAutocomplete("delivery_person_search", "delivery_person_id", "delivery_person_results");
+    document.getElementById("delivery_add_category").addEventListener("click", addToCart);
+    document.getElementById("delivery_category_qty").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addToCart(); } });
     initAutocomplete("report_person_search", "report_person_id", "report_person_results");
     initAutocomplete("edit_repair_left_search", "edit_repair_left_by_id", "edit_repair_left_results");
     initAutocomplete("edit_repair_tech_search", "edit_repair_tech_id", "edit_repair_tech_results", globalAdmins);
@@ -2126,7 +2128,7 @@ function showSection(name) {
     closeSidebar();
     const panel = document.getElementById("advancedSearchPanel");
     if (panel) panel.classList.add("hidden");
-    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'assetDetail', 'newAsset', 'newPerson'];
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryByCategory', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'assetDetail', 'newAsset', 'newPerson'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -2144,7 +2146,8 @@ function showSection(name) {
     if (name === 'checkoutTimeframe') { var d = new Date(); document.getElementById("ctf_end").value = d.toISOString().split("T")[0]; d.setDate(d.getDate() - 30); document.getElementById("ctf_start").value = d.toISOString().split("T")[0]; }
     if (name === 'deliveryBoard') loadDeliveryBoard();
     if (name === 'deliveryEmployees') loadDeliveryEmployees();
-    if (name === 'deliveryAdd') { document.getElementById("delivery_person_search").value = ""; document.getElementById("delivery_person_id").value = ""; document.getElementById("delivery_person_results").classList.add("hidden"); document.querySelectorAll('.delivery-cat-qty').forEach(function (q) { q.disabled = true; }); }
+    if (name === 'deliveryByCategory') loadDeliveryByCategory();
+    if (name === 'deliveryAdd') { document.getElementById("delivery_person_search").value = ""; document.getElementById("delivery_person_id").value = ""; document.getElementById("delivery_person_results").classList.add("hidden"); deliveryCart = []; renderCart(); document.getElementById("delivery_category_select").value = ""; document.getElementById("delivery_category_qty").value = 1; }
     if (name === 'users') { loadUsers(); loadGroups(); }
     if (name === 'brokenAssets') loadAssetsByStatus('Broken');
     if (name === 'lostAssets') loadAssetsByStatus('Lost');
@@ -2165,7 +2168,7 @@ function showSection(name) {
 }
 
 function showAdvancedSearch() {
-    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'newAsset', 'newPerson'];
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryByCategory', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'newAsset', 'newPerson'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -2195,7 +2198,7 @@ function executeTopSearch() {
     const section = document.getElementById("topSearchSection").value;
     if (!keyword) { showToast("Escribe una palabra clave para buscar", "warning"); return; }
 
-    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'newAsset', 'newPerson'];
+    const sections = ['dashboard', 'assets', 'employees', 'empleadosInactivos', 'catalogs', 'history', 'reports', 'checkoutTimeframe', 'statusReports', 'deptReport', 'customReports', 'deliveryBoard', 'deliveryEmployees', 'deliveryByCategory', 'deliveryAdd', 'users', 'enReparacion', 'listadoInactivos', 'brokenAssets', 'lostAssets', 'disposedAssets', 'donateAssets', 'soldAssets', 'importExport', 'employeeReconciliation', 'newAsset', 'newPerson'];
     sections.forEach(s => {
         const el = document.getElementById(s + 'Section');
         if (el) el.classList.add('hidden');
@@ -2880,45 +2883,88 @@ async function openAssetModalById(assetId) {
 
 
 
-function populateDeliveryCategoryCheckboxes(cats) {
-    const container = document.getElementById("delivery_category_checkboxes");
-    if (!container) return;
-    container.innerHTML = cats.map(c =>
-        '<label class="flex items-center gap-2 p-1 hover:bg-gray-50 rounded cursor-pointer">' +
-            '<input type="checkbox" class="delivery-cat-checkbox" value="' + c + '">' +
-            '<span class="text-sm text-gray-700 flex-1">' + c + '</span>' +
-            '<input type="number" class="delivery-cat-qty w-16 p-1 border border-gray-300 rounded text-xs text-center" value="1" min="1" disabled>' +
-        '</label>'
-    ).join('');
-    container.querySelectorAll('.delivery-cat-checkbox').forEach(function (cb) {
-        cb.addEventListener('change', function () {
-            this.closest('label').querySelector('.delivery-cat-qty').disabled = !this.checked;
-        });
-    });
+var deliveryCart = [];
+
+function populateDeliveryCategorySelect(cats) {
+    const select = document.getElementById("delivery_category_select");
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">-- Seleccione --</option>' +
+        cats.map(c => '<option value="' + c.replace(/"/g, '&quot;') + '">' + c + '</option>').join('');
+    if (cats.includes(current)) select.value = current;
+}
+
+function renderCart() {
+    const tbody = document.getElementById("delivery_cart_body");
+    const container = document.getElementById("delivery_cart_container");
+    const totalSpan = document.getElementById("delivery_cart_total");
+    if (!tbody) return;
+    if (deliveryCart.length === 0) {
+        container.classList.add("hidden");
+        return;
+    }
+    container.classList.remove("hidden");
+    var total = 0;
+    tbody.innerHTML = deliveryCart.map(function (item, i) {
+        total += item.qty;
+        return '<tr class="border-b border-gray-100">' +
+            '<td class="py-1.5 text-gray-700">' + item.cat + '</td>' +
+            '<td class="py-1.5 text-center text-gray-700">' + item.qty + '</td>' +
+            '<td class="py-1.5 text-right"><button onclick="removeFromCart(' + i + ')" class="text-red-500 hover:text-red-700 text-xs font-bold cursor-pointer">Quitar</button></td>' +
+        '</tr>';
+    }).join('');
+    totalSpan.textContent = total;
+}
+
+function addToCart() {
+    const select = document.getElementById("delivery_category_select");
+    const qtyInput = document.getElementById("delivery_category_qty");
+    const cat = select.value;
+    const qty = parseInt(qtyInput.value) || 1;
+    if (!cat) { alert("Seleccione una categoria"); return; }
+    if (qty < 1) { alert("La cantidad debe ser al menos 1"); return; }
+    var existing = deliveryCart.findIndex(function (item) { return item.cat === cat; });
+    if (existing >= 0) {
+        deliveryCart[existing].qty += qty;
+    } else {
+        deliveryCart.push({ cat: cat, qty: qty });
+    }
+    renderCart();
+    qtyInput.value = 1;
+}
+
+function removeFromCart(index) {
+    deliveryCart.splice(index, 1);
+    renderCart();
 }
 
 async function submitNewPending() {
     const personId = document.getElementById("delivery_person_id").value;
     const notes = document.getElementById("delivery_notes").value;
+    const btn = document.getElementById("delivery_submit_btn");
     if (!personId) { alert("Seleccione un empleado"); return; }
-    const checked = document.querySelectorAll('.delivery-cat-checkbox:checked');
-    if (checked.length === 0) { alert("Seleccione al menos una categoria"); return; }
-    let successCount = 0;
-    for (const cb of checked) {
-        const category = cb.value;
-        const qty = parseInt(cb.closest('label').querySelector('.delivery-cat-qty').value) || 1;
+    if (deliveryCart.length === 0) { alert("Agregue al menos una categoria"); return; }
+    btn.disabled = true;
+    btn.textContent = "Guardando...";
+    var successCount = 0;
+    var failCount = 0;
+    for (var i = 0; i < deliveryCart.length; i++) {
+        var item = deliveryCart[i];
         try {
-            const res = await api("/deliveries/pending", {
+            var res = await api("/deliveries/pending", {
                 method: "POST",
-                body: JSON.stringify({ person_id: parseInt(personId), category, quantity: qty, notes: notes || null })
+                body: JSON.stringify({ person_id: parseInt(personId), category: item.cat, quantity: item.qty, notes: notes || null })
             });
-            if (res.ok) successCount++;
-        } catch (e) { /* continue */ }
+            if (res.ok) { successCount++; } else { failCount++; }
+        } catch (e) { failCount++; }
     }
+    btn.disabled = false;
+    btn.textContent = "Agregar Pendiente";
     if (successCount > 0) {
-        showToast(successCount + " entrega(s) pendiente(s) agregada(s)!", "success");
+        showToast(successCount + " entrega(s) pendiente(s) agregada(s)!" + (failCount > 0 ? " (" + failCount + " fallaron)" : ""), failCount > 0 ? "warning" : "success");
+        deliveryCart = [];
+        renderCart();
         document.getElementById("deliveryForm").reset();
-        document.querySelectorAll('.delivery-cat-qty').forEach(function (q) { q.disabled = true; });
         loadDeliveryBoard();
     } else {
         alert("Error al crear las entregas");
@@ -2978,14 +3024,14 @@ async function loadDeliveryBoard() {
             return;
         }
         var palette = [
-            { bg: "bg-blue-100", border: "border-blue-300", accent: "border-l-blue-500", title: "text-blue-800", btn: "bg-blue-600 hover:bg-blue-700" },
-            { bg: "bg-green-100", border: "border-green-300", accent: "border-l-green-500", title: "text-green-800", btn: "bg-green-600 hover:bg-green-700" },
-            { bg: "bg-purple-100", border: "border-purple-300", accent: "border-l-purple-500", title: "text-purple-800", btn: "bg-purple-600 hover:bg-purple-700" },
-            { bg: "bg-amber-100", border: "border-amber-300", accent: "border-l-amber-500", title: "text-amber-800", btn: "bg-amber-600 hover:bg-amber-700" },
-            { bg: "bg-pink-100", border: "border-pink-300", accent: "border-l-pink-500", title: "text-pink-800", btn: "bg-pink-600 hover:bg-pink-700" },
-            { bg: "bg-teal-100", border: "border-teal-300", accent: "border-l-teal-500", title: "text-teal-800", btn: "bg-teal-600 hover:bg-teal-700" },
-            { bg: "bg-indigo-100", border: "border-indigo-300", accent: "border-l-indigo-500", title: "text-indigo-800", btn: "bg-indigo-600 hover:bg-indigo-700" },
-            { bg: "bg-orange-100", border: "border-orange-300", accent: "border-l-orange-500", title: "text-orange-800", btn: "bg-orange-600 hover:bg-orange-700" },
+            { icon: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200", header: "bg-blue-600", title: "text-white", empBorder: "border-l-blue-400", btn: "bg-blue-600 hover:bg-blue-700" },
+            { icon: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", header: "bg-emerald-600", title: "text-white", empBorder: "border-l-emerald-400", btn: "bg-emerald-600 hover:bg-emerald-700" },
+            { icon: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200", header: "bg-purple-600", title: "text-white", empBorder: "border-l-purple-400", btn: "bg-purple-600 hover:bg-purple-700" },
+            { icon: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200", header: "bg-amber-600", title: "text-white", empBorder: "border-l-amber-400", btn: "bg-amber-600 hover:bg-amber-700" },
+            { icon: "text-rose-600", bg: "bg-rose-50", border: "border-rose-200", header: "bg-rose-600", title: "text-white", empBorder: "border-l-rose-400", btn: "bg-rose-600 hover:bg-rose-700" },
+            { icon: "text-cyan-600", bg: "bg-cyan-50", border: "border-cyan-200", header: "bg-cyan-600", title: "text-white", empBorder: "border-l-cyan-400", btn: "bg-cyan-600 hover:bg-cyan-700" },
+            { icon: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-200", header: "bg-indigo-600", title: "text-white", empBorder: "border-l-indigo-400", btn: "bg-indigo-600 hover:bg-indigo-700" },
+            { icon: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200", header: "bg-orange-600", title: "text-white", empBorder: "border-l-orange-400", btn: "bg-orange-600 hover:bg-orange-700" },
         ];
         var wrapper = document.createElement("div");
         wrapper.className = "grid grid-cols-1 md:grid-cols-2 gap-5";
@@ -2994,31 +3040,37 @@ async function loadDeliveryBoard() {
             var iconSvg = getCategoryIcon(cat.category);
             var pendingCount = cat.total_pending;
             var availCount = cat.available;
-            var escName = function(s) { return (s || "").replace(/'/g, "\\'"); };
-            var cardHtml = '<div class="' + c.bg + ' ' + c.border + ' ' + c.accent + ' rounded-lg border shadow-md p-4">';
-            cardHtml += '<div class="flex items-start gap-3 mb-3">';
-            cardHtml += '<div class="text-gray-600 shrink-0 mt-0.5">' + iconSvg + '</div>';
+            var hasAvail = availCount > 0;
+            var escName = function(s) { return (s || "").replace(/'/g, "\\'").replace(/"/g, "&quot;"); };
+            var cardHtml = '<div class="' + c.bg + ' ' + c.border + ' rounded-lg border shadow-md overflow-hidden">';
+            cardHtml += '<div class="' + c.header + ' px-4 py-3 flex items-center gap-3">';
+            cardHtml += '<div class="text-white/90 shrink-0">' + iconSvg + '</div>';
             cardHtml += '<div class="flex-1 min-w-0">';
-            cardHtml += '<div class="flex justify-between items-start gap-2">';
             cardHtml += '<h3 class="text-base font-bold ' + c.title + ' truncate">' + cat.category + '</h3>';
-            cardHtml += '<span class="text-xs font-bold text-gray-600 whitespace-nowrap shrink-0 bg-white/60 px-2 py-0.5 rounded">' + pendingCount + ' pendiente' + (pendingCount !== 1 ? 's' : '') + '</span>';
             cardHtml += '</div>';
-            cardHtml += '<div class="text-xs text-gray-500 mt-0.5">' + availCount + ' disponible' + (availCount !== 1 ? 's' : '') + ' en almacen</div>';
+            cardHtml += '<div class="text-right shrink-0">';
+            cardHtml += '<div class="text-xs ' + (hasAvail ? 'text-green-200' : 'text-red-200') + ' font-bold">' + (hasAvail ? '\u2713 ' : '\u2717 ') + availCount + ' disponible' + (availCount !== 1 ? 's' : '') + '</div>';
+            cardHtml += '<div class="text-xs text-white/70 font-semibold">' + pendingCount + ' pendiente' + (pendingCount !== 1 ? 's' : '') + '</div>';
             cardHtml += '</div></div>';
-            cardHtml += '<div class="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">';
+            cardHtml += '<div class="p-3 space-y-2 max-h-[520px] overflow-y-auto">';
             cat.employees.forEach(function(emp) {
                 var safePerson = escName(emp.person_name);
                 var safeCat = escName(cat.category);
-                cardHtml += '<div class="bg-white rounded-lg p-3 border border-gray-200 shadow-sm border-l-2 border-l-gray-300">';
+                var notesAttr = (emp.notes || "").replace(/"/g, "&quot;");
+                cardHtml += '<div class="bg-white rounded-lg p-3 border border-gray-200 shadow-sm border-l-2 ' + c.empBorder + '">';
                 cardHtml += '<div class="flex justify-between items-start">';
                 cardHtml += '<span class="text-sm font-bold text-gray-800">' + emp.person_name + '</span>';
-                cardHtml += '<span class="text-xs font-bold text-gray-500 whitespace-nowrap ml-2">' + emp.pending + ' pendiente' + (emp.pending !== 1 ? 's' : '') + '</span>';
+                cardHtml += '<span class="text-xs font-bold text-gray-500 whitespace-nowrap ml-2 bg-gray-100 px-2 py-0.5 rounded">Faltan ' + emp.pending + '</span>';
                 cardHtml += '</div>';
                 if (emp.notes) {
-                    cardHtml += '<div class="text-xs text-gray-400 italic mt-1.5">' + emp.notes + '</div>';
+                    cardHtml += '<div class="text-xs text-gray-400 italic mt-1.5 truncate" title="' + notesAttr + '">' + emp.notes + '</div>';
                 }
                 cardHtml += '<div class="flex gap-1.5 mt-2.5">';
-                cardHtml += '<button onclick=\'openFulfillModal(' + emp.delivery_id + ',"' + safeCat + '","' + safePerson + '")\' class="flex-1 ' + c.btn + ' text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm transition-colors cursor-pointer"' + (availCount === 0 ? ' disabled' : '') + '>Asignar</button>';
+                if (hasAvail) {
+                    cardHtml += '<button onclick=\'openFulfillModal(' + emp.delivery_id + ',"' + safeCat + '","' + safePerson + '",' + emp.pending + ')\' class="flex-1 ' + c.btn + ' text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm transition-colors cursor-pointer">Asignar</button>';
+                } else {
+                    cardHtml += '<button disabled class="flex-1 bg-gray-300 text-gray-500 text-xs font-bold py-1.5 px-3 rounded cursor-not-allowed" title="No hay activos disponibles en esta categoria">Asignar</button>';
+                }
                 cardHtml += '<button onclick="cancelPending(' + emp.delivery_id + ')" class="bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold py-1.5 px-3 rounded border border-red-300 transition-colors cursor-pointer">Cancelar</button>';
                 cardHtml += '</div></div>';
             });
@@ -3074,9 +3126,46 @@ async function loadDeliveryEmployees() {
     }
 }
 
-async function openFulfillModal(deliveryId, category, personName) {
+async function loadDeliveryByCategory() {
+    const tbody = document.getElementById("deliveryByCategoryBody");
+    tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">Cargando...</td></tr>';
+    try {
+        const res = await api("/deliveries/summary");
+        if (!res.ok) throw new Error("Error");
+        const data = await res.json();
+        tbody.innerHTML = "";
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 italic">No hay entregas pendientes activas.</td></tr>';
+            return;
+        }
+        var total = 0;
+        data.forEach(function(cat) {
+            total += cat.total_pending;
+            var empCount = cat.employees.length;
+            var empNames = cat.employees.map(function(e) { return e.person_name; }).join(", ");
+            var hasAvail = cat.available > 0;
+            var row = document.createElement("tr");
+            row.className = "hover:bg-blue-50/50 transition-colors";
+            row.innerHTML = `
+                <td class="px-4 py-4 font-bold text-gray-800">${cat.category}</td>
+                <td class="px-4 py-4 text-gray-600">${cat.total_pending}</td>
+                <td class="px-4 py-4 text-gray-500 max-w-[200px] truncate" title="${empNames.replace(/"/g, "&quot;")}">${empCount} empleado${empCount !== 1 ? 's' : ''}</td>
+                <td class="px-4 py-4 text-center"><span class="text-xs font-bold ${hasAvail ? 'text-green-600' : 'text-red-500'}">${hasAvail ? '\u2713 ' : '\u2717 '}${cat.available}</span></td>
+                <td class="px-4 py-4 text-center">
+                    <button onclick="showSection('deliveryBoard')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-blue-300 transition-colors cursor-pointer">Ver en Tablero</button>
+                </td>`;
+            tbody.appendChild(row);
+        });
+        document.getElementById("deliveryCatTotalPending").textContent = total;
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion</td></tr>';
+    }
+}
+
+async function openFulfillModal(deliveryId, category, personName, pending) {
     document.getElementById("fulfillDeliveryId").value = deliveryId;
     document.getElementById("fulfillInfo").textContent = `Asignar ${category} a ${personName}`;
+    document.getElementById("fulfillSubtitle").textContent = pending ? `Faltan ${pending} por asignar` : "";
     const tbody = document.getElementById("fulfillAssetsBody");
     tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-400 italic">Cargando activos disponibles...</td></tr>';
     document.getElementById("fulfillModal").classList.remove("hidden");
@@ -3090,15 +3179,20 @@ async function openFulfillModal(deliveryId, category, personName) {
             tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-amber-600 font-medium">No hay activos disponibles de esta categoria.</td></tr>';
             return;
         }
+        document.getElementById("fulfillAvailCount").textContent = filtered.length + " activo" + (filtered.length !== 1 ? "s" : "") + " disponible" + (filtered.length !== 1 ? "s" : "");
         filtered.forEach(a => {
             const row = document.createElement("tr");
-            row.className = "hover:bg-blue-50/50 transition-colors";
+            row.className = "hover:bg-blue-50/50 transition-colors cursor-pointer";
+            row.addEventListener("click", function () {
+                var rb = this.querySelector('input[type="radio"]');
+                if (rb) rb.checked = true;
+            });
             row.innerHTML = `
-                <td class="px-3 py-2"><input type="radio" name="fulfill_asset" value="${a.id}" class="cursor-pointer"></td>
-                <td class="px-3 py-2 font-mono font-bold">${a.asset_tag_id}</td>
+                <td class="px-3 py-2"><input type="radio" name="fulfill_asset" value="${a.id}"></td>
+                <td class="px-3 py-2 font-mono font-bold text-gray-800">${a.asset_tag_id}</td>
                 <td class="px-3 py-2 text-gray-600">${a.asset_description}</td>
                 <td class="px-3 py-2 text-gray-500">${a.brand} ${a.model}</td>
-                <td class="px-3 py-2 font-mono text-gray-400">${a.serial_no}</td>`;
+                <td class="px-3 py-2 font-mono text-gray-400 text-[10px]">${a.serial_no}</td>`;
             tbody.appendChild(row);
         });
     } catch (e) {
@@ -3108,6 +3202,8 @@ async function openFulfillModal(deliveryId, category, personName) {
 
 function closeFulfillModal() {
     document.getElementById("fulfillModal").classList.add("hidden");
+    document.getElementById("fulfillAvailCount").textContent = "";
+    document.getElementById("fulfillSubtitle").textContent = "";
 }
 
 async function submitFulfill() {

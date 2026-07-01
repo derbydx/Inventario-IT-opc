@@ -181,6 +181,11 @@ async function loadDropdownData() {
         const resAdmins = await api("/admins/");
         if (resAdmins.ok) {
             globalAdmins = await resAdmins.json();
+            const adminFilter = document.getElementById("histAdminId");
+            if (adminFilter) {
+                adminFilter.innerHTML = '<option value="">Todos</option>';
+                globalAdmins.forEach(a => { adminFilter.innerHTML += `<option value="${a.id}">${escapeHtml(a.username)}</option>`; });
+            }
         }
     } catch (e) { console.error(e); }
     initAutocomplete("modal_person_search", "modal_person_id", "modal_person_results");
@@ -1081,18 +1086,63 @@ async function triggerDeleteAsset(assetId, assetTag) {
     } catch (e) { alert("Error."); }
 }
 
+function getHistoryFilterParams(search) {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    const dateFrom = document.getElementById("histDateFrom")?.value;
+    const dateTo = document.getElementById("histDateTo")?.value;
+    const actionType = document.getElementById("histActionType")?.value;
+    const adminId = document.getElementById("histAdminId")?.value;
+    const personId = document.getElementById("histPersonId")?.value;
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
+    if (actionType) params.set("action_type", actionType);
+    if (adminId) params.set("admin_id", adminId);
+    if (personId) params.set("person_id", personId);
+    return params;
+}
+
+function viewPersonHistory(personId, personName) {
+    document.getElementById("histPersonId").value = personId;
+    document.getElementById("histDateFrom").value = "";
+    document.getElementById("histDateTo").value = "";
+    document.getElementById("histActionType").value = "";
+    document.getElementById("histAdminId").value = "";
+    showSection("history");
+    currentHistoryPage = 1;
+    loadHistory();
+}
+
+function applyHistoryFilters() {
+    currentHistoryPage = 1;
+    loadHistory();
+}
+
+function clearHistoryFilters() {
+    document.getElementById("histDateFrom").value = "";
+    document.getElementById("histDateTo").value = "";
+    document.getElementById("histActionType").value = "";
+    document.getElementById("histAdminId").value = "";
+    document.getElementById("histPersonId").value = "";
+    currentHistoryPage = 1;
+    loadHistory();
+}
+
 async function loadHistory(search) {
     const historyBody = document.getElementById("historyTableBody");
     const pageSize = parseInt(document.getElementById("historyPageSize").value);
     const pageInfo = document.getElementById("historyPageInfo");
     const pageInfoAux = document.getElementById("historyPageInfoAux");
-    const prevBtn = document.querySelector("#historySection .flex.justify-between button:first-child");
-    const nextBtn = document.querySelector("#historySection .flex.justify-between button:last-child");
-    const searchParam = search || "";
+    const prevBtn = document.querySelector("#historySection .flex.justify-between.items-center button:first-child");
+    const nextBtn = document.querySelector("#historySection .flex.justify-between.items-center button:last-child");
+    const filterParams = getHistoryFilterParams(search);
+    filterParams.set("skip", (currentHistoryPage - 1) * pageSize);
+    filterParams.set("limit", pageSize);
     try {
+        const countParams = getHistoryFilterParams(search);
         const [countRes, listRes] = await Promise.all([
-            api(`/history/count/?search=${encodeURIComponent(searchParam)}`),
-            api(`/history/?search=${encodeURIComponent(searchParam)}&skip=${(currentHistoryPage - 1) * pageSize}&limit=${pageSize}`)
+            api(`/history/count/?${countParams.toString()}`),
+            api(`/history/?${filterParams.toString()}`)
         ]);
         if (!countRes.ok || !listRes.ok) throw new Error("Error");
         const countData = await countRes.json();
@@ -1126,11 +1176,34 @@ async function loadHistory(search) {
             detailCell.appendChild(detailSpan);
             const assetCell = item.asset_id ? `<td class="px-4 py-2 font-bold text-gray-700 align-top cursor-pointer hover:text-blue-600" onclick="openDetailsModal(${item.asset_id})">${assetObj ? assetObj.asset_tag_id : 'ID: ' + item.asset_id}</td>` : `<td class="px-4 py-2 text-gray-400 align-top italic">N/A</td>`;
             const empName = employeeObj ? escapeHtml(employeeObj.full_name) : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen');
-            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${escapeHtml(item.tipo_accion)}</td>${assetCell}<td class="px-4 py-2 text-gray-600 align-top">${empName}</td><td class="px-4 py-2 text-gray-600 align-top">Admin_${item.realizado_por_id}</td>`;
+            const operatorName = item.realizado_por ? escapeHtml(item.realizado_por) : `Admin_${item.realizado_por_id}`;
+            row.innerHTML = `<td class="px-4 py-2 text-gray-500 whitespace-nowrap align-top">${fecha}</td><td class="px-4 py-2 uppercase ${actionBadge} align-top">${escapeHtml(item.tipo_accion)}</td>${assetCell}<td class="px-4 py-2 text-gray-600 align-top">${empName}</td><td class="px-4 py-2 text-gray-600 align-top">${operatorName}</td>`;
             row.appendChild(detailCell);
             historyBody.appendChild(row);
         });
     } catch (e) { console.error(e); }
+}
+
+function exportHistoryCSV() {
+    const filterParams = getHistoryFilterParams("");
+    filterParams.set("limit", "5000");
+    api(`/history/?${filterParams.toString()}`).then(r => r.json()).then(data => {
+        if (!data.length) { showToast("No hay datos para exportar", "warning"); return; }
+        let csv = "\"Fecha\",\"Accion\",\"Asset ID\",\"Tag\",\"Involucrado\",\"Operador\",\"Detalle\"\n";
+        data.forEach(item => {
+            const assetObj = currentAssets.find(a => a.id === item.asset_id);
+            const employeeObj = globalPersons.find(p => p.id === item.asignado_a_id);
+            const fecha = new Date(item.fecha_accion).toLocaleString('es-ES');
+            const tag = assetObj ? assetObj.asset_tag_id : (item.asset_id || 'N/A');
+            const emp = employeeObj ? employeeObj.full_name : (item.asignado_a_id ? 'ID: ' + item.asignado_a_id : 'Almacen');
+            const op = item.realizado_por || 'Admin_' + item.realizado_por_id;
+            csv += `"${fecha}","${item.tipo_accion}","${item.asset_id || ''}","${tag}","${emp}","${op}","${(item.notas_detalle || '').replace(/"/g, '""')}"\n`;
+        });
+        const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;bom=true" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = "historial_auditoria.csv"; a.click();
+        URL.revokeObjectURL(url);
+    });
 }
 
 function showDetailModal(text) {
@@ -1203,8 +1276,9 @@ function renderEmployeesPage() {
                 <td data-col="site" class="px-4 py-4 text-gray-600">${site ? site.site_name : '-'}</td>
                 <td data-col="notes" class="px-4 py-4 text-gray-500">${p.notes || '-'}</td>
                 <td data-col="status" class="px-4 py-4 text-center">${statusBadge}</td>
-                <td class="px-4 py-4 text-center">
+                <td class="px-4 py-4 text-center whitespace-nowrap">
                     <button onclick="openEditPersonModal(${p.id})" class="bg-teal-100 hover:bg-teal-200 text-teal-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-teal-300 transition-colors cursor-pointer">Editar</button>
+                    <button onclick="viewPersonHistory(${p.id},'${p.full_name.replace(/'/g, "\\'")}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-blue-300 transition-colors cursor-pointer">Historial</button>
                 </td>`;
             tableBody.appendChild(row);
         });
@@ -1251,8 +1325,9 @@ function loadEmployeesInactives() {
             <td data-col="site" class="px-4 py-4 text-gray-600">${site ? site.site_name : '-'}</td>
             <td data-col="notes" class="px-4 py-4 text-gray-500">${escapeHtml(p.notes) || '-'}</td>
             <td data-col="status" class="px-4 py-4 text-center"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-300"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>Inactivo</span></td>
-            <td class="px-4 py-4 text-center">
+            <td class="px-4 py-4 text-center whitespace-nowrap">
                 <button onclick="openEditPersonModal(${p.id})" class="bg-teal-100 hover:bg-teal-200 text-teal-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-teal-300 transition-colors cursor-pointer">Editar</button>
+                <button onclick="viewPersonHistory(${p.id},'${(p.full_name || '').replace(/'/g, "\\'")}')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-[10px] uppercase py-1 px-2.5 rounded border border-blue-300 transition-colors cursor-pointer">Historial</button>
             </td>`;
         tableBody.appendChild(row);
     });

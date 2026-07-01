@@ -16,6 +16,7 @@ let currentHistoryPage = 1;
 let currentInactivePage = 1;
 let totalAssets = 0;
 let assetSort = { key: null, dir: null, original: [], exclude: ["Archived"] };
+let selectedAssetIds = new Set();
 
 function getToken() {
     try {
@@ -95,6 +96,9 @@ document.addEventListener("DOMContentLoaded", () => {
     setupGroupFormListener();
     setupStatusChangeFormListener();
     initScRepairAutocompletes();
+    setupBatchStatusFormListener();
+    setupBatchAssignFormListener();
+    initBatchPersonAutocomplete();
     initCrPersonAutocomplete();
     const sortHeaderRow = document.querySelector("#assetsSection thead tr");
     if (sortHeaderRow) {
@@ -308,7 +312,11 @@ function buildAssetRowHTML(asset, mode) {
             actionButton = `<button onclick="openModal('${asset.id}', '${asset.asset_tag_id}', 'checkout')" class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"><svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/></svg>Asignar</button>`;
         }
     }
+    const isChecked = selectedAssetIds.has(asset.id);
     return `
+        <td class="px-2 py-4 text-center" onclick="event.stopPropagation();">
+            <input type="checkbox" class="asset-checkbox cursor-pointer" value="${asset.id}" ${isChecked ? 'checked' : ''} onchange="toggleAssetSelection(${asset.id}, this.checked)">
+        </td>
         <td class="px-4 py-4 font-mono font-bold text-gray-700 group-hover:text-blue-600">${escapeHtml(asset.asset_tag_id)}</td>
         <td class="px-4 py-4 text-gray-600">${escapeHtml(asset.asset_description)}</td>
         <td class="px-4 py-4 text-gray-500">${escapeHtml(asset.brand)} ${escapeHtml(asset.model)}</td>
@@ -331,7 +339,8 @@ function buildAssetRowHTML(asset, mode) {
 function renderAssetTable(assets, tableBody, mode) {
     tableBody.innerHTML = "";
     if (assets.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="13" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>';
+        updateBatchToolbar();
         return;
     }
     assets.forEach(asset => {
@@ -342,6 +351,13 @@ function renderAssetTable(assets, tableBody, mode) {
         tableBody.appendChild(row);
     });
     applyColumnPreferences();
+    const selectAll = document.getElementById("selectAllCheckbox");
+    if (selectAll) {
+        const visibleCheckboxes = document.querySelectorAll("#assetsTableBody .asset-checkbox");
+        const checkedCheckboxes = document.querySelectorAll("#assetsTableBody .asset-checkbox:checked");
+        selectAll.checked = visibleCheckboxes.length > 0 && visibleCheckboxes.length === checkedCheckboxes.length;
+    }
+    updateBatchToolbar();
 }
 
 function getSortValue(asset, key) {
@@ -426,7 +442,7 @@ async function loadAssets() {
         tableBody.innerHTML = "";
         const activeAssets = currentAssets.filter(a => !assetSort.exclude.includes(a.status));
         if (activeAssets.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="13" class="px-4 py-6 text-center text-gray-400 italic">No hay activos vigentes en el inventario.</td></tr>';
             pageInfo.textContent = "mostrando 0-0 de 0";
             if (prevBtn) prevBtn.disabled = true;
             if (nextBtn) nextBtn.disabled = true;
@@ -439,7 +455,7 @@ async function loadAssets() {
         if (prevBtn) prevBtn.disabled = currentAssetPage <= 1;
         if (nextBtn) nextBtn.disabled = activeAssets.length < pageSize;
         renderAssetTable(activeAssets, tableBody);
-    } catch (e) { tableBody.innerHTML = '<tr><td colspan="12" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>'; }
+    } catch (e) { tableBody.innerHTML = '<tr><td colspan="13" class="px-4 py-6 text-center text-red-500 font-medium">Error de conexion con el servidor backend</td></tr>'; }
 }
 
 function getHistoryBadgeClass(action) {
@@ -720,6 +736,229 @@ function switchHistoryTab(tab) {
         historialDiv.classList.add("hidden");
         eventosDiv.classList.remove("hidden");
     }
+}
+
+// ==========================================
+// BATCH OPERATIONS
+// ==========================================
+function toggleAssetSelection(assetId, checked) {
+    if (checked) {
+        selectedAssetIds.add(assetId);
+    } else {
+        selectedAssetIds.delete(assetId);
+    }
+    const selectAll = document.getElementById("selectAllCheckbox");
+    if (selectAll) {
+        const visible = document.querySelectorAll("#assetsTableBody .asset-checkbox");
+        const checkedBoxes = document.querySelectorAll("#assetsTableBody .asset-checkbox:checked");
+        selectAll.checked = visible.length > 0 && visible.length === checkedBoxes.length;
+    }
+    updateBatchToolbar();
+}
+
+function toggleSelectAllAssets() {
+    const selectAll = document.getElementById("selectAllCheckbox");
+    const checkboxes = document.querySelectorAll("#assetsTableBody .asset-checkbox");
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll.checked;
+        const id = parseInt(cb.value);
+        if (selectAll.checked) {
+            selectedAssetIds.add(id);
+        } else {
+            selectedAssetIds.delete(id);
+        }
+    });
+    updateBatchToolbar();
+}
+
+function clearAssetSelection() {
+    selectedAssetIds.clear();
+    document.querySelectorAll("#assetsTableBody .asset-checkbox").forEach(cb => cb.checked = false);
+    const selectAll = document.getElementById("selectAllCheckbox");
+    if (selectAll) selectAll.checked = false;
+    updateBatchToolbar();
+}
+
+function updateBatchToolbar() {
+    const toolbar = document.getElementById("batchToolbar");
+    const countEl = document.getElementById("batchSelectedCount");
+    const count = selectedAssetIds.size;
+    if (countEl) countEl.textContent = count;
+    if (toolbar) {
+        toolbar.classList.toggle("hidden", count === 0);
+    }
+}
+
+function getSelectedAssetIds() {
+    return Array.from(selectedAssetIds);
+}
+
+function openBatchStatusModal() {
+    const ids = getSelectedAssetIds();
+    if (ids.length === 0) { showToast("Selecciona al menos un activo", "warning"); return; }
+    document.getElementById("batchStatusCount").textContent = ids.length;
+    document.getElementById("batch_new_status").value = "Available";
+    document.getElementById("batch_status_notas").value = "";
+    document.getElementById("batchStatusError").classList.add("hidden");
+    document.getElementById("batchStatusModal").classList.remove("hidden");
+}
+
+function closeBatchStatusModal() {
+    document.getElementById("batchStatusModal").classList.add("hidden");
+    document.getElementById("batchStatusForm").reset();
+    document.getElementById("batchStatusError").classList.add("hidden");
+}
+
+function openBatchAssignModal() {
+    const ids = getSelectedAssetIds();
+    if (ids.length === 0) { showToast("Selecciona al menos un activo", "warning"); return; }
+    document.getElementById("batchAssignCount").textContent = ids.length;
+    document.getElementById("batch_person_search").value = "";
+    document.getElementById("batch_person_id").value = "";
+    document.getElementById("batch_person_results").classList.add("hidden");
+    document.getElementById("batch_assign_notas").value = "";
+    document.getElementById("batchAssignError").classList.add("hidden");
+    document.getElementById("batchAssignModal").classList.remove("hidden");
+}
+
+function closeBatchAssignModal() {
+    document.getElementById("batchAssignModal").classList.add("hidden");
+    document.getElementById("batchAssignForm").reset();
+    document.getElementById("batchAssignError").classList.add("hidden");
+    document.getElementById("batch_person_results").classList.add("hidden");
+}
+
+async function doBatchCheckin() {
+    const ids = getSelectedAssetIds();
+    if (ids.length === 0) { showToast("Selecciona al menos un activo", "warning"); return; }
+    if (!confirm(`¿Devolver ${ids.length} activo(s) al almacen?`)) return;
+    try {
+        const res = await api("/batch/assets/checkin", {
+            method: "POST",
+            body: JSON.stringify({ asset_ids: ids })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            const msg = `${data.success.length} activo(s) devueltos.`;
+            if (data.errors.length) showToast(msg + ` ${data.errors.length} error(es).`, "warning");
+            else showToast(msg, "success");
+            clearAssetSelection();
+            loadAssets();
+            loadHistory();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(err.detail || "Error al procesar devolucion", "error");
+        }
+    } catch (e) { showToast("Error de conexion", "error"); }
+}
+
+function setupBatchStatusFormListener() {
+    document.getElementById("batchStatusForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("batchStatusSubmitBtn");
+        setLoading(btn, true);
+        const ids = getSelectedAssetIds();
+        const status = document.getElementById("batch_new_status").value;
+        const notas = document.getElementById("batch_status_notas").value;
+        try {
+            const res = await api("/batch/assets/status", {
+                method: "POST",
+                body: JSON.stringify({ asset_ids: ids, status, notas: notas || null })
+            });
+            setLoading(btn, false);
+            if (res.ok) {
+                const data = await res.json();
+                const msg = `${data.success.length} activo(s) actualizados a ${getStatusLabel(status)}.`;
+                if (data.errors.length) showToast(msg + ` ${data.errors.length} error(es).`, "warning");
+                else showToast(msg, "success");
+                closeBatchStatusModal();
+                clearAssetSelection();
+                loadAssets();
+                loadHistory();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                document.getElementById("batchStatusError").textContent = err.detail || "Error al cambiar estado";
+                document.getElementById("batchStatusError").classList.remove("hidden");
+            }
+        } catch (e) {
+            setLoading(btn, false);
+            document.getElementById("batchStatusError").textContent = "Error de conexion";
+            document.getElementById("batchStatusError").classList.remove("hidden");
+        }
+    });
+}
+
+function setupBatchAssignFormListener() {
+    document.getElementById("batchAssignForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("batchAssignSubmitBtn");
+        setLoading(btn, true);
+        const ids = getSelectedAssetIds();
+        const personId = document.getElementById("batch_person_id").value;
+        const notas = document.getElementById("batch_assign_notas").value;
+        if (!personId) {
+            setLoading(btn, false);
+            document.getElementById("batchAssignError").textContent = "Selecciona un empleado";
+            document.getElementById("batchAssignError").classList.remove("hidden");
+            return;
+        }
+        try {
+            const res = await api("/batch/assets/checkout", {
+                method: "POST",
+                body: JSON.stringify({ asset_ids: ids, person_id: parseInt(personId), notas: notas || null })
+            });
+            setLoading(btn, false);
+            if (res.ok) {
+                const data = await res.json();
+                const msg = `${data.success.length} activo(s) asignados.`;
+                if (data.errors.length) showToast(msg + ` ${data.errors.length} error(es).`, "warning");
+                else showToast(msg, "success");
+                closeBatchAssignModal();
+                clearAssetSelection();
+                loadAssets();
+                loadHistory();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                document.getElementById("batchAssignError").textContent = err.detail || "Error al asignar";
+                document.getElementById("batchAssignError").classList.remove("hidden");
+            }
+        } catch (e) {
+            setLoading(btn, false);
+            document.getElementById("batchAssignError").textContent = "Error de conexion";
+            document.getElementById("batchAssignError").classList.remove("hidden");
+        }
+    });
+}
+
+function initBatchPersonAutocomplete() {
+    const input = document.getElementById("batch_person_search");
+    const results = document.getElementById("batch_person_results");
+    const hidden = document.getElementById("batch_person_id");
+    if (!input) return;
+    let timer;
+    input.addEventListener("input", function() {
+        clearTimeout(timer);
+        const q = this.value.trim().toLowerCase();
+        if (q.length < 1) { results.classList.add("hidden"); return; }
+        timer = setTimeout(() => {
+            const matches = globalPersons.filter(p =>
+                p.is_active !== false &&
+                (p.full_name.toLowerCase().includes(q) || (p.employee_id && p.employee_id.toLowerCase().includes(q)) || (p.email && p.email.toLowerCase().includes(q)))
+            ).slice(0, 8);
+            if (matches.length === 0) { results.classList.add("hidden"); return; }
+            results.innerHTML = matches.map(p =>
+                `<div class="px-3 py-2 hover:bg-indigo-100 cursor-pointer text-xs" data-id="${p.id}" data-name="${p.full_name.replace(/"/g, '&quot;').replace(/'/g, "\\'")}">${escapeHtml(p.full_name)} ${p.employee_id ? '(' + escapeHtml(p.employee_id) + ')' : ''}</div>`
+            ).join("");
+            results.querySelectorAll("div").forEach(div => {
+                div.addEventListener("click", function() {
+                    hidden.value = this.getAttribute("data-id");
+                    input.value = this.getAttribute("data-name");
+                    results.classList.add("hidden");
+                });
+            });
+            results.classList.remove("hidden");
+        }, 200);
+    });
 }
 
 function changeAssetStatus(assetId, newStatus) {

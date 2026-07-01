@@ -3024,17 +3024,17 @@ async function loadDeliveryBoard() {
             return;
         }
         var palette = [
-            { icon: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200", header: "bg-blue-600", title: "text-white", empBorder: "border-l-blue-400", btn: "bg-blue-600 hover:bg-blue-700" },
-            { icon: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", header: "bg-emerald-600", title: "text-white", empBorder: "border-l-emerald-400", btn: "bg-emerald-600 hover:bg-emerald-700" },
-            { icon: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200", header: "bg-purple-600", title: "text-white", empBorder: "border-l-purple-400", btn: "bg-purple-600 hover:bg-purple-700" },
-            { icon: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200", header: "bg-amber-600", title: "text-white", empBorder: "border-l-amber-400", btn: "bg-amber-600 hover:bg-amber-700" },
-            { icon: "text-rose-600", bg: "bg-rose-50", border: "border-rose-200", header: "bg-rose-600", title: "text-white", empBorder: "border-l-rose-400", btn: "bg-rose-600 hover:bg-rose-700" },
-            { icon: "text-cyan-600", bg: "bg-cyan-50", border: "border-cyan-200", header: "bg-cyan-600", title: "text-white", empBorder: "border-l-cyan-400", btn: "bg-cyan-600 hover:bg-cyan-700" },
-            { icon: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-200", header: "bg-indigo-600", title: "text-white", empBorder: "border-l-indigo-400", btn: "bg-indigo-600 hover:bg-indigo-700" },
-            { icon: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200", header: "bg-orange-600", title: "text-white", empBorder: "border-l-orange-400", btn: "bg-orange-600 hover:bg-orange-700" },
+            { icon: "text-blue-600", empBorder: "border-l-blue-400", badge: "bg-blue-100" },
+            { icon: "text-emerald-600", empBorder: "border-l-emerald-400", badge: "bg-emerald-100" },
+            { icon: "text-purple-600", empBorder: "border-l-purple-400", badge: "bg-purple-100" },
+            { icon: "text-amber-600", empBorder: "border-l-amber-400", badge: "bg-amber-100" },
+            { icon: "text-rose-600", empBorder: "border-l-rose-400", badge: "bg-rose-100" },
+            { icon: "text-cyan-600", empBorder: "border-l-cyan-400", badge: "bg-cyan-100" },
+            { icon: "text-indigo-600", empBorder: "border-l-indigo-400", badge: "bg-indigo-100" },
+            { icon: "text-orange-600", empBorder: "border-l-orange-400", badge: "bg-orange-100" },
         ];
         var wrapper = document.createElement("div");
-        wrapper.className = "grid grid-cols-1 md:grid-cols-2 gap-5";
+        wrapper.className = "grid grid-cols-1 md:grid-cols-2 gap-5 items-start";
         data.forEach(function(cat, i) {
             var c = palette[i % palette.length];
             var iconSvg = getCategoryIcon(cat.category);
@@ -3042,14 +3042,14 @@ async function loadDeliveryBoard() {
             var availCount = cat.available;
             var hasAvail = availCount > 0;
             var escName = function(s) { return (s || "").replace(/'/g, "\\'").replace(/"/g, "&quot;"); };
-            var cardHtml = '<div class="' + c.bg + ' ' + c.border + ' rounded-lg border shadow-md overflow-hidden">';
-            cardHtml += '<div class="' + c.header + ' px-4 py-3 flex items-center gap-3">';
-            cardHtml += '<div class="text-white/90 shrink-0">' + iconSvg + '</div>';
+            var cardHtml = '<div class="bg-white border border-gray-200 rounded-lg shadow-md overflow-hidden">';
+            cardHtml += '<div class="bg-slate-700 px-4 py-3 flex items-center gap-3">';
+            cardHtml += '<div class="' + c.icon + ' shrink-0">' + iconSvg + '</div>';
             cardHtml += '<div class="flex-1 min-w-0">';
-            cardHtml += '<h3 class="text-base font-bold ' + c.title + ' truncate">' + cat.category + '</h3>';
+            cardHtml += '<h3 class="text-base font-bold text-white truncate">' + cat.category + '</h3>';
             cardHtml += '</div>';
             cardHtml += '<div class="text-right shrink-0">';
-            cardHtml += '<div class="text-xs ' + (hasAvail ? 'text-green-200' : 'text-red-200') + ' font-bold">' + (hasAvail ? '\u2713 ' : '\u2717 ') + availCount + ' disponible' + (availCount !== 1 ? 's' : '') + '</div>';
+            cardHtml += '<div class="text-xs ' + (hasAvail ? 'text-green-300' : 'text-red-300') + ' font-bold">' + (hasAvail ? '\u2713 ' : '\u2717 ') + availCount + ' disponible' + (availCount !== 1 ? 's' : '') + '</div>';
             cardHtml += '<div class="text-xs text-white/70 font-semibold">' + pendingCount + ' pendiente' + (pendingCount !== 1 ? 's' : '') + '</div>';
             cardHtml += '</div></div>';
             cardHtml += '<div class="p-3 space-y-2 max-h-[520px] overflow-y-auto">';
@@ -3060,14 +3060,14 @@ async function loadDeliveryBoard() {
                 cardHtml += '<div class="bg-white rounded-lg p-3 border border-gray-200 shadow-sm border-l-2 ' + c.empBorder + '">';
                 cardHtml += '<div class="flex justify-between items-start">';
                 cardHtml += '<span class="text-sm font-bold text-gray-800">' + emp.person_name + '</span>';
-                cardHtml += '<span class="text-xs font-bold text-gray-500 whitespace-nowrap ml-2 bg-gray-100 px-2 py-0.5 rounded">Faltan ' + emp.pending + '</span>';
+                cardHtml += '<span class="text-xs font-bold text-gray-700 whitespace-nowrap ml-2 ' + c.badge + ' px-2 py-0.5 rounded">Faltan ' + emp.pending + '</span>';
                 cardHtml += '</div>';
                 if (emp.notes) {
                     cardHtml += '<div class="text-xs text-gray-400 italic mt-1.5 truncate" title="' + notesAttr + '">' + emp.notes + '</div>';
                 }
                 cardHtml += '<div class="flex gap-1.5 mt-2.5">';
                 if (hasAvail) {
-                    cardHtml += '<button onclick=\'openFulfillModal(' + emp.delivery_id + ',"' + safeCat + '","' + safePerson + '",' + emp.pending + ')\' class="flex-1 ' + c.btn + ' text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm transition-colors cursor-pointer">Asignar</button>';
+                    cardHtml += '<button onclick=\'openFulfillModal(' + emp.delivery_id + ',"' + safeCat + '","' + safePerson + '",' + emp.pending + ')\' class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm transition-colors cursor-pointer">Asignar</button>';
                 } else {
                     cardHtml += '<button disabled class="flex-1 bg-gray-300 text-gray-500 text-xs font-bold py-1.5 px-3 rounded cursor-not-allowed" title="No hay activos disponibles en esta categoria">Asignar</button>';
                 }

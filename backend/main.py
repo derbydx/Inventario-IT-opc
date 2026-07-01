@@ -679,6 +679,113 @@ def change_asset_status(asset_id: int, body: schemas.AssetStatusUpdate, db: Sess
     db.refresh(asset)
     return {"message": f"Asset {asset.asset_tag_id} actualizado a {body.status}", "asset_status": asset.status}
 
+# ==========================================
+# BATCH OPERATIONS
+# ==========================================
+@app.post("/batch/assets/status", tags=["Acciones de Inventario"])
+def batch_asset_status(body: schemas.BatchStatusRequest, db: Session = Depends(get_db), current_admin: models.Admin = Depends(require_permission("can_edit"))):
+    success = []
+    errors = []
+    for asset_id in body.asset_ids:
+        asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+        if not asset:
+            errors.append({"asset_id": asset_id, "reason": "Activo no encontrado"})
+            continue
+        estado_anterior = asset.status
+        repair_statuses = ("Under repair", "GarantiaSD")
+        if body.status.value in repair_statuses:
+            asset.repair_reason = body.repair_reason
+            asset.repair_left_by_id = body.repair_left_by_id
+            asset.repair_technician_id = body.repair_technician_id
+        elif estado_anterior in repair_statuses:
+            asset.repair_reason = None
+            asset.repair_left_by_id = None
+            asset.repair_technician_id = None
+        if body.status.value != "Checkout":
+            if asset.person_id is not None:
+                asset.ultimo_asignado_id = asset.person_id
+            asset.person_id = None
+        asset.status = body.status.value
+        registro_historial = models.History(
+            asset_id=asset.id,
+            asignado_a_id=None,
+            realizado_por_id=current_admin.id,
+            tipo_accion=body.status.value,
+            estado_anterior=estado_anterior,
+            estado_nuevo=body.status.value,
+            notas_detalle=body.notas or f"Status cambiado de {estado_anterior} a {body.status.value}"
+        )
+        db.add(registro_historial)
+        success.append({"asset_id": asset_id, "asset_tag": asset.asset_tag_id})
+    db.commit()
+    return {"success": success, "errors": errors}
+
+@app.post("/batch/assets/checkout", tags=["Acciones de Inventario"])
+def batch_asset_checkout(body: schemas.BatchCheckoutRequest, db: Session = Depends(get_db), current_admin: models.Admin = Depends(require_permission("can_checkout"))):
+    person = db.query(models.Person).filter(models.Person.id == body.person_id).first()
+    if not person:
+        raise HTTPException(404, "Empleado no encontrado")
+    if not person.is_active:
+        raise HTTPException(400, "No se puede asignar un activo a un empleado inactivo")
+    success = []
+    errors = []
+    for asset_id in body.asset_ids:
+        asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+        if not asset:
+            errors.append({"asset_id": asset_id, "reason": "Activo no encontrado"})
+            continue
+        if asset.status == "Checkout":
+            errors.append({"asset_id": asset_id, "reason": "El activo ya se encuentra asignado"})
+            continue
+        estado_anterior = asset.status
+        asset.status = "Checkout"
+        asset.person_id = body.person_id
+        asset.ultimo_asignado_id = body.person_id
+        registro_historial = models.History(
+            asset_id=asset.id,
+            asignado_a_id=body.person_id,
+            realizado_por_id=current_admin.id,
+            tipo_accion="Checkout",
+            estado_anterior=estado_anterior,
+            estado_nuevo="Checkout",
+            notas_detalle=body.notas or f"Equipo asignado a {person.full_name}"
+        )
+        db.add(registro_historial)
+        success.append({"asset_id": asset_id, "asset_tag": asset.asset_tag_id})
+    db.commit()
+    return {"success": success, "errors": errors}
+
+@app.post("/batch/assets/checkin", tags=["Acciones de Inventario"])
+def batch_asset_checkin(body: schemas.BatchCheckinRequest, db: Session = Depends(get_db), current_admin: models.Admin = Depends(require_permission("can_checkout"))):
+    success = []
+    errors = []
+    for asset_id in body.asset_ids:
+        asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+        if not asset:
+            errors.append({"asset_id": asset_id, "reason": "Activo no encontrado"})
+            continue
+        if asset.status != "Checkout":
+            errors.append({"asset_id": asset_id, "reason": f"El activo no esta en Checkout (actual: {asset.status})"})
+            continue
+        estado_anterior = asset.status
+        persona_que_devuelve = asset.person_id
+        asset.ultimo_asignado_id = persona_que_devuelve
+        asset.status = body.nuevo_estado
+        asset.person_id = None
+        registro_historial = models.History(
+            asset_id=asset.id,
+            asignado_a_id=persona_que_devuelve,
+            realizado_por_id=current_admin.id,
+            tipo_accion="Check in",
+            estado_anterior=estado_anterior,
+            estado_nuevo=body.nuevo_estado,
+            notas_detalle=body.notas or f"Equipo recibido en almacen con estado: {body.nuevo_estado}"
+        )
+        db.add(registro_historial)
+        success.append({"asset_id": asset_id, "asset_tag": asset.asset_tag_id})
+    db.commit()
+    return {"success": success, "errors": errors}
+
 @app.get("/history/", response_model=List[schemas.HistoryResponse], tags=["Acciones de Inventario"])
 def view_history(
     search: str = None,

@@ -345,3 +345,21 @@ class AssetStatusUpdate(BaseModel):
     repair_reason: Optional[str] = None
     repair_left_by_id: Optional[int] = None
     repair_technician_id: Optional[int] = None
+
+class BatchStatusRequest(BaseModel):
+    asset_ids: List[int]
+    status: AssetStatus
+    notas: Optional[str] = None
+    repair_reason: Optional[str] = None
+    repair_left_by_id: Optional[int] = None
+    repair_technician_id: Optional[int] = None
+
+class BatchCheckoutRequest(BaseModel):
+    asset_ids: List[int]
+    person_id: int
+    notas: Optional[str] = None
+
+class BatchCheckinRequest(BaseModel):
+    asset_ids: List[int]
+    nuevo_estado: str = "Available"
+    notas: Optional[str] = None

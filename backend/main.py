@@ -146,6 +146,20 @@ app.add_middleware(
 )
 
 # ==========================================
+# MIDDLEWARE: PREVENIR CACHÉ EN API
+# ==========================================
+from starlette.middleware.base import BaseHTTPMiddleware
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/api/") or request.url.path.startswith("/history") or request.url.path.startswith("/assets") or request.url.path.startswith("/admins") or request.url.path.startswith("/persons") or request.url.path.startswith("/categories") or request.url.path.startswith("/departments") or request.url.path.startswith("/sites") or request.url.path.startswith("/export") or request.url.path.startswith("/import") or request.url.path.startswith("/employees"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+app.add_middleware(NoCacheMiddleware)
+
+# ==========================================
 # CAPTURADOR GLOBAL DE ERRORES
 # ==========================================
 @app.exception_handler(Exception)
@@ -167,8 +181,6 @@ def health_check():
 # ==========================================
 # STATIC FILES - catch-all for frontend SPA
 # ==========================================
-from starlette.middleware.base import BaseHTTPMiddleware
-
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 class SPAStaticFiles(BaseHTTPMiddleware):
@@ -177,10 +189,10 @@ class SPAStaticFiles(BaseHTTPMiddleware):
         if response.status_code == 404 and request.method in ("GET", "HEAD"):
             file_path = os.path.join(FRONTEND_DIR, request.url.path.lstrip("/"))
             if os.path.isfile(file_path):
-                return FileResponse(file_path)
+                return FileResponse(file_path, headers={"Cache-Control": "no-cache, must-revalidate"})
             index_path = os.path.join(FRONTEND_DIR, "index.html")
             if os.path.isfile(index_path):
-                return FileResponse(index_path)
+                return FileResponse(index_path, headers={"Cache-Control": "no-cache, must-revalidate"})
         return response
 
 app.add_middleware(SPAStaticFiles)
@@ -315,6 +327,15 @@ def create_person(person: schemas.PersonCreate, db: Session = Depends(get_db), a
     db.add(nueva_persona)
     db.commit()
     db.refresh(nueva_persona)
+
+    registro = models.History(
+        realizado_por_id=admin.id,
+        tipo_accion="Created",
+        notas_detalle=f"Persona creada: {nueva_persona.full_name} ({nueva_persona.employee_id})",
+        asignado_a_id=nueva_persona.id
+    )
+    db.add(registro)
+    db.commit()
     return nueva_persona
 
 @app.get("/persons/", response_model=List[schemas.PersonResponse], tags=["Directorio de Personal"])
@@ -345,9 +366,25 @@ def update_person(person_id: int, person: schemas.PersonUpdate, db: Session = De
     if person.employee_id:
         existing = db.query(models.Person).filter(models.Person.employee_id == person.employee_id, models.Person.id != person_id).first()
         if existing: raise HTTPException(400, "El Employee ID ya esta en uso por otro empleado")
-    for k, v in person.model_dump(exclude_unset=True).items():
+    changed = []
+    update_data = person.model_dump(exclude_unset=True)
+    for k, v in update_data.items():
+        old_val = getattr(db_person, k)
+        if old_val != v:
+            changed.append(f"{k}: '{old_val}' -> '{v}'")
         setattr(db_person, k, v)
-    db.commit(); db.refresh(db_person)
+    db.commit()
+    db.refresh(db_person)
+
+    if changed:
+        registro = models.History(
+            realizado_por_id=admin.id,
+            tipo_accion="Modified",
+            notas_detalle=f"Persona {db_person.full_name} modificada: {'; '.join(changed)}",
+            asignado_a_id=db_person.id
+        )
+        db.add(registro)
+        db.commit()
     return db_person
 
 # ==========================================
@@ -363,6 +400,16 @@ def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), admi
     db.add(nuevo_activo)
     db.commit()
     db.refresh(nuevo_activo)
+
+    registro_historial = models.History(
+        asset_id=nuevo_activo.id,
+        realizado_por_id=admin.id,
+        tipo_accion="Created",
+        estado_nuevo=nuevo_activo.status,
+        notas_detalle=f"Activo creado: {nuevo_activo.asset_description}"
+    )
+    db.add(registro_historial)
+    db.commit()
     return nuevo_activo
 
 @app.get("/assets/", response_model=List[schemas.AssetResponse], tags=["Gestión de Activos"])
@@ -635,22 +682,54 @@ def change_asset_status(asset_id: int, body: schemas.AssetStatusUpdate, db: Sess
 @app.get("/history/", response_model=List[schemas.HistoryResponse], tags=["Acciones de Inventario"])
 def view_history(
     search: str = None,
+    action_type: str = None,
+    date_from: str = None,
+    date_to: str = None,
+    asset_id: int = None,
+    person_id: int = None,
+    admin_id: int = None,
     skip: int = 0,
     limit: int = 200,
     db: Session = Depends(get_db)
 ):
-    query = db.query(models.History)
+    query = db.query(models.History, models.Admin.username.label("admin_username")).outerjoin(
+        models.Admin, models.History.realizado_por_id == models.Admin.id
+    )
     if search:
         like = f"%{search}%"
         query = query.filter(
             models.History.tipo_accion.like(like) |
             models.History.notas_detalle.like(like)
         )
-    return query.order_by(models.History.id.desc()).offset(skip).limit(limit).all()
+    if action_type:
+        query = query.filter(models.History.tipo_accion == action_type)
+    if date_from:
+        query = query.filter(models.History.fecha_accion >= datetime.strptime(date_from, "%Y-%m-%d"))
+    if date_to:
+        query = query.filter(models.History.fecha_accion <= datetime.strptime(date_to + " 23:59:59", "%Y-%m-%d %H:%M:%S"))
+    if asset_id:
+        query = query.filter(models.History.asset_id == asset_id)
+    if person_id:
+        query = query.filter(models.History.asignado_a_id == person_id)
+    if admin_id:
+        query = query.filter(models.History.realizado_por_id == admin_id)
+    rows = query.order_by(models.History.id.desc()).offset(skip).limit(limit).all()
+    result = []
+    for h, admin_username in rows:
+        d = {c.name: getattr(h, c.name) for c in h.__table__.columns}
+        d["realizado_por"] = admin_username
+        result.append(d)
+    return result
 
 @app.get("/history/count/", tags=["Acciones de Inventario"])
 def count_history(
     search: str = None,
+    action_type: str = None,
+    date_from: str = None,
+    date_to: str = None,
+    asset_id: int = None,
+    person_id: int = None,
+    admin_id: int = None,
     db: Session = Depends(get_db)
 ):
     query = db.query(models.History)
@@ -660,6 +739,18 @@ def count_history(
             models.History.tipo_accion.like(like) |
             models.History.notas_detalle.like(like)
         )
+    if action_type:
+        query = query.filter(models.History.tipo_accion == action_type)
+    if date_from:
+        query = query.filter(models.History.fecha_accion >= datetime.strptime(date_from, "%Y-%m-%d"))
+    if date_to:
+        query = query.filter(models.History.fecha_accion <= datetime.strptime(date_to + " 23:59:59", "%Y-%m-%d %H:%M:%S"))
+    if asset_id:
+        query = query.filter(models.History.asset_id == asset_id)
+    if person_id:
+        query = query.filter(models.History.asignado_a_id == person_id)
+    if admin_id:
+        query = query.filter(models.History.realizado_por_id == admin_id)
     return {"count": query.count()}
 
 # ==========================================

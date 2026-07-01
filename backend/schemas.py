@@ -194,12 +194,13 @@ class HistoryResponse(BaseModel):
     id: int
     fecha_accion: datetime
     tipo_accion: str
-    estado_anterior: str
-    estado_nuevo: str
-    notas_detalle: Optional[str] = None  # Mapeado con tu base de datos
+    estado_anterior: Optional[str] = None
+    estado_nuevo: Optional[str] = None
+    notas_detalle: Optional[str] = None
     asset_id: Optional[int] = None
     asignado_a_id: Optional[int] = None
-    realizado_por_id: int
+    realizado_por_id: Optional[int] = None
+    realizado_por: Optional[str] = None
     class Config:
         from_attributes = True
 
